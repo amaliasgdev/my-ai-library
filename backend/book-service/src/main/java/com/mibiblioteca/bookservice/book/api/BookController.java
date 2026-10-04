@@ -3,6 +3,7 @@ package com.mibiblioteca.bookservice.book.api;
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -52,6 +54,14 @@ public class BookController {
     @PutMapping("/{id}")
     public BookResponse update(@PathVariable Long id, @Valid @RequestBody BookRequest request) {
         return bookService.update(id, request);
+    }
+
+    @PatchMapping("/{id}/reading-status")
+    public BookResponse updateReadingStatus(
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateReadingStatusRequest request
+    ) {
+        return bookService.updateReadingStatus(id, request);
     }
 
     @DeleteMapping("/{id}")

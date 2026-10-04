@@ -3,6 +3,7 @@ package com.mibiblioteca.bookservice.book.service;
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
@@ -91,6 +92,13 @@ public class BookService {
     }
 
     @Transactional
+    public BookResponse updateReadingStatus(Long id, UpdateReadingStatusRequest request) {
+        Book book = bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+        book.setReadingStatus(request.readingStatus());
+        return toResponse(bookRepository.save(book));
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {
             throw new BookNotFoundException(id);
@@ -132,7 +140,8 @@ public class BookService {
             book.getIsbn(),
             book.getDescription(),
             book.getCreatedAt(),
-            book.getUpdatedAt()
+            book.getUpdatedAt(),
+            book.getReadingStatus()
         );
     }
 }

@@ -1,7 +1,10 @@
 package com.mibiblioteca.bookservice.book.persistence;
 
+import com.mibiblioteca.bookservice.book.ReadingStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,6 +32,10 @@ public class Book {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reading_status", nullable = false, length = 20)
+    private ReadingStatus readingStatus = ReadingStatus.TO_READ;
 
     @Column(nullable = false)
     private Instant createdAt;
@@ -74,6 +81,14 @@ public class Book {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public ReadingStatus getReadingStatus() {
+        return readingStatus;
+    }
+
+    public void setReadingStatus(ReadingStatus readingStatus) {
+        this.readingStatus = readingStatus;
     }
 
     public Instant getCreatedAt() {

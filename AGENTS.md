@@ -444,6 +444,9 @@ Verified:
 - Flyway is configured
 - Git repository is configured
 - main and develop branches exist
+- Basic Book CRUD is implemented
+- Book search is implemented
+- Flyway migrations: V1 (book table), V2 (reading status)
 
 ---
 
@@ -451,7 +454,9 @@ Verified:
 
 Book CRUD is completed.
 
-The current planned functionality is book search.
+Book search is completed.
+
+The current planned functionality is book reading status.
 
 Initial Book fields:
 
@@ -463,6 +468,7 @@ isbn
 description
 createdAt
 updatedAt
+readingStatus
 ```
 
 Current CRUD endpoints:
@@ -504,6 +510,23 @@ search request DTO
 validation
 tests
 ```
+
+Reading status rules:
+
+```text
+TO_READ (default)
+READING
+READ
+ABANDONED
+```
+
+Update endpoint:
+
+```text
+PATCH /api/books/{id}/reading-status
+```
+
+Persist enums as STRING. When the allowed values need database enforcement, add a CHECK constraint through a new Flyway migration.
 
 Do not implement additional fields or relationships unless requested.
 
