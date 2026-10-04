@@ -449,7 +449,9 @@ Verified:
 
 ## Current planned feature
 
-The next planned functionality is a basic Book CRUD.
+Book CRUD is completed.
+
+The current planned functionality is book search.
 
 Initial Book fields:
 
@@ -463,7 +465,7 @@ createdAt
 updatedAt
 ```
 
-Planned endpoints:
+Current CRUD endpoints:
 
 ```text
 POST   /api/books
@@ -473,18 +475,33 @@ PUT    /api/books/{id}
 DELETE /api/books/{id}
 ```
 
-Expected components:
+Search endpoints planned:
 
 ```text
-Flyway migration
-Book entity
+GET /api/books/search?title=...
+GET /api/books/search?author=...
+GET /api/books/search?isbn=...
+GET /api/books/search?title=...&author=...
+```
+
+Search rules planned:
+
+```text
+- title and author: partial + case-insensitive
+- title + author combined with AND
+- isbn: exact match over normalized value
+- isbn cannot be combined with title/author
+- no search criteria returns 400
+```
+
+Expected search components:
+
+```text
 BookRepository
 BookService
 BookController
-request DTOs
-response DTOs
+search request DTO
 validation
-basic exception handling
 tests
 ```
 
