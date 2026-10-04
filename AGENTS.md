@@ -446,7 +446,8 @@ Verified:
 - main and develop branches exist
 - Basic Book CRUD is implemented
 - Book search is implemented
-- Flyway migrations: V1 (book table), V2 (reading status)
+- Book reading status is implemented
+- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating)
 
 ---
 
@@ -456,7 +457,9 @@ Book CRUD is completed.
 
 Book search is completed.
 
-The current planned functionality is book reading status.
+Book reading status is completed.
+
+The current planned functionality is book rating.
 
 Initial Book fields:
 
@@ -469,6 +472,7 @@ description
 createdAt
 updatedAt
 readingStatus
+rating
 ```
 
 Current CRUD endpoints:
@@ -479,9 +483,12 @@ GET    /api/books
 GET    /api/books/{id}
 PUT    /api/books/{id}
 DELETE /api/books/{id}
+PATCH  /api/books/{id}/reading-status
+PUT    /api/books/{id}/rating
+DELETE /api/books/{id}/rating
 ```
 
-Search endpoints planned:
+Search endpoints:
 
 ```text
 GET /api/books/search?title=...
@@ -500,7 +507,7 @@ Search rules planned:
 - no search criteria returns 400
 ```
 
-Expected search components:
+Search components:
 
 ```text
 BookRepository
@@ -526,7 +533,18 @@ Update endpoint:
 PATCH /api/books/{id}/reading-status
 ```
 
+Rating rules:
+
+```text
+- Optional integer from 1 to 5
+- null means not rated
+- PUT /api/books/{id}/rating sets a rating
+- DELETE /api/books/{id}/rating clears it
+- The rating is independent of reading status
+```
+
 Persist enums as STRING. When the allowed values need database enforcement, add a CHECK constraint through a new Flyway migration.
+Optional constrained fields such as rating should also be protected with a database CHECK constraint.
 
 Do not implement additional fields or relationships unless requested.
 

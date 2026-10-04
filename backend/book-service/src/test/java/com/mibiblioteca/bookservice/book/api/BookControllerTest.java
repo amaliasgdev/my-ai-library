@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.service.BookService;
@@ -43,7 +44,9 @@ class BookControllerTest {
             "9780132350884",
             "A classic",
             Instant.now(),
-            Instant.now()
+            Instant.now(),
+            ReadingStatus.TO_READ,
+            null
         );
         when(bookService.create(any(BookRequest.class))).thenReturn(response);
 
@@ -84,14 +87,14 @@ class BookControllerTest {
     @Test
     void getAllShouldReturn200() throws Exception {
         when(bookService.findAll())
-            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now())));
+            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null)));
 
         mockMvc.perform(get("/api/books")).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
     void updateShouldReturn200() throws Exception {
-        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now());
+        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null);
         when(bookService.update(eq(1L), any(BookRequest.class))).thenReturn(response);
 
         mockMvc

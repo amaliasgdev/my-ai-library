@@ -11,17 +11,7 @@ public record BookResponse(
     String description,
     Instant createdAt,
     Instant updatedAt,
-    ReadingStatus readingStatus
+    ReadingStatus readingStatus,
+    Integer rating
 ) {
-    public BookResponse(
-        Long id,
-        String title,
-        String author,
-        String isbn,
-        String description,
-        Instant createdAt,
-        Instant updatedAt
-    ) {
-        this(id, title, author, isbn, description, createdAt, updatedAt, ReadingStatus.TO_READ);
-    }
 }

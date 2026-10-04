@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
+import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
 import java.time.Instant;
@@ -28,7 +29,7 @@ class BookSearchControllerTest {
     @Test
     void searchShouldReturn200() throws Exception {
         when(bookService.search(any()))
-            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now())));
+            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null)));
 
         mockMvc.perform(get("/api/books/search").param("title", "clean")).andExpect(status().isOk());
     }

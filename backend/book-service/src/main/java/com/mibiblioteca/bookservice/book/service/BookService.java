@@ -4,6 +4,7 @@ import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
@@ -99,6 +100,20 @@ public class BookService {
     }
 
     @Transactional
+    public BookResponse updateRating(Long id, UpdateRatingRequest request) {
+        Book book = bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+        book.setRating(request.rating());
+        return toResponse(bookRepository.save(book));
+    }
+
+    @Transactional
+    public void clearRating(Long id) {
+        Book book = bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+        book.setRating(null);
+        bookRepository.save(book);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {
             throw new BookNotFoundException(id);
@@ -141,7 +156,8 @@ public class BookService {
             book.getDescription(),
             book.getCreatedAt(),
             book.getUpdatedAt(),
-            book.getReadingStatus()
+            book.getReadingStatus(),
+            book.getRating()
         );
     }
 }

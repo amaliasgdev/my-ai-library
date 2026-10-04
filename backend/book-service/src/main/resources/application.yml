@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: book-service
+  jackson:
+    deserialization:
+      accept-float-as-int: false
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/bookdb}
     username: ${DB_USER:booksvc}
