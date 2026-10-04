@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.book.api;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
+import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -36,6 +37,11 @@ public class BookController {
     @GetMapping
     public List<BookResponse> findAll() {
         return bookService.findAll();
+    }
+
+    @GetMapping("/search")
+    public List<BookResponse> search(@Valid BookSearchRequest request) {
+        return bookService.search(request);
     }
 
     @GetMapping("/{id}")

@@ -2,10 +2,12 @@ package com.mibiblioteca.bookservice.book.service;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
+import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
+import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,34 @@ public class BookService {
     public BookResponse findById(Long id) {
         Book book = bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
         return toResponse(book);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookResponse> search(BookSearchRequest request) {
+        String title = normalizeText(request.title());
+        String author = normalizeText(request.author());
+        String isbn = normalizeIsbn(request.isbn());
+
+        if (isbn != null && (title != null || author != null)) {
+            throw new InvalidSearchCriteriaException("isbn cannot be combined with title or author");
+        }
+
+        if (isbn == null && title == null && author == null) {
+            throw new InvalidSearchCriteriaException("At least one search criterion is required");
+        }
+
+        List<Book> books;
+        if (isbn != null) {
+            books = bookRepository.findByIsbn(isbn);
+        } else if (title != null && author != null) {
+            books = bookRepository.findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(title, author);
+        } else if (title != null) {
+            books = bookRepository.findByTitleContainingIgnoreCase(title);
+        } else {
+            books = bookRepository.findByAuthorContainingIgnoreCase(author);
+        }
+
+        return books.stream().map(this::toResponse).toList();
     }
 
     @Transactional
@@ -84,7 +114,14 @@ public class BookService {
         if (isbn == null || isbn.isBlank()) {
             return null;
         }
-        return isbn.replace("-", "").replace(" ", "").trim();
+        return isbn.replace("-", "").replace(" ", "").trim().toUpperCase();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private BookResponse toResponse(Book book) {
