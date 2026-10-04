@@ -37,6 +37,9 @@ public class Book {
     @Column(name = "reading_status", nullable = false, length = 20)
     private ReadingStatus readingStatus = ReadingStatus.TO_READ;
 
+    @Column
+    private Integer rating;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -89,6 +92,14 @@ public class Book {
 
     public void setReadingStatus(ReadingStatus readingStatus) {
         this.readingStatus = readingStatus;
+    }
+
+    public Integer getRating() {
+        return rating;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
     }
 
     public Instant getCreatedAt() {

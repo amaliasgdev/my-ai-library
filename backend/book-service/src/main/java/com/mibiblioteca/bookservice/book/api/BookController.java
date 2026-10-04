@@ -4,6 +4,7 @@ import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -62,6 +63,17 @@ public class BookController {
         @Valid @RequestBody UpdateReadingStatusRequest request
     ) {
         return bookService.updateReadingStatus(id, request);
+    }
+
+    @PutMapping("/{id}/rating")
+    public BookResponse updateRating(@PathVariable Long id, @Valid @RequestBody UpdateRatingRequest request) {
+        return bookService.updateRating(id, request);
+    }
+
+    @DeleteMapping("/{id}/rating")
+    public ResponseEntity<Void> clearRating(@PathVariable Long id) {
+        bookService.clearRating(id);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
