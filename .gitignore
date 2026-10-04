@@ -1,0 +1,37 @@
+# Maven / Java
+target/
+*.class
+*.log
+*.jar
+*.war
+hs_err_pid*
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+.apt_generated/
+.factorypath
+bin/
+
+# Archivos locales y secretos
+.env
+.env.*
+!.env.example
+*.local
+application-local.yml
+application-local.properties
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
