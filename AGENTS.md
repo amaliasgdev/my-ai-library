@@ -466,7 +466,9 @@ Book rating is completed.
 
 Book reading dates are completed.
 
-The current planned functionality is OpenAPI documentation.
+OpenAPI documentation is completed.
+
+The current planned functionality is book pagination.
 
 Initial Book fields:
 
@@ -488,7 +490,7 @@ Current CRUD endpoints:
 
 ```text
 POST   /api/books
-GET    /api/books
+GET    /api/books?page=0&size=20&sortBy=title&direction=ASC
 GET    /api/books/{id}
 PUT    /api/books/{id}
 DELETE /api/books/{id}
@@ -568,6 +570,16 @@ Reading dates rules:
 - finish-reading: TO_READ or READING -> READ
 - PATCH /reading-status does not change dates
 - ABANDONED preserves existing dates
+```
+
+Pagination rules:
+
+```text
+- GET /api/books returns BookPageResponse, not a JSON array
+- Defaults: page=0, size=20, sortBy=title, direction=ASC
+- page is zero-based; size must be 1 to 100
+- sortBy is limited to id, title, author, createdAt, updatedAt, readingStatus, rating, startedOn, finishedOn
+- id ASC is used as a secondary sort except when sortBy=id
 ```
 
 Do not implement additional fields or relationships unless requested.
