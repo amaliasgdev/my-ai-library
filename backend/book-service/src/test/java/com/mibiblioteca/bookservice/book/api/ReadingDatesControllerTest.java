@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +13,7 @@ import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -21,29 +22,33 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(BookController.class)
-class RatingControllerTest {
+class ReadingDatesControllerTest {
     @Autowired private MockMvc mockMvc;
     @MockBean private BookService bookService;
 
     @Test
-    void updateRatingShouldReturn200() throws Exception {
-        when(bookService.updateRating(eq(1L), any()))
-            .thenReturn(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, 5, null, null));
+    void startReadingShouldReturn200() throws Exception {
+        when(bookService.startReading(eq(1L), any()))
+            .thenReturn(response(LocalDate.of(2026, 10, 4), null, ReadingStatus.READING));
 
-        mockMvc.perform(put("/api/books/1/rating").contentType(MediaType.APPLICATION_JSON).content("{\"rating\":5}"))
+        mockMvc.perform(post("/api/books/1/start-reading").contentType(MediaType.APPLICATION_JSON).content("{\"date\":\"2026-10-04\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rating").value(5));
+            .andExpect(jsonPath("$.startedOn").value("2026-10-04"));
     }
 
     @Test
-    void updateRatingShouldReturn400ForDecimal() throws Exception {
-        mockMvc.perform(put("/api/books/1/rating").contentType(MediaType.APPLICATION_JSON).content("{\"rating\":4.5}"))
+    void startReadingShouldReturn400WithoutDate() throws Exception {
+        mockMvc.perform(post("/api/books/1/start-reading").contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isBadRequest());
     }
 
     @Test
-    void clearRatingShouldReturn204() throws Exception {
-        doNothing().when(bookService).clearRating(1L);
-        mockMvc.perform(delete("/api/books/1/rating")).andExpect(status().isNoContent());
+    void clearReadingDatesShouldReturn204() throws Exception {
+        doNothing().when(bookService).clearReadingDates(1L);
+        mockMvc.perform(delete("/api/books/1/reading-dates")).andExpect(status().isNoContent());
+    }
+
+    private BookResponse response(LocalDate startedOn, LocalDate finishedOn, ReadingStatus status) {
+        return new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), status, null, startedOn, finishedOn);
     }
 }

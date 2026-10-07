@@ -447,7 +447,9 @@ Verified:
 - Basic Book CRUD is implemented
 - Book search is implemented
 - Book reading status is implemented
-- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating)
+- Book rating is implemented
+- Book reading dates are implemented
+- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates)
 
 ---
 
@@ -461,6 +463,10 @@ Book reading status is completed.
 
 The current planned functionality is book rating.
 
+Book rating is completed.
+
+The current planned functionality is book reading dates.
+
 Initial Book fields:
 
 ```text
@@ -473,6 +479,8 @@ createdAt
 updatedAt
 readingStatus
 rating
+startedOn
+finishedOn
 ```
 
 Current CRUD endpoints:
@@ -486,6 +494,10 @@ DELETE /api/books/{id}
 PATCH  /api/books/{id}/reading-status
 PUT    /api/books/{id}/rating
 DELETE /api/books/{id}/rating
+POST   /api/books/{id}/start-reading
+POST   /api/books/{id}/finish-reading
+PUT    /api/books/{id}/reading-dates
+DELETE /api/books/{id}/reading-dates
 ```
 
 Search endpoints:
@@ -545,6 +557,17 @@ Rating rules:
 
 Persist enums as STRING. When the allowed values need database enforcement, add a CHECK constraint through a new Flyway migration.
 Optional constrained fields such as rating should also be protected with a database CHECK constraint.
+
+Reading dates rules:
+
+```text
+- startedOn and finishedOn are LocalDate values persisted as DATE
+- finishedOn cannot be earlier than startedOn
+- start-reading: TO_READ -> READING
+- finish-reading: TO_READ or READING -> READ
+- PATCH /reading-status does not change dates
+- ABANDONED preserves existing dates
+```
 
 Do not implement additional fields or relationships unless requested.
 

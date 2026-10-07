@@ -5,6 +5,8 @@ import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
+import com.mibiblioteca.bookservice.book.dto.ReadingDateRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateReadingDatesRequest;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -73,6 +75,30 @@ public class BookController {
     @DeleteMapping("/{id}/rating")
     public ResponseEntity<Void> clearRating(@PathVariable Long id) {
         bookService.clearRating(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/start-reading")
+    public BookResponse startReading(@PathVariable Long id, @Valid @RequestBody ReadingDateRequest request) {
+        return bookService.startReading(id, request);
+    }
+
+    @PostMapping("/{id}/finish-reading")
+    public BookResponse finishReading(@PathVariable Long id, @Valid @RequestBody ReadingDateRequest request) {
+        return bookService.finishReading(id, request);
+    }
+
+    @PutMapping("/{id}/reading-dates")
+    public BookResponse updateReadingDates(
+        @PathVariable Long id,
+        @RequestBody UpdateReadingDatesRequest request
+    ) {
+        return bookService.updateReadingDates(id, request);
+    }
+
+    @DeleteMapping("/{id}/reading-dates")
+    public ResponseEntity<Void> clearReadingDates(@PathVariable Long id) {
+        bookService.clearReadingDates(id);
         return ResponseEntity.noContent().build();
     }
 
