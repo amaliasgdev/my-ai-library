@@ -450,6 +450,7 @@ Verified:
 - Book rating is implemented
 - Book reading dates are implemented
 - Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates)
+- OpenAPI documentation is available
 
 ---
 
@@ -461,11 +462,11 @@ Book search is completed.
 
 Book reading status is completed.
 
-The current planned functionality is book rating.
-
 Book rating is completed.
 
-The current planned functionality is book reading dates.
+Book reading dates are completed.
+
+The current planned functionality is OpenAPI documentation.
 
 Initial Book fields:
 
@@ -570,6 +571,17 @@ Reading dates rules:
 ```
 
 Do not implement additional fields or relationships unless requested.
+
+---
+
+## API documentation
+
+- Swagger UI: `/swagger-ui.html`
+- OpenAPI JSON: `/v3/api-docs`
+- Spring Boot 3.x uses `springdoc-openapi-starter-webmvc-ui` 2.x. Do not use springdoc 3.x unless Spring Boot is migrated to 4.x.
+- Add `@Operation` and the relevant error `@ApiResponse` annotations to every new REST endpoint.
+- Do not duplicate validation constraints or obvious parameter metadata that springdoc infers from Spring MVC and Jakarta Validation.
+- Update `OpenApiDocumentationTest` when API routes change.
 
 ---
 
