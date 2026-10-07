@@ -14,9 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
+import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.service.BookService;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
+import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -88,10 +90,32 @@ class BookControllerTest {
 
     @Test
     void getAllShouldReturn200() throws Exception {
-        when(bookService.findAll())
-            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null)));
+        when(bookService.findAll(0, 20, "title", org.springframework.data.domain.Sort.Direction.ASC))
+            .thenReturn(new BookPageResponse(
+                List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null)),
+                0,
+                20,
+                1,
+                1
+            ));
 
-        mockMvc.perform(get("/api/books")).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(1));
+        mockMvc.perform(get("/api/books"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].id").value(1))
+            .andExpect(jsonPath("$.page").value(0))
+            .andExpect(jsonPath("$.size").value(20));
+    }
+
+    @Test
+    void getAllShouldReturn400ForInvalidPaginationParameters() throws Exception {
+        mockMvc.perform(get("/api/books").param("page", "-1")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/books").param("size", "101")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/books").param("page", "not-a-number")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/books").param("direction", "SIDEWAYS")).andExpect(status().isBadRequest());
+
+        when(bookService.findAll(0, 20, "description", org.springframework.data.domain.Sort.Direction.ASC))
+            .thenThrow(new InvalidSortParameterException("description"));
+        mockMvc.perform(get("/api/books").param("sortBy", "description")).andExpect(status().isBadRequest());
     }
 
     @Test
