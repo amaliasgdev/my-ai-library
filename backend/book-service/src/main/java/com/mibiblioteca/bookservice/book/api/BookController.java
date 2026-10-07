@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.book.api;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
+import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
@@ -16,9 +17,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -54,8 +59,27 @@ public class BookController {
 
     @GetMapping
     @Operation(summary = "List all books")
-    public List<BookResponse> findAll() {
-        return bookService.findAll();
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Paged book list",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = BookPageResponse.class)
+            )
+        ),
+        @ApiResponse(responseCode = "400", ref = "BadRequest")
+    })
+    public BookPageResponse findAll(
+        @Parameter(description = "Zero-based page number", example = "0")
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @Parameter(description = "Page size from 1 to 100", example = "20")
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+        @Parameter(description = "Sort field", example = "title", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"id", "title", "author", "createdAt", "updatedAt", "readingStatus", "rating", "startedOn", "finishedOn"}))
+        @RequestParam(defaultValue = "title") String sortBy,
+        @Parameter(description = "Sort direction", example = "ASC", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"ASC", "DESC"}))
+        @RequestParam(defaultValue = "ASC") Sort.Direction direction
+    ) {
+        return bookService.findAll(page, size, sortBy, direction);
     }
 
     @GetMapping("/search")

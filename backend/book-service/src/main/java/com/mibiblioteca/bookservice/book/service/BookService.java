@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.book.service;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
+import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
@@ -15,9 +16,13 @@ import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
 import com.mibiblioteca.bookservice.common.exception.InvalidReadingDatesException;
 import com.mibiblioteca.bookservice.common.exception.InvalidReadingTransitionException;
+import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -45,8 +50,17 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookResponse> findAll() {
-        return bookRepository.findAll().stream().map(this::toResponse).toList();
+    public BookPageResponse findAll(int page, int size, String sortBy, Sort.Direction direction) {
+        Sort sort = createSort(sortBy, direction);
+        Page<Book> books = bookRepository.findAll(PageRequest.of(page, size, sort));
+
+        return new BookPageResponse(
+            books.getContent().stream().map(this::toResponse).toList(),
+            books.getNumber(),
+            books.getSize(),
+            books.getTotalElements(),
+            books.getTotalPages()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -198,6 +212,22 @@ public class BookService {
             return null;
         }
         return isbn.replace("-", "").replace(" ", "").trim().toUpperCase();
+    }
+
+    private Sort createSort(String sortBy, Sort.Direction direction) {
+        if (!isAllowedSortBy(sortBy)) {
+            throw new InvalidSortParameterException(sortBy);
+        }
+
+        Sort sort = Sort.by(direction, sortBy);
+        return "id".equals(sortBy) ? sort : sort.and(Sort.by(Sort.Direction.ASC, "id"));
+    }
+
+    private boolean isAllowedSortBy(String sortBy) {
+        return switch (sortBy) {
+            case "id", "title", "author", "createdAt", "updatedAt", "readingStatus", "rating", "startedOn", "finishedOn" -> true;
+            default -> false;
+        };
     }
 
     private String normalizeText(String value) {
