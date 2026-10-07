@@ -30,9 +30,13 @@ class OpenApiDocumentationTest {
             .andExpect(jsonPath("$.paths['/api/books/{id}'].delete.responses['204']").exists())
             .andExpect(jsonPath("$.paths['/api/books/{id}/reading-dates'].put").exists())
             .andExpect(jsonPath("$.paths['/api/books/search'].get.parameters[?(@.name == 'title')]").exists())
+            .andExpect(jsonPath("$.components.schemas.ProblemDetail").exists())
             .andExpect(jsonPath("$.components.responses.BadRequest").exists())
             .andExpect(jsonPath("$.components.responses.NotFound").exists())
-            .andExpect(jsonPath("$.components.responses.Conflict").exists());
+            .andExpect(jsonPath("$.components.responses.Conflict").exists())
+            .andExpect(jsonPath("$.components.responses.BadRequest.content['application/problem+json'].schema.$ref").value("#/components/schemas/ProblemDetail"))
+            .andExpect(jsonPath("$.components.responses.NotFound.content['application/problem+json'].schema.$ref").value("#/components/schemas/ProblemDetail"))
+            .andExpect(jsonPath("$.components.responses.Conflict.content['application/problem+json'].schema.$ref").value("#/components/schemas/ProblemDetail"));
     }
 
     @Test
