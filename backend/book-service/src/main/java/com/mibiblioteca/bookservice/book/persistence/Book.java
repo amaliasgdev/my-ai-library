@@ -12,6 +12,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "book")
@@ -39,6 +40,12 @@ public class Book {
 
     @Column
     private Integer rating;
+
+    @Column(name = "started_on")
+    private LocalDate startedOn;
+
+    @Column(name = "finished_on")
+    private LocalDate finishedOn;
 
     @Column(nullable = false)
     private Instant createdAt;
@@ -100,6 +107,22 @@ public class Book {
 
     public void setRating(Integer rating) {
         this.rating = rating;
+    }
+
+    public LocalDate getStartedOn() {
+        return startedOn;
+    }
+
+    public void setStartedOn(LocalDate startedOn) {
+        this.startedOn = startedOn;
+    }
+
+    public LocalDate getFinishedOn() {
+        return finishedOn;
+    }
+
+    public void setFinishedOn(LocalDate finishedOn) {
+        this.finishedOn = finishedOn;
     }
 
     public Instant getCreatedAt() {

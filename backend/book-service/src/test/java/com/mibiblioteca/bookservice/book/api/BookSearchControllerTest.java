@@ -29,7 +29,7 @@ class BookSearchControllerTest {
     @Test
     void searchShouldReturn200() throws Exception {
         when(bookService.search(any()))
-            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null)));
+            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null)));
 
         mockMvc.perform(get("/api/books/search").param("title", "clean")).andExpect(status().isOk());
     }

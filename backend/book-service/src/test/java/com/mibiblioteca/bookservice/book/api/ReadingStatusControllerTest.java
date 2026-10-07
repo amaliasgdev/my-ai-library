@@ -26,7 +26,7 @@ class ReadingStatusControllerTest {
     @Test
     void patchReadingStatusShouldReturn200() throws Exception {
         when(bookService.updateReadingStatus(eq(1L), any()))
-            .thenReturn(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.READING, null));
+            .thenReturn(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.READING, null, null, null));
 
         mockMvc.perform(patch("/api/books/1/reading-status")
                 .contentType(MediaType.APPLICATION_JSON)

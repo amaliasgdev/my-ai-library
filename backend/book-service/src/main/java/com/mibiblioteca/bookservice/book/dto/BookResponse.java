@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.book.dto;
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import java.time.Instant;
+import java.time.LocalDate;
 
 public record BookResponse(
     Long id,
@@ -12,6 +13,8 @@ public record BookResponse(
     Instant createdAt,
     Instant updatedAt,
     ReadingStatus readingStatus,
-    Integer rating
+    Integer rating,
+    LocalDate startedOn,
+    LocalDate finishedOn
 ) {
 }

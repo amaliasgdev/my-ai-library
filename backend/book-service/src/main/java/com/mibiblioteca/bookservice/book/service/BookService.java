@@ -5,11 +5,17 @@ import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
+import com.mibiblioteca.bookservice.book.dto.ReadingDateRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateReadingDatesRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
+import com.mibiblioteca.bookservice.common.exception.InvalidReadingDatesException;
+import com.mibiblioteca.bookservice.common.exception.InvalidReadingTransitionException;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,6 +120,50 @@ public class BookService {
     }
 
     @Transactional
+    public BookResponse startReading(Long id, ReadingDateRequest request) {
+        Book book = findBook(id);
+        if (book.getReadingStatus() != ReadingStatus.TO_READ) {
+            throw new InvalidReadingTransitionException("A book can only be started from TO_READ status");
+        }
+        validateDateOrder(request.date(), book.getFinishedOn());
+        book.setStartedOn(request.date());
+        book.setReadingStatus(ReadingStatus.READING);
+        return toResponse(bookRepository.save(book));
+    }
+
+    @Transactional
+    public BookResponse finishReading(Long id, ReadingDateRequest request) {
+        Book book = findBook(id);
+        if (book.getReadingStatus() != ReadingStatus.TO_READ && book.getReadingStatus() != ReadingStatus.READING) {
+            throw new InvalidReadingTransitionException("A book can only be finished from TO_READ or READING status");
+        }
+        validateDateOrder(book.getStartedOn(), request.date());
+        book.setFinishedOn(request.date());
+        book.setReadingStatus(ReadingStatus.READ);
+        return toResponse(bookRepository.save(book));
+    }
+
+    @Transactional
+    public BookResponse updateReadingDates(Long id, UpdateReadingDatesRequest request) {
+        if (request.startedOn() == null && request.finishedOn() == null) {
+            throw new InvalidReadingDatesException("At least one reading date is required");
+        }
+        validateDateOrder(request.startedOn(), request.finishedOn());
+        Book book = findBook(id);
+        book.setStartedOn(request.startedOn());
+        book.setFinishedOn(request.finishedOn());
+        return toResponse(bookRepository.save(book));
+    }
+
+    @Transactional
+    public void clearReadingDates(Long id) {
+        Book book = findBook(id);
+        book.setStartedOn(null);
+        book.setFinishedOn(null);
+        bookRepository.save(book);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {
             throw new BookNotFoundException(id);
@@ -124,6 +174,16 @@ public class BookService {
     private void validateUniqueIsbnForCreate(String isbn) {
         if (isbn != null && bookRepository.existsByIsbn(isbn)) {
             throw new DuplicateIsbnException(isbn);
+        }
+    }
+
+    private Book findBook(Long id) {
+        return bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+    }
+
+    private void validateDateOrder(LocalDate startedOn, LocalDate finishedOn) {
+        if (startedOn != null && finishedOn != null && finishedOn.isBefore(startedOn)) {
+            throw new InvalidReadingDatesException("finishedOn cannot be earlier than startedOn");
         }
     }
 
@@ -157,7 +217,9 @@ public class BookService {
             book.getCreatedAt(),
             book.getUpdatedAt(),
             book.getReadingStatus(),
-            book.getRating()
+            book.getRating(),
+            book.getStartedOn(),
+            book.getFinishedOn()
         );
     }
 }

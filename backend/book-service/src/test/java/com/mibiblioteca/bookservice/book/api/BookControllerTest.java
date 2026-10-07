@@ -46,6 +46,8 @@ class BookControllerTest {
             Instant.now(),
             Instant.now(),
             ReadingStatus.TO_READ,
+            null,
+            null,
             null
         );
         when(bookService.create(any(BookRequest.class))).thenReturn(response);
@@ -87,14 +89,14 @@ class BookControllerTest {
     @Test
     void getAllShouldReturn200() throws Exception {
         when(bookService.findAll())
-            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null)));
+            .thenReturn(List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null)));
 
         mockMvc.perform(get("/api/books")).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
     void updateShouldReturn200() throws Exception {
-        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null);
+        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null);
         when(bookService.update(eq(1L), any(BookRequest.class))).thenReturn(response);
 
         mockMvc
