@@ -18,6 +18,8 @@ import com.mibiblioteca.bookservice.common.exception.InvalidReadingDatesExceptio
 import com.mibiblioteca.bookservice.common.exception.InvalidReadingTransitionException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +46,7 @@ public class BookService {
         book.setIsbn(normalizedIsbn);
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
+        applyMetadata(book, request);
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -103,6 +106,7 @@ public class BookService {
         book.setIsbn(normalizedIsbn);
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
+        applyMetadata(book, request);
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -243,6 +247,15 @@ public class BookService {
         return value.trim();
     }
 
+    private void applyMetadata(Book book, BookRequest request) {
+        String publisher = request.publisher() == null ? null : request.publisher().trim();
+        book.setPublisher(publisher == null || publisher.isEmpty() ? null : publisher);
+        book.setPublicationYear(request.publicationYear());
+        book.setPageCount(request.pageCount());
+        book.setLanguage(request.language() == null ? null : request.language().toLowerCase(Locale.ROOT));
+        book.setGenres(request.genres() == null ? List.of() : request.genres().stream().map(String::trim).toList());
+    }
+
     private BookResponse toResponse(Book book) {
         return new BookResponse(
             book.getId(),
@@ -256,7 +269,12 @@ public class BookService {
             book.getRating(),
             book.getStartedOn(),
             book.getFinishedOn(),
-            book.getCoverUrl()
+            book.getCoverUrl(),
+            book.getPublisher(),
+            book.getPublicationYear(),
+            book.getPageCount(),
+            book.getLanguage(),
+            book.getGenres()
         );
     }
 }

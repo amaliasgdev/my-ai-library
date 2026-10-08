@@ -46,7 +46,7 @@ class BookSearchControllerTest {
     void searchShouldReturn200() throws Exception {
         when(bookService.search(any(), eq(0), eq(20), eq("title"), eq(Sort.Direction.ASC)))
             .thenReturn(new BookPageResponse(
-                List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null)),
+                List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null, null, null, null, null, null)),
                 0,
                 20,
                 1,

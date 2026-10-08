@@ -13,6 +13,10 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "book")
@@ -36,6 +40,22 @@ public class Book {
 
     @Column(name = "cover_url", length = 2048)
     private String coverUrl;
+
+    @Column(length = 255)
+    private String publisher;
+
+    @Column(name = "publication_year")
+    private Integer publicationYear;
+
+    @Column(name = "page_count")
+    private Integer pageCount;
+
+    @Column(length = 2)
+    private String language;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(nullable = false, columnDefinition = "VARCHAR(50)[]")
+    private List<String> genres = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reading_status", nullable = false, length = 20)
@@ -102,6 +122,46 @@ public class Book {
 
     public void setCoverUrl(String coverUrl) {
         this.coverUrl = coverUrl;
+    }
+
+    public String getPublisher() {
+        return publisher;
+    }
+
+    public void setPublisher(String publisher) {
+        this.publisher = publisher;
+    }
+
+    public Integer getPublicationYear() {
+        return publicationYear;
+    }
+
+    public void setPublicationYear(Integer publicationYear) {
+        this.publicationYear = publicationYear;
+    }
+
+    public Integer getPageCount() {
+        return pageCount;
+    }
+
+    public void setPageCount(Integer pageCount) {
+        this.pageCount = pageCount;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public List<String> getGenres() {
+        return genres;
+    }
+
+    public void setGenres(List<String> genres) {
+        this.genres = genres == null ? new ArrayList<>() : new ArrayList<>(genres);
     }
 
     public ReadingStatus getReadingStatus() {
