@@ -4,10 +4,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { testBook, testBookRequest } from '../../models/book.testing';
 import { BookCreate } from './book-create';
+import { BookForm } from '../../components/book-form/book-form';
 
 describe('BookCreate', () => {
   let fixture: ComponentFixture<BookCreate>;
-  let component: BookCreate;
+  let component: BookForm;
+  let page: BookCreate;
   let element: HTMLElement;
   let http: HttpTestingController;
   let navigate: ReturnType<typeof vi.spyOn>;
@@ -20,9 +22,10 @@ describe('BookCreate', () => {
     http = TestBed.inject(HttpTestingController);
     navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     fixture = TestBed.createComponent(BookCreate);
-    component = fixture.componentInstance;
+    page = fixture.componentInstance;
     element = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
+    component = page.editor();
   });
 
   afterEach(() => http.verify());
@@ -231,6 +234,7 @@ describe('BookCreate', () => {
     component.genreInput.setValue('Fantasía');
     component.addGenre();
     component.submit();
+    fixture.detectChanges();
     component.removeGenre(0);
     expect(component.form.controls.genres.length).toBe(1);
     http.expectOne('/api/books').flush({}, { status: 500, statusText: 'Error' });
@@ -266,7 +270,7 @@ describe('BookCreate', () => {
     validForm();
     component.submit();
     http.expectOne('/api/books').error(new ProgressEvent('error'));
-    expect(component.generalError()).toBe('No se puede conectar con el servidor');
+    expect(page.generalError()).toBe('No se puede conectar con el servidor');
     http.expectNone('/api/books');
     component.submit();
     http.expectOne('/api/books').flush(testBook());
@@ -323,7 +327,7 @@ describe('BookCreate', () => {
       validForm();
       component.submit();
       http.expectOne('/api/books').flush(body, { status: 400, statusText: 'Bad Request' });
-      expect(component.generalError()).toBe('Revisa los campos indicados');
+      expect(page.generalError()).toBe('Revisa los campos indicados');
       expect(component.form.controls.title.hasError('server')).toBe(false);
     },
   );

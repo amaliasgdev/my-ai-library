@@ -20,6 +20,37 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it('should GET an individual book by id and return BookResponse', () => {
+    let result: BookResponse | undefined;
+    service.getBook(42).subscribe((book) => (result = book));
+    const request = http.expectOne('/api/books/42');
+    expect(request.request.method).toBe('GET');
+    request.flush(testBook({ id: 42 }));
+    expect(result?.id).toBe(42);
+  });
+
+  it('should PUT the complete BookRequest unchanged and return BookResponse', () => {
+    const body = testBookRequest({ genres: ['Aventura'], coverUrl: 'https://example.test/a%20b' });
+    let result: BookResponse | undefined;
+    service.updateBook(42, body).subscribe((book) => (result = book));
+    const request = http.expectOne('/api/books/42');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(body);
+    request.flush(testBook({ id: 42 }));
+    expect(result?.id).toBe(42);
+  });
+
+  it.each(['GET', 'PUT'])('should propagate %s by-id errors unchanged', (method) => {
+    let error: HttpErrorResponse | undefined;
+    const observable =
+      method === 'GET' ? service.getBook(42) : service.updateBook(42, testBookRequest());
+    observable.subscribe({ error: (value: HttpErrorResponse) => (error = value) });
+    const problem = { detail: 'Internal message', status: 404 };
+    http.expectOne('/api/books/42').flush(problem, { status: 404, statusText: 'Not Found' });
+    expect(error?.status).toBe(404);
+    expect(error?.error).toEqual(problem);
+  });
+
   it('should POST the complete BookRequest unchanged and return BookResponse', () => {
     const body = testBookRequest({ isbn: '978-0132350884', genres: ['Fantasía'] });
     let result: BookResponse | undefined;
@@ -112,6 +143,15 @@ describe('BooksService with alternative API_CONFIG', () => {
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(body);
     request.flush(testBook());
+    TestBed.inject(BooksService).getBook(42).subscribe();
+    const get = http.expectOne('/alternative-api/books/42');
+    expect(get.request.method).toBe('GET');
+    get.flush(testBook({ id: 42 }));
+    TestBed.inject(BooksService).updateBook(42, body).subscribe();
+    const put = http.expectOne('/alternative-api/books/42');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body).toEqual(body);
+    put.flush(testBook({ id: 42 }));
     http.verify();
   });
 });

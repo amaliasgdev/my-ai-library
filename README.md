@@ -15,7 +15,9 @@ Open `http://localhost:4200/`: `/` redirects to `/books`, a lazy-loaded, read-on
 paginated book catalog. Angular Material is the **only UI library**, with SCSS/CSS Grid and
 Flexbox for responsive layout. PrimeNG, Tailwind and Bootstrap are not installed.
 Use **Añadir libro** to open `/books/new`, create a book and return to the catalog.
-There is no frontend editing, deletion, search, fake book data, SSR or PWA yet.
+Each card has **Editar**, opening `/books/{id}/edit` with the current book values.
+Saving replaces all bibliographic fields and returns to the catalog; Cancelar returns without saving.
+There is no frontend deletion, search, fake book data, SSR or PWA yet.
 
 ```powershell
 npm run lint
@@ -29,7 +31,7 @@ reproducible installations. Vitest tests do not require a running backend.
 
 BooksService uses the centralized `/api` base URL. During development,
 Angular proxies `/api/**` to Spring Boot at `http://localhost:8081`, without backend
-CORS changes. Run the backend separately to use the catalog and creation form manually; unit tests
+CORS changes. Run the backend separately to use the catalog and creation/edit forms manually; unit tests
 mock HTTP and do not require the backend.
 The proxy is not part of the production bundle; production routing is a future
 deployment responsibility. A Material light theme is active; dark theme styles

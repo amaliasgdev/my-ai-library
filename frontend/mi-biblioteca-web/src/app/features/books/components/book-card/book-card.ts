@@ -1,10 +1,12 @@
 import { Component, input, OnChanges, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { RouterLink } from '@angular/router';
 import { BookResponse, ReadingStatus } from '../../models/book.models';
 
 @Component({
   selector: 'app-book-card',
-  imports: [MatCardModule],
+  imports: [MatCardModule, MatButtonModule, RouterLink],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',
 })
