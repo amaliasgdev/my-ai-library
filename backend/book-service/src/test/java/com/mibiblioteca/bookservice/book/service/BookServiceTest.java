@@ -30,7 +30,7 @@ class BookServiceTest {
 
     @Test
     void createShouldSaveBook() {
-        BookRequest request = new BookRequest("Clean Code", "Robert C. Martin", "978-0132350884", "A classic", null);
+        BookRequest request = new BookRequest("Clean Code", "Robert C. Martin", "978-0132350884", "A classic", null, null, null, null, null, null);
         when(bookRepository.existsByIsbn("9780132350884")).thenReturn(false);
         when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> {
             Book b = invocation.getArgument(0);
@@ -50,7 +50,7 @@ class BookServiceTest {
 
     @Test
     void createShouldFailWhenIsbnExists() {
-        BookRequest request = new BookRequest("Clean Code", "Robert C. Martin", "9780132350884", null, null);
+        BookRequest request = new BookRequest("Clean Code", "Robert C. Martin", "9780132350884", null, null, null, null, null, null, null);
         when(bookRepository.existsByIsbn("9780132350884")).thenReturn(true);
 
         assertThatThrownBy(() -> bookService.create(request)).isInstanceOf(DuplicateIsbnException.class);

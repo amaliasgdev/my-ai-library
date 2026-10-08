@@ -117,4 +117,34 @@ class OpenApiDocumentationTest {
 
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
+
+    @Test
+    void shouldDocumentMetadataAndValidationLimits() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode document = objectMapper.readTree(json);
+        JsonNode schemas = document.path("components").path("schemas");
+        for (String name : new String[] {"BookRequest", "BookResponse"}) {
+            JsonNode schema = schemas.path(name);
+            JsonNode properties = schema.path("properties");
+            for (String field : new String[] {"publisher", "publicationYear", "pageCount", "language", "genres"}) {
+                assertThat(properties.has(field)).isTrue();
+                assertThat(schema.path("required").toString()).doesNotContain("\"" + field + "\"");
+            }
+            assertThat(properties.path("language").path("description").asText()).contains("ISO 639-1");
+            assertThat(properties.path("language").path("example").asText()).isEqualTo("es");
+            assertThat(properties.path("genres").path("type").toString()).contains("\"array\"");
+            assertThat(properties.path("genres").path("items").path("type").asText()).isEqualTo("string");
+        }
+        JsonNode request = schemas.path("BookRequest").path("properties");
+        assertThat(request.path("publisher").path("maxLength").asInt()).isEqualTo(255);
+        assertThat(request.path("publicationYear").path("minimum").asInt()).isEqualTo(1);
+        assertThat(request.path("publicationYear").path("maximum").asInt()).isEqualTo(2100);
+        assertThat(request.path("pageCount").has("exclusiveMinimum")).isTrue();
+        assertThat(request.path("pageCount").path("exclusiveMinimum").asInt()).isZero();
+        assertThat(request.path("genres").path("maxItems").asInt()).isEqualTo(10);
+        assertThat(request.path("genres").path("items").path("maxLength").asInt()).as("genres schema: %s", request.path("genres")).isEqualTo(50);
+        assertThat(request.path("genres").path("description").asText()).contains("Duplicates", "trimmed");
+        assertThat(document.path("paths").has("/api/books/{id}/metadata")).isFalse();
+    }
 }

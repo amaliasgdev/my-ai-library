@@ -74,6 +74,6 @@ class HttpUrlValidationTest {
     }
 
     private BookRequest request(String url) {
-        return new BookRequest("Clean Code", "Robert C. Martin", null, null, url);
+        return new BookRequest("Clean Code", "Robert C. Martin", null, null, url, null, null, null, null, null);
     }
 }

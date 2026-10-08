@@ -134,12 +134,12 @@ class BookCoverControllerTest {
     }
 
     private BookRequest request(String coverUrl) {
-        return new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl);
+        return new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl, null, null, null, null, null);
     }
 
     private BookResponse response(String coverUrl) {
         return new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(),
-            ReadingStatus.TO_READ, null, null, null, coverUrl);
+            ReadingStatus.TO_READ, null, null, null, coverUrl, null, null, null, null, null);
     }
 
     private String withoutCover() throws Exception {

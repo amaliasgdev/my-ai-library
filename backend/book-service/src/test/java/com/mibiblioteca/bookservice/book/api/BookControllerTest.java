@@ -51,6 +51,11 @@ class BookControllerTest {
             null,
             null,
             null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null
         );
         when(bookService.create(any(BookRequest.class))).thenReturn(response);
@@ -93,7 +98,7 @@ class BookControllerTest {
     void getAllShouldReturn200() throws Exception {
         when(bookService.findAll(0, 20, "title", org.springframework.data.domain.Sort.Direction.ASC))
             .thenReturn(new BookPageResponse(
-                List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null)),
+                List.of(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null, null, null, null, null, null)),
                 0,
                 20,
                 1,
@@ -121,7 +126,7 @@ class BookControllerTest {
 
     @Test
     void updateShouldReturn200() throws Exception {
-        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null);
+        BookResponse response = new BookResponse(1L, "Clean Architecture", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, null, null, null, null, null, null, null, null, null);
         when(bookService.update(eq(1L), any(BookRequest.class))).thenReturn(response);
 
         mockMvc
