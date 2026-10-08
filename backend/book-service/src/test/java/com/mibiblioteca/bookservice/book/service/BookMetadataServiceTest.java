@@ -9,6 +9,8 @@ import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import org.mockito.Spy;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookMetadataServiceTest {
+    @Spy
+    private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;
     @InjectMocks private BookService bookService;
 

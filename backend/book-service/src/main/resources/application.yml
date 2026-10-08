@@ -28,3 +28,14 @@ management:
     health:
       probes:
         enabled: true
+
+external:
+  books:
+    open-library:
+      base-url: https://openlibrary.org
+      covers-base-url: https://covers.openlibrary.org
+      connect-timeout: 1s
+      request-timeout: 3s
+      lookup-timeout: 8s
+      user-agent: MyAILibrary
+      contact: ${OPEN_LIBRARY_CONTACT:}
