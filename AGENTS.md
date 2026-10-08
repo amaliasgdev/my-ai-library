@@ -26,6 +26,16 @@ Backend:
 - Flyway
 - PostgreSQL 16
 
+Frontend:
+- Angular 22 (standalone, zoneless, routing, strict TypeScript and templates)
+- Angular CLI 22
+- Angular Material 22 is the only UI component library
+- Angular CDK 22 is included only as a natural part of the Material stack
+- PrimeNG and @primeuix/themes are not used
+- Tailwind and Bootstrap are not used
+- Native SCSS/CSS, CSS Grid and Flexbox for layout, responsive styles and customization
+- Vitest with jsdom, angular-eslint/ESLint and Prettier
+
 Containerization:
 - Docker Compose
 
@@ -55,6 +65,8 @@ mi-biblioteca/
 ├── README.md
 ├── .gitignore
 ├── docker-compose.yml
+├── frontend/
+│   └── mi-biblioteca-web/
 └── backend/
     └── book-service/
         ├── .mvn/
@@ -72,6 +84,58 @@ mi-biblioteca/
 ```
 
 Do not reorganize the project structure unless explicitly requested.
+
+Frontend workspace:
+
+```text
+frontend/mi-biblioteca-web/
+├── angular.json
+├── package.json
+├── package-lock.json
+├── proxy.conf.json
+└── src/
+    ├── app/
+    │   ├── app.config.ts
+    │   ├── app.routes.ts
+    │   ├── core/config/api.config.ts
+    │   ├── layout/app-shell/
+    │   └── features/books/pages/books-placeholder/
+    └── styles/
+        ├── _material-theme.scss
+        └── _tokens.scss
+```
+
+## Frontend rules
+
+- Workspace: frontend/mi-biblioteca-web; keep its npm setup independent from Maven
+- Node 22.22.3 or later in the Node 22 line; npm 10 or later
+- Angular framework/compiler 22.2.1, CLI/build 22.2.2, Material/CDK 22.2.2
+- TypeScript 6.0.2 and RxJS 7.8.2; maintain Angular's compatibility constraints
+- Vitest 5.0.3/jsdom 30.1.2, angular-eslint 22.5.0, ESLint 10.12.0, Prettier 3.9.9
+- Commit package-lock.json when commits are explicitly requested; never use --force or --legacy-peer-deps to hide incompatibility
+- Angular Material is the ONLY UI library for buttons, controls, forms, dialogs, tables, pagination, snackbars, tooltips, icons, cards, tabs and navigation
+- No PrimeNG, @primeuix/themes, Tailwind, Bootstrap or other UI/utility framework without explicit approval
+- CDK is part of Material and its component harnesses, not a separate competing UI system
+- Standalone components, provideRouter, strict TypeScript and strictTemplates; no application NgModules
+- Native SCSS/CSS Grid/Flexbox handles layout, spacing, responsive rules and visual customization
+- Keep component styles local; global styles and semantic Material theme tokens stay in src/styles.scss and src/styles/
+- Use public Material theming APIs (mat.theme), not internal CSS selectors, ::ng-deep or unnecessary !important
+- Initial light theme; html.app-dark has dark color tokens prepared, but there is no switch, preference persistence or automatic OS theme selection
+- System fonts only initially; no remote font/CDN dependency
+- Root route redirects to /books; /books lazy-loads a standalone technical placeholder
+- No catalog, CRUD, search, real book forms or fake book data in the initial setup
+- API_CONFIG injection token centralizes apiBaseUrl = /api; future services must not scatter backend origins
+- Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
+- Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
+- ng serve proxy is development-only; production hosting must route /api to the backend and fall back to index.html for SPA routes
+- Unit tests use HttpTestingController and do not require a running backend or access the Internet
+- Co-locate *.spec.ts with source; use Material/CDK harnesses when useful
+- Create shared/components/services/models only when needed; avoid empty directories and premature abstractions
+- No SSR, PWA, authentication, NgRx, frontend Dockerization or additional features without explicit request
+- Run commands from frontend/mi-biblioteca-web: npm install, npm start, npm run lint, npm run format:check, npm run build, npm run test:ci
+- npm run format formats only the frontend; npm ci is preferred for subsequent reproducible installs
+- Frontend work uses the same Git workflow: chore/* for setup/maintenance, feature/* for functionality, PRs into develop
+- Never create branches, commit, push or merge automatically
 
 ---
 
@@ -405,7 +469,6 @@ Do not migrate to Spring Boot 4 unless explicitly requested.
 
 Do not add the following unless explicitly requested:
 
-- Angular frontend
 - authentication
 - authorization
 - users
@@ -452,9 +515,10 @@ Verified:
 - Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL), V6 (book metadata)
 - OpenAPI documentation is available
 - Book pagination and book search pagination are implemented
-- Optional book cover URL references are implemented (no image storage or downloads)
+- Optional external book cover URL references are implemented (referenced images are not downloaded or stored locally)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
+- Angular/Material frontend technical setup is implemented; /books is a placeholder only
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 
 ---
@@ -483,6 +547,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
+Frontend technical setup is completed. No frontend book-management functionality is implemented yet.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
@@ -566,6 +631,11 @@ tests
 ```
 
 Cover URL rules:
+
+`coverUrl` can reference an external HTTP/HTTPS image or a locally managed cover.
+External references do not trigger image downloads or local storage. Managed covers
+are uploaded through the dedicated cover endpoint, stored in the configured filesystem
+directory and exposed through a public HTTP/HTTPS URL, as described below.
 
 ```text
 - coverUrl is an optional String mapped to nullable cover_url VARCHAR(2048)

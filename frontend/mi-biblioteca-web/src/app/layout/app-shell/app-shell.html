@@ -1,0 +1,14 @@
+<a class="skip-link" href="#main-content">Saltar al contenido</a>
+<header>
+  <mat-toolbar class="app-toolbar">
+    <span class="app-brand">Mi Biblioteca</span>
+    <nav aria-label="Navegación principal">
+      <a mat-button routerLink="/books" routerLinkActive="active" ariaCurrentWhenActive="page">
+        Biblioteca
+      </a>
+    </nav>
+  </mat-toolbar>
+</header>
+<main id="main-content" tabindex="-1">
+  <router-outlet />
+</main>

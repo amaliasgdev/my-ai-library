@@ -36,5 +36,11 @@ application-local.properties
 .DS_Store
 Thumbs.db
 
+# Angular / Node
+node_modules/
+.angular/
+dist/
+coverage/
+.npm-cache/
 # Managed cover files (relative default depends on the launch directory)
 **/data/covers/

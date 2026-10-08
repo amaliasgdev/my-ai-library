@@ -1,0 +1,93 @@
+# Mi Biblioteca Web
+
+Base técnica del frontend: Angular 22 standalone, routing y TypeScript/templates
+estrictos. Angular Material es la única librería UI; Angular CDK forma parte de
+ese stack y de sus harnesses de pruebas. No se usan PrimeNG, Tailwind ni Bootstrap.
+
+## Requisitos e instalación
+
+- Node 22.22.3 o posterior dentro de Node 22.
+- npm 10 o posterior.
+
+Desde `frontend/mi-biblioteca-web`:
+
+```powershell
+npm install
+npm start
+```
+
+Abrir `http://localhost:4200/`. Para instalaciones reproducibles posteriores, usar
+`npm ci`. No hace falta instalar Angular CLI globalmente; los scripts utilizan la
+versión local. No usar `--force` ni `--legacy-peer-deps` para resolver conflictos.
+
+## Comandos
+
+| Comando                | Función                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| `npm start`            | Servidor de desarrollo con proxy y recarga              |
+| `npm run build`        | Build de producción en `dist/mi-biblioteca-web/browser` |
+| `npm run test:ci`      | Vitest/jsdom sin modo watch                             |
+| `npm test`             | Tests en modo watch                                     |
+| `npm run lint`         | angular-eslint/ESLint para TypeScript y templates       |
+| `npm run format:check` | Comprobar formato con Prettier                          |
+| `npm run format`       | Aplicar formato al frontend                             |
+
+## Versiones
+
+- Angular/compiler 22.2.1; Angular CLI/build 22.2.2.
+- Angular Material/CDK 22.2.2.
+- TypeScript 6.0.2, RxJS 7.8.2.
+- Vitest 5.0.3, jsdom 30.1.2.
+- angular-eslint 22.5.0, ESLint 10.12.0, Prettier 3.9.9.
+
+Las versiones resueltas están en `package-lock.json`. El frontend funciona con los
+defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
+
+## Estructura y alcance
+
+- `src/app/core/config/api.config.ts`: token `API_CONFIG` y `apiBaseUrl: '/api'`.
+- `src/app/layout/app-shell/`: shell semántico, navegación Material y router-outlet.
+- `src/app/features/books/pages/books-placeholder/`: placeholder standalone.
+- `src/app/app.routes.ts`: redirección `/` a `/books` y carga diferida.
+- `src/styles/`: tema Material y tokens propios; componentes con SCSS local.
+
+La pantalla solo verifica la base técnica. No implementa catálogo, CRUD, búsqueda,
+formularios reales, libros ficticios, autenticación ni estado global. Tampoco hay
+SSR, PWA o Docker frontend. Crear carpetas `shared`, `services` y `models` cuando
+existan necesidades reales.
+
+## UI y tema
+
+Material es la única UI para controles, navegación y futuros formularios/tablas.
+Grid/Flexbox y SCSS/CSS propios cubren layout, responsive, espaciado y
+personalización. Preferir tokens y APIs públicas de Material; evitar `::ng-deep`,
+selectores internos y `!important` innecesario.
+
+`_material-theme.scss` utiliza `mat.theme` con tema claro inicial, tipografía de
+sistema y paletas provisionales. La clase `app-dark` en `<html>` prepara los colores
+oscuros, incluyendo overlays. No hay selector, persistencia ni detección automática
+del tema del sistema. No se descargan fuentes ni recursos desde un CDN.
+
+## Backend y proxy
+
+`provideHttpClient()` está en `app.config.ts`. Los futuros servicios inyectarán
+`API_CONFIG`; no deben repartir URLs absolutas por el código. Aún no hay servicios
+de biblioteca, DTOs de dominio ni interceptores.
+
+`proxy.conf.json` reenvía `/api/**` a `http://localhost:8081`, conservando la ruta.
+No se modifica el backend ni CORS. El placeholder y los tests funcionan sin
+backend; para peticiones reales, arrancar Spring Boot por separado. Reiniciar
+`npm start` después de cambiar el proxy.
+
+El proxy solo existe en desarrollo. En producción se deberá configurar el servidor
+para enrutar `/api` al backend y devolver `index.html` para las rutas de la SPA.
+La configuración frontend es pública y no debe contener secretos.
+
+## Tests y workflow
+
+Tests colocados junto al código: arranque/shell, routing, componente Material con
+harness y HTTP con `HttpTestingController`, sin Internet ni datos reales de libros.
+La verificación visual responsive requiere además navegador, no solo jsdom.
+
+Configuración inicial en `chore/setup-frontend`; futuras funcionalidades en
+`feature/*`, con PR hacia `develop`. No hacer commit ni push automáticamente.
