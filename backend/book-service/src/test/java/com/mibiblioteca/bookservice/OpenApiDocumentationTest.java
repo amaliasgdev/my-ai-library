@@ -106,7 +106,7 @@ class OpenApiDocumentationTest {
             .isEqualTo("#/components/responses/BadRequest");
         assertThat(document.path("paths").path("/api/books/{id}").path("put").path("responses").path("400").path("$ref").asText())
             .isEqualTo("#/components/responses/BadRequest");
-        assertThat(document.path("paths").has("/api/books/{id}/cover")).isFalse();
+        assertThat(document.path("paths").has("/api/books/{id}/cover")).isTrue();
     }
 
     @Test
@@ -116,6 +116,33 @@ class OpenApiDocumentationTest {
             .andExpect(redirectedUrl("/swagger-ui/index.html"));
 
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldDocumentMultipartUploadDeletionAndBinaryCoverReading() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode document = objectMapper.readTree(json);
+        JsonNode paths = document.path("paths");
+        JsonNode upload = paths.path("/api/books/{id}/cover").path("post");
+        assertThat(upload.path("description").asText()).contains("JPEG", "PNG", "5 MiB", "5242880");
+        JsonNode multipart = upload.path("requestBody").path("content").path("multipart/form-data").path("schema");
+        if (multipart.has("$ref")) {
+            multipart = document.path("components").path("schemas").path(multipart.path("$ref").asText().substring("#/components/schemas/".length()));
+        }
+        assertThat(multipart.path("properties").path("file").path("format").asText()).isEqualTo("binary");
+        assertThat(multipart.path("required").toString()).contains("file");
+        for (String response : new String[] {"200", "400", "404", "413", "415", "500"}) {
+            assertThat(upload.path("responses").has(response)).isTrue();
+        }
+        assertThat(upload.path("responses").path("200").toString()).contains("#/components/schemas/BookResponse");
+        JsonNode deletion = paths.path("/api/books/{id}/cover").path("delete");
+        for (String response : new String[] {"204", "404", "500"}) { assertThat(deletion.path("responses").has(response)).isTrue(); }
+        JsonNode reading = paths.path("/api/covers/{filename}").path("get").path("responses");
+        for (String mime : new String[] {"image/jpeg", "image/png"}) {
+            assertThat(reading.path("200").path("content").path(mime).path("schema").path("format").asText()).isEqualTo("binary");
+        }
+        assertThat(reading.has("404")).isTrue();
     }
 
     @Test

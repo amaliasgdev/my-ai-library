@@ -24,7 +24,7 @@ public record BookRequest(
     @Size(max = 5000) String description,
     @Size(max = 2048)
     @HttpUrl
-    @Schema(description = "Optional HTTP/HTTPS cover reference; null or omission means no cover, including on PUT. No image is downloaded.", format = "uri", nullable = true, example = "https://example.com/covers/clean-code.jpg")
+    @Schema(description = "Optional HTTP/HTTPS cover reference; null or omission means no cover, including on PUT. No image is downloaded. Managed URLs are assigned by POST /api/books/{id}/cover; PUT can only preserve the current managed URL.", format = "uri", nullable = true, example = "https://example.com/covers/clean-code.jpg")
     String coverUrl,
     @Size(max = 255)
     @Schema(description = "Optional publisher; trimmed, with blank values stored as null", example = "Minotauro", nullable = true)

@@ -11,6 +11,7 @@ import com.mibiblioteca.bookservice.book.dto.UpdateReadingDatesRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
@@ -32,14 +33,17 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final IsbnNormalizer isbnNormalizer;
+    private final CoverLifecycle covers;
 
-    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer) {
+    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers) {
         this.bookRepository = bookRepository;
         this.isbnNormalizer = isbnNormalizer;
+        this.covers = covers;
     }
 
     @Transactional
     public BookResponse create(BookRequest request) {
+        covers.validateAssignment(null, null, request.coverUrl());
         String normalizedIsbn = normalizeIsbn(request.isbn());
         validateUniqueIsbnForCreate(normalizedIsbn);
 
@@ -101,6 +105,8 @@ public class BookService {
     @Transactional
     public BookResponse update(Long id, BookRequest request) {
         Book book = bookRepository.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+        String previousCover = book.getCoverUrl();
+        covers.validateAssignment(id, previousCover, request.coverUrl());
         String normalizedIsbn = normalizeIsbn(request.isbn());
         validateUniqueIsbnForUpdate(normalizedIsbn, id);
 
@@ -112,6 +118,7 @@ public class BookService {
         applyMetadata(book, request);
 
         Book saved = bookRepository.save(book);
+        covers.afterCommit(id, previousCover, saved.getCoverUrl());
         return toResponse(saved);
     }
 
@@ -182,10 +189,10 @@ public class BookService {
 
     @Transactional
     public void delete(Long id) {
-        if (!bookRepository.existsById(id)) {
-            throw new BookNotFoundException(id);
-        }
+        Book book = findBook(id);
+        String previousCover = book.getCoverUrl();
         bookRepository.deleteById(id);
+        covers.afterCommit(id, previousCover, null);
     }
 
     private void validateUniqueIsbnForCreate(String isbn) {

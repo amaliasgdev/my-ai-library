@@ -12,6 +12,7 @@ import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import org.mockito.Spy;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
@@ -31,6 +32,7 @@ import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookSearchServiceTest {
+    @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
 

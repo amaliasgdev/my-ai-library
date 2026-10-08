@@ -8,6 +8,7 @@ import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import org.mockito.Spy;
 import java.time.Instant;
 import java.util.Optional;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ReadingStatusServiceTest {
+    @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;
