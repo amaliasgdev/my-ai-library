@@ -42,3 +42,5 @@ node_modules/
 dist/
 coverage/
 .npm-cache/
+# Managed cover files (relative default depends on the launch directory)
+**/data/covers/

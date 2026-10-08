@@ -10,6 +10,7 @@ import com.mibiblioteca.bookservice.book.dto.UpdateReadingDatesRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import org.mockito.Spy;
 import com.mibiblioteca.bookservice.common.exception.InvalidReadingDatesException;
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ReadingDatesServiceTest {
+    @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;

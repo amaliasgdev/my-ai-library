@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.service.BookService;
@@ -41,6 +42,7 @@ class BookMetadataControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private BookRepository bookRepository;
+    @MockBean private CoverLifecycle covers;
 
     @ParameterizedTest
     @MethodSource("validMetadata")

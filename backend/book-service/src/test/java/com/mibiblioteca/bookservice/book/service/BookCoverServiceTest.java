@@ -11,6 +11,7 @@ import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import org.mockito.Spy;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookCoverServiceTest {
+    @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;
