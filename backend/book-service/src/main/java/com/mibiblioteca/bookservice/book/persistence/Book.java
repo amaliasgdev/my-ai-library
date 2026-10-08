@@ -34,6 +34,9 @@ public class Book {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "cover_url", length = 2048)
+    private String coverUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "reading_status", nullable = false, length = 20)
     private ReadingStatus readingStatus = ReadingStatus.TO_READ;
@@ -91,6 +94,14 @@ public class Book {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
     }
 
     public ReadingStatus getReadingStatus() {

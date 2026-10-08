@@ -49,6 +49,6 @@ class ReadingDatesControllerTest {
     }
 
     private BookResponse response(LocalDate startedOn, LocalDate finishedOn, ReadingStatus status) {
-        return new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), status, null, startedOn, finishedOn);
+        return new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), status, null, startedOn, finishedOn, null);
     }
 }
