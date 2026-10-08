@@ -11,10 +11,10 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200/`: `/` redirects to `/books`, a standalone technical
-placeholder. Angular Material is the **only UI library**, with SCSS/CSS Grid and
+Open `http://localhost:4200/`: `/` redirects to `/books`, a lazy-loaded, read-only
+paginated book catalog. Angular Material is the **only UI library**, with SCSS/CSS Grid and
 Flexbox for responsive layout. PrimeNG, Tailwind and Bootstrap are not installed.
-There is no catalog, CRUD, search, fake book data, SSR or PWA yet.
+There is no frontend creation, editing, deletion, search, fake book data, SSR or PWA yet.
 
 ```powershell
 npm run lint
@@ -26,9 +26,10 @@ npm run test:ci
 Use `npm run format` to apply frontend formatting and `npm ci` for subsequent
 reproducible installations. Vitest tests do not require a running backend.
 
-Future HTTP services use the centralized `/api` base URL. During development,
+BooksService uses the centralized `/api` base URL. During development,
 Angular proxies `/api/**` to Spring Boot at `http://localhost:8081`, without backend
-CORS changes. Run the backend separately when exercising real API requests.
+CORS changes. Run the backend separately to use the catalog manually; unit tests
+mock HTTP and do not require the backend.
 The proxy is not part of the production bundle; production routing is a future
 deployment responsibility. A Material light theme is active; dark theme styles
 are prepared under `html.app-dark`, without a theme selector.

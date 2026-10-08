@@ -99,7 +99,11 @@ frontend/mi-biblioteca-web/
     │   ├── app.routes.ts
     │   ├── core/config/api.config.ts
     │   ├── layout/app-shell/
-    │   └── features/books/pages/books-placeholder/
+    │   └── features/books/
+    │       ├── models/book.models.ts
+    │       ├── services/books.service.ts
+    │       ├── components/book-card/
+    │       └── pages/books-catalog/
     └── styles/
         ├── _material-theme.scss
         └── _tokens.scss
@@ -122,9 +126,17 @@ frontend/mi-biblioteca-web/
 - Use public Material theming APIs (mat.theme), not internal CSS selectors, ::ng-deep or unnecessary !important
 - Initial light theme; html.app-dark has dark color tokens prepared, but there is no switch, preference persistence or automatic OS theme selection
 - System fonts only initially; no remote font/CDN dependency
-- Root route redirects to /books; /books lazy-loads a standalone technical placeholder
-- No catalog, CRUD, search, real book forms or fake book data in the initial setup
-- API_CONFIG injection token centralizes apiBaseUrl = /api; future services must not scatter backend origins
+- Root route redirects to /books; /books lazy-loads the standalone BooksCatalog page
+- BooksCatalog is a read-only server-paginated catalog with local signals, loading/success/error states and switchMap cancellation; no stale cards during loading
+- BooksService uses HttpClient and API_CONFIG for GET /api/books only; typed options support backend sorting, while the UI keeps title ASC fixed
+- Frontend BookResponse/BookPageResponse models mirror the backend; nullable fields remain nullable and ISO dates remain strings
+- BookCard displays only cover/fallback, title, author, readable readingStatus and optional noninteractive rating; cards are not clickable
+- Cover URLs are used unchanged by img with lazy loading; null/failed images show Sin portada, and changing coverUrl resets image failure
+- MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
+- Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
+- Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
+- No frontend creation, editing, deletion, search, details, filters, sorting selector, interactive rating/status, ISBN lookup, cover upload or fake runtime book data
+- API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
 - ng serve proxy is development-only; production hosting must route /api to the backend and fall back to index.html for SPA routes
@@ -518,7 +530,7 @@ Verified:
 - Optional external book cover URL references are implemented (referenced images are not downloaded or stored locally)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
-- Angular/Material frontend technical setup is implemented; /books is a placeholder only
+- Angular/Material frontend setup and read-only paginated /books catalog are implemented (BooksService, frontend book models, BookCard and MatPaginator)
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 
 ---
@@ -547,7 +559,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
-Frontend technical setup is completed. No frontend book-management functionality is implemented yet.
+Frontend technical setup and read-only paginated book catalog are completed. Frontend book creation, editing, deletion and other interactions are not implemented.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
