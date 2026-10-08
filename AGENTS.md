@@ -65,6 +65,8 @@ mi-biblioteca/
 ├── README.md
 ├── .gitignore
 ├── docker-compose.yml
+├── frontend/
+│   └── mi-biblioteca-web/
 └── backend/
     └── book-service/
         ├── .mvn/
@@ -467,7 +469,6 @@ Do not migrate to Spring Boot 4 unless explicitly requested.
 
 Do not add the following unless explicitly requested:
 
-- Angular frontend
 - authentication
 - authorization
 - users
@@ -514,7 +515,7 @@ Verified:
 - Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL), V6 (book metadata)
 - OpenAPI documentation is available
 - Book pagination and book search pagination are implemented
-- Optional book cover URL references are implemented (no image storage or downloads)
+- Optional external book cover URL references are implemented (referenced images are not downloaded or stored locally)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
 - Angular/Material frontend technical setup is implemented; /books is a placeholder only
@@ -630,6 +631,11 @@ tests
 ```
 
 Cover URL rules:
+
+`coverUrl` can reference an external HTTP/HTTPS image or a locally managed cover.
+External references do not trigger image downloads or local storage. Managed covers
+are uploaded through the dedicated cover endpoint, stored in the configured filesystem
+directory and exposed through a public HTTP/HTTPS URL, as described below.
 
 ```text
 - coverUrl is an optional String mapped to nullable cover_url VARCHAR(2048)

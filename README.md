@@ -32,6 +32,7 @@ CORS changes. Run the backend separately when exercising real API requests.
 The proxy is not part of the production bundle; production routing is a future
 deployment responsibility. A Material light theme is active; dark theme styles
 are prepared under `html.app-dark`, without a theme selector.
+
 ## Managed book covers
 
 | Endpoint | Result |
