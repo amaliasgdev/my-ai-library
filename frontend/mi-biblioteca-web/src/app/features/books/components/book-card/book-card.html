@@ -23,4 +23,12 @@
       <p class="rating">Valoración: {{ book().rating }} de 5</p>
     }
   </mat-card-content>
+  <mat-card-actions>
+    <a
+      mat-button
+      [routerLink]="['/books', book().id, 'edit']"
+      [attr.aria-label]="'Editar ' + book().title"
+      >Editar</a
+    >
+  </mat-card-actions>
 </mat-card>

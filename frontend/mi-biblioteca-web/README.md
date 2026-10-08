@@ -49,8 +49,10 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 - `src/app/layout/app-shell/`: shell semántico, navegación Material y router-outlet.
 - `src/app/features/books/pages/books-catalog/`: catálogo paginado standalone.
 - `src/app/features/books/pages/book-create/`: formulario de alta en `/books/new`.
+- `src/app/features/books/pages/book-edit/`: carga y edición en `/books/:id/edit`.
+- `src/app/features/books/components/book-form/`: formulario Material compartido, validadores y builder único de `BookRequest`, sin HTTP ni routing.
 - `src/app/features/books/components/book-card/`: tarjeta de libro y fallback de portada.
-- `src/app/features/books/services/books.service.ts`: GET paginado y POST de creación mediante `API_CONFIG`.
+- `src/app/features/books/services/books.service.ts`: listado, creación, GET por id y PUT completo mediante `API_CONFIG`.
 - `src/app/features/books/models/book.models.ts`: contratos frontend de libros y páginas.
 - `src/app/app.routes.ts`: redirección `/` a `/books` y carga diferida.
 - `src/styles/`: tema Material y tokens propios; componentes con SCSS local.
@@ -58,8 +60,12 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 La pantalla muestra el catálogo real con tarjetas y paginación del servidor, ordenado
 por título ASC. **Añadir libro** abre un formulario con título y autor obligatorios,
 metadatos opcionales, géneros y URL externa de portada. Guardar crea el libro y vuelve
-al catálogo; Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview
-ni upload de portada. No implementa edición, borrado, búsqueda, detalle,
+al catálogo. **Editar** en cada tarjeta abre el mismo formulario con los valores actuales;
+Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada recibida,
+incluidas las portadas gestionadas, se conserva exactamente si no se cambia; sustituirla
+o vaciarla reemplaza o elimina la referencia y el backend gestiona la limpieza.
+Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview
+ni upload de portada. No implementa borrado, búsqueda, detalle,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
@@ -79,11 +85,11 @@ del tema del sistema. No se descargan fuentes ni recursos desde un CDN.
 ## Backend y proxy
 
 `provideHttpClient()` está en `app.config.ts`. `BooksService` inyecta `API_CONFIG`
-para consultar el catálogo y crear libros; los servicios no deben repartir URLs absolutas por el
+para consultar el catálogo, crear y editar libros; los servicios no deben repartir URLs absolutas por el
 código. No hay interceptores ni cliente generado desde OpenAPI.
 
 `proxy.conf.json` reenvía `/api/**` a `http://localhost:8081`, conservando la ruta.
-No se modifica el backend ni CORS. Para usar el catálogo y el alta manualmente, arrancar
+No se modifica el backend ni CORS. Para usar el catálogo, el alta y la edición manualmente, arrancar
 Spring Boot por separado con su base de datos; los tests usan HTTP simulado y no
 requieren backend. Reiniciar
 `npm start` después de cambiar el proxy.

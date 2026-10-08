@@ -6,6 +6,12 @@ h1 {
   margin-block: 0 1.5rem;
 }
 
+.loading {
+  display: grid;
+  justify-items: center;
+  padding: 2rem;
+}
+
 .error-panel {
   padding: 1rem;
   background: var(--mat-sys-error-container);

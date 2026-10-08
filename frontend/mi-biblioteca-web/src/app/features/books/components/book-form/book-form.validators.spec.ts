@@ -6,9 +6,9 @@ import {
   integer,
   isoLanguage,
   notBlank,
-} from './book-create.validators';
+} from './book-form.validators';
 
-describe('Book create validators', () => {
+describe('Book form validators', () => {
   it.each(['', ' ', '\t\n'])('should reject a blank required value: %j', (value) => {
     expect(notBlank(new FormControl(value))).toEqual({ required: true });
   });

@@ -14,6 +14,14 @@ export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
 
+  getBook(id: number): Observable<BookResponse> {
+    return this.http.get<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}`);
+  }
+
+  updateBook(id: number, request: BookRequest): Observable<BookResponse> {
+    return this.http.put<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}`, request);
+  }
+
   createBook(request: BookRequest): Observable<BookResponse> {
     return this.http.post<BookResponse>(`${this.apiConfig.apiBaseUrl}/books`, request);
   }

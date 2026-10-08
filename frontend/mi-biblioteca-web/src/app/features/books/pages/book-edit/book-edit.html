@@ -1,0 +1,32 @@
+<section
+  aria-labelledby="edit-heading"
+  [attr.aria-busy]="state().status === 'loading' || submitting()"
+>
+  <h1 id="edit-heading">Editar libro</h1>
+  @let current = state();
+  @switch (current.status) {
+    @case ('loading') {
+      <div class="loading">
+        <mat-spinner diameter="40" aria-label="Cargando libro" />
+        <p role="status" aria-live="polite">Cargando libro…</p>
+      </div>
+    }
+    @case ('error') {
+      <p class="error-panel" role="alert">{{ current.message }}</p>
+    }
+    @case ('loaded') {
+      @if (generalError()) {
+        <p class="error-panel" role="alert">{{ generalError() }}</p>
+      }
+      <app-book-form
+        [initialBook]="current.book"
+        [submitting]="submitting()"
+        (save)="save($event)"
+        (cancelled)="cancel()"
+      />
+    }
+  }
+  @if (current.status !== 'loaded') {
+    <button mat-button type="button" (click)="cancel()">Volver al catálogo</button>
+  }
+</section>

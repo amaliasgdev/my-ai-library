@@ -4,20 +4,21 @@ import { MatCardHarness } from '@angular/material/card/testing';
 import { ReadingStatus } from '../../models/book.models';
 import { testBook } from '../../models/book.testing';
 import { BookCard } from './book-card';
+import { provideRouter } from '@angular/router';
 
 describe('BookCard', () => {
   let fixture: ComponentFixture<BookCard>;
   let element: HTMLElement;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [BookCard] });
+    TestBed.configureTestingModule({ imports: [BookCard], providers: [provideRouter([])] });
     fixture = TestBed.createComponent(BookCard);
     element = fixture.nativeElement as HTMLElement;
     fixture.componentRef.setInput('book', testBook());
     fixture.detectChanges();
   });
 
-  it('should render title, author and no actions or extra metadata', async () => {
+  it('should render title, author and only an accessible edit action without extra metadata', async () => {
     fixture.componentRef.setInput(
       'book',
       testBook({
@@ -33,7 +34,11 @@ describe('BookCard', () => {
     expect(await card.getTitleText()).toBe('Libro de prueba');
     expect(await card.getSubtitleText()).toBe('Autora de prueba');
     expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
-    expect(element.querySelector('a, button')).toBeNull();
+    const link = element.querySelector('a');
+    expect(link?.textContent?.trim()).toBe('Editar');
+    expect(link?.getAttribute('href')).toBe('/books/1/edit');
+    expect(link?.getAttribute('aria-label')).toBe('Editar Libro de prueba');
+    expect(element.querySelectorAll('a, button')).toHaveLength(1);
     expect(element.textContent).not.toMatch(/Hidden|9780132350884|2008/);
   });
 
