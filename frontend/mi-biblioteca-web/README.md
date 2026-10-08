@@ -52,7 +52,8 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 - `src/app/features/books/pages/book-edit/`: carga y edición en `/books/:id/edit`.
 - `src/app/features/books/components/book-form/`: formulario Material compartido, validadores y builder único de `BookRequest`, sin HTTP ni routing.
 - `src/app/features/books/components/book-card/`: tarjeta de libro y fallback de portada.
-- `src/app/features/books/services/books.service.ts`: listado, creación, GET por id y PUT completo mediante `API_CONFIG`.
+- `src/app/features/books/components/book-delete-dialog/`: confirmación específica de eliminación con MatDialog.
+- `src/app/features/books/services/books.service.ts`: listado, creación, GET por id, PUT completo y DELETE mediante `API_CONFIG`.
 - `src/app/features/books/models/book.models.ts`: contratos frontend de libros y páginas.
 - `src/app/app.routes.ts`: redirección `/` a `/books` y carga diferida.
 - `src/styles/`: tema Material y tokens propios; componentes con SCSS local.
@@ -65,7 +66,13 @@ Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada 
 incluidas las portadas gestionadas, se conserva exactamente si no se cambia; sustituirla
 o vaciarla reemplaza o elimina la referencia y el backend gestiona la limpieza.
 Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview
-ni upload de portada. No implementa borrado, búsqueda, detalle,
+ni upload de portada. **Eliminar** abre una confirmación Material con foco inicial en Cancelar;
+Escape y clic fuera cancelan. Solo confirmar ejecuta DELETE del libro: el backend limpia
+su portada gestionada. Durante la petición se bloquean Eliminar, el paginador y Editar
+del libro afectado, pero Añadir libro permanece disponible. El éxito recarga la página
+actual desde backend; si llega vacía y es mayor que 0, pide una vez la página anterior.
+Los errores de DELETE se muestran inline y conservan el catálogo; si falla la recarga,
+se muestra el error de carga sin repetir el borrado. No implementa búsqueda, detalle,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
@@ -85,7 +92,7 @@ del tema del sistema. No se descargan fuentes ni recursos desde un CDN.
 ## Backend y proxy
 
 `provideHttpClient()` está en `app.config.ts`. `BooksService` inyecta `API_CONFIG`
-para consultar el catálogo, crear y editar libros; los servicios no deben repartir URLs absolutas por el
+para consultar el catálogo, crear, editar y eliminar libros; los servicios no deben repartir URLs absolutas por el
 código. No hay interceptores ni cliente generado desde OpenAPI.
 
 `proxy.conf.json` reenvía `/api/**` a `http://localhost:8081`, conservando la ruta.

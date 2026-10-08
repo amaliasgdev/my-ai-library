@@ -4,6 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { MatPaginator } from '@angular/material/paginator';
+import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
+import { MatButtonHarness } from '@angular/material/button/testing';
+import { BookDeleteDialog } from '../../components/book-delete-dialog/book-delete-dialog';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { testBook, testBookPage } from '../../models/book.testing';
@@ -17,7 +21,15 @@ describe('BooksCatalog', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [BooksCatalog],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: MAT_DIALOG_DEFAULT_OPTIONS,
+          useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
+        },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(BooksCatalog);
@@ -34,6 +46,238 @@ describe('BooksCatalog', () => {
   function paginator(): MatPaginator {
     return fixture.debugElement.query(By.directive(MatPaginator)).componentInstance as MatPaginator;
   }
+
+  async function deleteFirstBook() {
+    (element.querySelector('app-book-card button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
+    await (
+      await loader.getHarness(
+        MatButtonHarness.with({ text: 'Eliminar', selector: '.confirm-delete' }),
+      )
+    ).click();
+    await vi.waitFor(() => expect(fixture.componentInstance.deletingId()).not.toBeNull());
+    await fixture.whenStable();
+  }
+
+  it('should open one confirmation, not DELETE on first click or cancellation', async () => {
+    pendingRequest().flush(testBookPage());
+    fixture.detectChanges();
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const book = testBook();
+    fixture.componentInstance.openDeleteDialog(book);
+    fixture.componentInstance.openDeleteDialog(book);
+    expect(open).toHaveBeenCalledOnce();
+    expect(open.mock.calls[0][0]).toBe(BookDeleteDialog);
+    await fixture.whenStable();
+    const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Cancelar' }))).click();
+    await vi.waitFor(() => expect(TestBed.inject(MatDialog).openDialogs).toHaveLength(0));
+    await fixture.whenStable();
+    http.expectNone((req) => req.method === 'DELETE');
+    expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
+  });
+
+  it.each(['escape', 'backdrop'])(
+    'should not DELETE after dialog dismissal by %s',
+    async (method) => {
+      pendingRequest().flush(testBookPage());
+      fixture.detectChanges();
+      fixture.componentInstance.openDeleteDialog(testBook());
+      await fixture.whenStable();
+      const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
+      if (method === 'escape') await (await loader.getHarness(MatDialogHarness)).close();
+      else (document.querySelector('.cdk-overlay-backdrop') as HTMLElement).click();
+      await vi.waitFor(() => expect(TestBed.inject(MatDialog).openDialogs).toHaveLength(0));
+      await fixture.whenStable();
+      http.expectNone((req) => req.method === 'DELETE');
+    },
+  );
+
+  it('should confirm the correct id, block double deletes and the paginator but keep Añadir libro available', async () => {
+    pendingRequest().flush(
+      testBookPage({
+        content: [testBook({ id: 42 }), testBook({ id: 43 })],
+        totalElements: 42,
+        totalPages: 3,
+      }),
+    );
+    fixture.detectChanges();
+    await deleteFirstBook();
+    const deletion = http.expectOne('/api/books/42');
+    expect(deletion.request.method).toBe('DELETE');
+    expect(fixture.componentInstance.deletingId()).toBe(42);
+    expect(paginator().disabled).toBe(true);
+    expect(
+      Array.from(element.querySelectorAll('app-book-card button')).every(
+        (button) => (button as HTMLButtonElement).disabled,
+      ),
+    ).toBe(true);
+    expect(element.querySelector('app-book-card a')?.getAttribute('href')).toBeNull();
+    expect(element.querySelectorAll('app-book-card a')[1].getAttribute('href')).toBe(
+      '/books/43/edit',
+    );
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/new');
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    fixture.componentInstance.openDeleteDialog(testBook({ id: 43 }));
+    fixture.componentInstance.openDeleteDialog(testBook({ id: 42 }));
+    expect(open).not.toHaveBeenCalled();
+    fixture.componentInstance.onPageChange({ pageIndex: 1, pageSize: 50, length: 42 });
+    http.expectNone((req) => req.method === 'GET');
+    expect(element.querySelectorAll('app-book-card')).toHaveLength(2);
+    deletion.flush(null, { status: 204, statusText: 'No Content' });
+    const reload = pendingRequest();
+    expect(reload.request.params.get('page')).toBe('0');
+    expect(reload.request.params.get('size')).toBe('20');
+    reload.flush(
+      testBookPage({ content: [testBook({ id: 43 })], totalElements: 41, totalPages: 3 }),
+    );
+    await fixture.whenStable();
+    expect(fixture.componentInstance.deletingId()).toBeNull();
+    expect(paginator().length).toBe(41);
+    expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('should stay on the current page when deleting one of several books', async () => {
+    pendingRequest().flush(
+      testBookPage({
+        content: [testBook({ id: 41 }), testBook({ id: 42 })],
+        page: 2,
+        totalElements: 42,
+        totalPages: 3,
+      }),
+    );
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/41').flush(null, { status: 204, statusText: 'No Content' });
+    const reload = pendingRequest();
+    expect(reload.request.params.get('page')).toBe('2');
+    reload.flush(
+      testBookPage({ content: [testBook({ id: 42 })], page: 2, totalElements: 41, totalPages: 3 }),
+    );
+    await fixture.whenStable();
+    expect(paginator().pageIndex).toBe(2);
+    http.expectNone((req) => req.method === 'GET');
+  });
+
+  it('should show an empty library after deleting the last book on page 0', async () => {
+    pendingRequest().flush(testBookPage());
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').flush(null, { status: 204, statusText: 'No Content' });
+    const reload = pendingRequest();
+    expect(reload.request.params.get('page')).toBe('0');
+    reload.flush(testBookPage({ content: [], totalElements: 0, totalPages: 0 }));
+    await fixture.whenStable();
+    expect(element.textContent).toContain('Tu biblioteca todavía no tiene libros');
+    expect(paginator().length).toBe(0);
+    expect(paginator().pageIndex).toBe(0);
+    expect(document.activeElement).toBe(element.querySelector('h1'));
+    http.expectNone((req) => req.method === 'GET');
+  });
+
+  it('should reload the current page then request exactly page - 1 when empty', async () => {
+    pendingRequest().flush(testBookPage({ page: 2, totalElements: 41, totalPages: 3 }));
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').flush(null, { status: 204, statusText: 'No Content' });
+    const reload = pendingRequest();
+    expect(reload.request.params.get('page')).toBe('2');
+    reload.flush(testBookPage({ content: [], page: 2, totalElements: 40, totalPages: 2 }));
+    const previous = pendingRequest();
+    expect(previous.request.params.get('page')).toBe('1');
+    previous.flush(testBookPage({ page: 1, totalElements: 40, totalPages: 2 }));
+    await fixture.whenStable();
+    expect(paginator().pageIndex).toBe(1);
+    expect(paginator().length).toBe(40);
+    http.expectNone((req) => req.method === 'GET');
+  });
+
+  it('should go back only one page, without computing the last valid page or looping', async () => {
+    pendingRequest().flush(testBookPage({ page: 3, totalElements: 61, totalPages: 4 }));
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').flush(null, { status: 204, statusText: 'No Content' });
+    pendingRequest().flush(
+      testBookPage({ content: [], page: 3, totalElements: 10, totalPages: 1 }),
+    );
+    const previous = pendingRequest();
+    expect(previous.request.params.get('page')).toBe('2');
+    previous.flush(testBookPage({ content: [], page: 2, totalElements: 10, totalPages: 1 }));
+    await fixture.whenStable();
+    expect(paginator().pageIndex).toBe(2);
+    http.expectNone((req) => req.method === 'GET');
+  });
+
+  it.each([
+    [404, 'El libro ya no existe'],
+    [500, 'El servidor no pudo eliminar el libro'],
+    [503, 'El servidor no pudo eliminar el libro'],
+    [400, 'No se pudo eliminar el libro'],
+  ])(
+    'should preserve cards and pagination with a safe inline DELETE error for %s',
+    async (status, message) => {
+      pendingRequest().flush(testBookPage({ page: 1, totalElements: 21, totalPages: 2 }));
+      fixture.detectChanges();
+      await deleteFirstBook();
+      http
+        .expectOne('/api/books/1')
+        .flush({ detail: 'SECRET', title: 'SECRET' }, { status, statusText: 'Error' });
+      await fixture.whenStable();
+      expect(element.querySelector('[role="alert"]')?.textContent).toBe(message);
+      expect(element.textContent).not.toContain('SECRET');
+      expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
+      expect(paginator().pageIndex).toBe(1);
+      expect(paginator().length).toBe(21);
+      expect(paginator().disabled).toBe(false);
+      expect(fixture.componentInstance.deletingId()).toBeNull();
+      http.expectNone((req) => req.method === 'GET');
+    },
+  );
+
+  it('should explain connection errors and require another confirmation for retry', async () => {
+    pendingRequest().flush(testBookPage());
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').error(new ProgressEvent('error'));
+    await fixture.whenStable();
+    expect(element.textContent).toContain('No se puede conectar con el servidor');
+    http.expectNone((req) => req.method === 'DELETE');
+    (element.querySelector('app-book-card button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    http.expectNone((req) => req.method === 'DELETE');
+    TestBed.inject(MatDialog).closeAll();
+    await fixture.whenStable();
+  });
+
+  it('should show a normal load error when DELETE succeeds but the following GET fails', async () => {
+    pendingRequest().flush(testBookPage());
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').flush(null, { status: 204, statusText: 'No Content' });
+    pendingRequest().flush({}, { status: 500, statusText: 'Error' });
+    await fixture.whenStable();
+    expect(element.querySelector('[role="alert"]')?.textContent).toBe(
+      'El servidor no pudo cargar el catálogo',
+    );
+    expect(fixture.componentInstance.deleteError()).toBeNull();
+    expect(element.textContent).not.toContain('No se pudo eliminar');
+    http.expectNone((req) => req.method === 'DELETE');
+  });
+
+  it('should not steal focus from a stable control during the reload', async () => {
+    pendingRequest().flush(testBookPage());
+    fixture.detectChanges();
+    await deleteFirstBook();
+    http.expectOne('/api/books/1').flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+    const add = element.querySelector('a') as HTMLAnchorElement;
+    add.focus();
+    pendingRequest().flush(testBookPage({ content: [], totalElements: 0, totalPages: 0 }));
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(add);
+  });
 
   it('should request the initial page with title ASC and show loading', () => {
     const request = pendingRequest();

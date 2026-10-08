@@ -26,9 +26,20 @@
   <mat-card-actions>
     <a
       mat-button
-      [routerLink]="['/books', book().id, 'edit']"
+      [routerLink]="deleting() ? null : ['/books', book().id, 'edit']"
+      [disabled]="deleting()"
       [attr.aria-label]="'Editar ' + book().title"
       >Editar</a
     >
+    <button
+      mat-button
+      type="button"
+      [disabled]="deleteDisabled() || deleting()"
+      [attr.aria-label]="'Eliminar ' + book().title"
+      (click)="requestDelete()"
+    >
+      Eliminar
+    </button>
+    <span role="status" aria-live="polite">{{ deleting() ? 'Eliminando…' : '' }}</span>
   </mat-card-actions>
 </mat-card>

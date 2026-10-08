@@ -1,0 +1,13 @@
+<h2 mat-dialog-title>Eliminar libro</h2>
+<mat-dialog-content id="book-delete-description">
+  <p>¿Seguro que quieres eliminar «{{ data.title }}»?</p>
+  <p>Esta acción no se puede deshacer.</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" class="cancel-delete" [mat-dialog-close]="false">
+    Cancelar
+  </button>
+  <button mat-flat-button type="button" class="confirm-delete" [mat-dialog-close]="true">
+    Eliminar
+  </button>
+</mat-dialog-actions>

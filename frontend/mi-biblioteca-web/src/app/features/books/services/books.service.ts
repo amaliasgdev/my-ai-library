@@ -14,6 +14,10 @@ export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
 
+  deleteBook(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiConfig.apiBaseUrl}/books/${id}`);
+  }
+
   getBook(id: number): Observable<BookResponse> {
     return this.http.get<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}`);
   }

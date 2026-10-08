@@ -20,6 +20,27 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it('should DELETE by id without a body and complete on HTTP 204', () => {
+    const next = vi.fn();
+    const complete = vi.fn();
+    service.deleteBook(42).subscribe({ next, complete });
+    const request = http.expectOne('/api/books/42');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(next).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it('should propagate DELETE errors unchanged', () => {
+    let error: HttpErrorResponse | undefined;
+    service.deleteBook(42).subscribe({ error: (value: HttpErrorResponse) => (error = value) });
+    const problem = { status: 404, detail: 'Internal message' };
+    http.expectOne('/api/books/42').flush(problem, { status: 404, statusText: 'Not Found' });
+    expect(error?.status).toBe(404);
+    expect(error?.error).toEqual(problem);
+  });
+
   it('should GET an individual book by id and return BookResponse', () => {
     let result: BookResponse | undefined;
     service.getBook(42).subscribe((book) => (result = book));
@@ -152,6 +173,10 @@ describe('BooksService with alternative API_CONFIG', () => {
     expect(put.request.method).toBe('PUT');
     expect(put.request.body).toEqual(body);
     put.flush(testBook({ id: 42 }));
+    TestBed.inject(BooksService).deleteBook(42).subscribe();
+    const deletion = http.expectOne('/alternative-api/books/42');
+    expect(deletion.request.method).toBe('DELETE');
+    deletion.flush(null, { status: 204, statusText: 'No Content' });
     http.verify();
   });
 });
