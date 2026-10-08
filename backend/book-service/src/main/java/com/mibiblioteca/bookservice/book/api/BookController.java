@@ -20,7 +20,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.net.URI;
-import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -83,10 +82,29 @@ public class BookController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search books", description = "Searches title and author partially without case sensitivity. ISBN cannot be combined with title or author.")
-    @ApiResponse(responseCode = "400", ref = "BadRequest")
-    public List<BookResponse> search(@Valid @ParameterObject BookSearchRequest request) {
-        return bookService.search(request);
+    @Operation(summary = "Search books", description = "Searches title and author partially without case sensitivity, combined with AND. ISBN is matched exactly after normalization and cannot be combined with title or author. At least one filter is required. Results use BookPageResponse, including empty pages. Defaults: page=0, size=20, sortBy=title, direction=ASC. Sorting uses id ASC as a tie-breaker unless sortBy=id.")
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "Paged search results",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = BookPageResponse.class)
+            )
+        ),
+        @ApiResponse(responseCode = "400", ref = "BadRequest")
+    })
+    public BookPageResponse search(
+        @Valid @ParameterObject BookSearchRequest request,
+        @Parameter(description = "Zero-based page number", example = "0")
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @Parameter(description = "Page size from 1 to 100", example = "20")
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+        @Parameter(description = "Sort field", example = "title", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"id", "title", "author", "createdAt", "updatedAt", "readingStatus", "rating", "startedOn", "finishedOn"}))
+        @RequestParam(defaultValue = "title") String sortBy,
+        @Parameter(description = "Sort direction", example = "ASC", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"ASC", "DESC"}))
+        @RequestParam(defaultValue = "ASC") Sort.Direction direction
+    ) {
+        return bookService.search(request, page, size, sortBy, direction);
     }
 
     @GetMapping("/{id}")

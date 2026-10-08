@@ -18,7 +18,6 @@ import com.mibiblioteca.bookservice.common.exception.InvalidReadingDatesExceptio
 import com.mibiblioteca.bookservice.common.exception.InvalidReadingTransitionException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
 import java.time.LocalDate;
-import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -54,13 +53,7 @@ public class BookService {
         Sort sort = createSort(sortBy, direction);
         Page<Book> books = bookRepository.findAll(PageRequest.of(page, size, sort));
 
-        return new BookPageResponse(
-            books.getContent().stream().map(this::toResponse).toList(),
-            books.getNumber(),
-            books.getSize(),
-            books.getTotalElements(),
-            books.getTotalPages()
-        );
+        return toPageResponse(books);
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +63,7 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookResponse> search(BookSearchRequest request) {
+    public BookPageResponse search(BookSearchRequest request, int page, int size, String sortBy, Sort.Direction direction) {
         String title = normalizeText(request.title());
         String author = normalizeText(request.author());
         String isbn = normalizeIsbn(request.isbn());
@@ -83,18 +76,19 @@ public class BookService {
             throw new InvalidSearchCriteriaException("At least one search criterion is required");
         }
 
-        List<Book> books;
+        PageRequest pageable = PageRequest.of(page, size, createSort(sortBy, direction));
+        Page<Book> books;
         if (isbn != null) {
-            books = bookRepository.findByIsbn(isbn);
+            books = bookRepository.findByIsbn(isbn, pageable);
         } else if (title != null && author != null) {
-            books = bookRepository.findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(title, author);
+            books = bookRepository.findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(title, author, pageable);
         } else if (title != null) {
-            books = bookRepository.findByTitleContainingIgnoreCase(title);
+            books = bookRepository.findByTitleContainingIgnoreCase(title, pageable);
         } else {
-            books = bookRepository.findByAuthorContainingIgnoreCase(author);
+            books = bookRepository.findByAuthorContainingIgnoreCase(author, pageable);
         }
 
-        return books.stream().map(this::toResponse).toList();
+        return toPageResponse(books);
     }
 
     @Transactional
@@ -228,6 +222,16 @@ public class BookService {
             case "id", "title", "author", "createdAt", "updatedAt", "readingStatus", "rating", "startedOn", "finishedOn" -> true;
             default -> false;
         };
+    }
+
+    private BookPageResponse toPageResponse(Page<Book> books) {
+        return new BookPageResponse(
+            books.getContent().stream().map(this::toResponse).toList(),
+            books.getNumber(),
+            books.getSize(),
+            books.getTotalElements(),
+            books.getTotalPages()
+        );
     }
 
     private String normalizeText(String value) {

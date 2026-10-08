@@ -451,6 +451,7 @@ Verified:
 - Book reading dates are implemented
 - Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates)
 - OpenAPI documentation is available
+- Book pagination and book search pagination are implemented
 
 ---
 
@@ -468,7 +469,11 @@ Book reading dates are completed.
 
 OpenAPI documentation is completed.
 
-The current planned functionality is book pagination.
+Book pagination is completed.
+
+Book search pagination is completed.
+
+No next feature is planned. Wait for explicit user instruction.
 
 Initial Book fields:
 
@@ -510,9 +515,10 @@ GET /api/books/search?title=...
 GET /api/books/search?author=...
 GET /api/books/search?isbn=...
 GET /api/books/search?title=...&author=...
+GET /api/books/search?title=...&page=0&size=20&sortBy=title&direction=ASC
 ```
 
-Search rules planned:
+Search rules:
 
 ```text
 - title and author: partial + case-insensitive
@@ -520,6 +526,11 @@ Search rules planned:
 - isbn: exact match over normalized value
 - isbn cannot be combined with title/author
 - no search criteria returns 400
+- GET /api/books/search returns BookPageResponse, not a JSON array
+- no results returns an empty page with totalElements=0 and totalPages=0
+- out-of-range pages return 200 with empty content and real pagination totals
+- BookSearchRequest contains only title, author and isbn; pagination uses separate request parameters
+- ISBN searches validate pagination and sorting just like other searches
 ```
 
 Search components:
@@ -580,6 +591,10 @@ Pagination rules:
 - page is zero-based; size must be 1 to 100
 - sortBy is limited to id, title, author, createdAt, updatedAt, readingStatus, rating, startedOn, finishedOn
 - id ASC is used as a secondary sort except when sortBy=id
+- applies to GET /api/books and GET /api/books/search
+- direction accepts only ASC or DESC
+- invalid parameters return 400 ProblemDetail
+- native MVC method validation preserves field/parameter details in the errors map
 ```
 
 Do not implement additional fields or relationships unless requested.

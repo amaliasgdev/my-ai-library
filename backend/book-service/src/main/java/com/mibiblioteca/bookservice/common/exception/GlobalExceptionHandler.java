@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.common.exception;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -81,6 +84,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleMethodValidation(HandlerMethodValidationException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request parameter validation failed");
         problemDetail.setTitle("Validation error");
+        problemDetail.setProperty("errors", validationErrors(ex));
         return problemDetail;
     }
 
@@ -89,5 +93,24 @@ public class GlobalExceptionHandler {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request parameter has an invalid value");
         problemDetail.setTitle("Invalid request parameter");
         return problemDetail;
+    }
+
+    private Map<String, String> validationErrors(HandlerMethodValidationException ex) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            if (result instanceof ParameterErrors parameterErrors) {
+                for (FieldError fieldError : parameterErrors.getFieldErrors()) {
+                    errors.put(fieldError.getField(), fieldError.getDefaultMessage());
+                }
+            } else {
+                String parameterName = result.getMethodParameter().getParameterName();
+                String message = result.getResolvableErrors().stream()
+                    .map(MessageSourceResolvable::getDefaultMessage)
+                    .findFirst()
+                    .orElse("Invalid value");
+                errors.put(parameterName, message);
+            }
+        }
+        return errors;
     }
 }

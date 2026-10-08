@@ -1,6 +1,7 @@
 package com.mibiblioteca.bookservice.book.persistence;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
@@ -8,11 +9,11 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     boolean existsByIsbnAndIdNot(String isbn, Long id);
 
-    List<Book> findByTitleContainingIgnoreCase(String title);
+    Page<Book> findByTitleContainingIgnoreCase(String title, Pageable pageable);
 
-    List<Book> findByAuthorContainingIgnoreCase(String author);
+    Page<Book> findByAuthorContainingIgnoreCase(String author, Pageable pageable);
 
-    List<Book> findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(String title, String author);
+    Page<Book> findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(String title, String author, Pageable pageable);
 
-    List<Book> findByIsbn(String isbn);
+    Page<Book> findByIsbn(String isbn, Pageable pageable);
 }
