@@ -36,6 +36,9 @@ public class OpenApiConfig {
                     .addResponses("BadRequest", new ApiResponse().description("Invalid request").content(errorContent))
                     .addResponses("NotFound", new ApiResponse().description("Book not found").content(errorContent))
                     .addResponses("Conflict", new ApiResponse().description("Request conflicts with the current book state").content(errorContent))
+                    .addResponses("BookProviderBadGateway", new ApiResponse().description("Incompatible external book response").content(errorContent))
+                    .addResponses("BookProviderUnavailable", new ApiResponse().description("External provider unavailable or rate limited").content(errorContent))
+                    .addResponses("BookProviderTimeout", new ApiResponse().description("External book lookup timed out").content(errorContent))
             );
     }
 }

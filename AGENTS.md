@@ -454,6 +454,7 @@ Verified:
 - Book pagination and book search pagination are implemented
 - Optional book cover URL references are implemented (no image storage or downloads)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
+- Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
 
 ---
 
@@ -478,6 +479,8 @@ Book search pagination is completed.
 Book cover URL support is completed.
 
 Book metadata is completed.
+
+Book ISBN lookup is completed.
 
 No next feature is planned. Wait for explicit user instruction.
 
@@ -574,7 +577,48 @@ Cover URL rules:
 - BookResponse includes coverUrl on creation, update, get-by-id, paginated list and paginated search
 - coverUrl is not a search filter or an allowed sortBy field
 - there are no dedicated cover endpoints yet
-- current scope is URL references only: no multipart, file upload, NAS, S3, thumbnails, image processing or external book provider integration
+- cover CRUD scope is URL references only: no multipart, file upload, NAS, S3, thumbnails or image processing; separate consultative provider lookup is described below
+```
+
+ISBN lookup rules:
+
+```text
+- GET /api/books/isbn-lookup?isbn=... returns independent BookLookupResponse
+- Consultative only: no BookRepository, duplicate checks, book creation/update or external response persistence
+- Response fields: isbn, title, author, publisher, publicationYear, pageCount, language, genres, coverUrl
+- isbn is the normalized requested ISBN; unknown scalar metadata is null and unknown genres is []
+- Shared IsbnNormalizer preserves CRUD/search normalization exactly (remove spaces/hyphens, trim, uppercase)
+- Strict checksum validation is lookup-only; never tighten existing CRUD/search ISBN validation
+- ISBN-10: 9 digits plus digit/X, weighted checksum modulo 11
+- ISBN-13: 13 digits, 978/979 prefix, alternating 1/3 checksum modulo 10
+- Missing/blank/invalid ISBN returns 400 ProblemDetail before any external request
+- Open Library current /isbn/{isbn}.json; at most one same-origin redirect to /books/OL{digits}M.json
+- Optional /search.json?q=isbn:{isbn}&fields=key,author_name,subject&limit=5 enriches missing authors/genres only when edition work keys exist
+- Enrichment must match an edition work key; never replace edition-specific year/publisher/pages with work aggregates
+- Maximum 3 HTTP requests: ISBN, controlled edition redirect, optional search; no arbitrary URL/reference traversal
+- Synchronous RestClient with Java 21 JDK HttpClient; no SDK, WebClient or new dependencies
+- @ConfigurationProperties prefix external.books.open-library centralizes base-url, covers-base-url, timeouts, user-agent and optional contact
+- Defaults: connect 1s, request 3s, total lookup 8s; each request is bounded by remaining budget
+- Virtual-thread execution only bounds synchronous request/body reading and allows cancellation; no asynchronous REST contract
+- No provider calls at startup, no retries, cache, rate limiter, fallback or bulk lookup
+- External JSON is parsed internally as JsonNode to tolerate incorrect optional types; principal response must be an edition object with a valid edition key
+- title: trim, blank/over 255 -> null; publisher: first valid trimmed value of at most 255 characters
+- pageCount: positive integral number within Integer range only
+- Authors: trim, case-insensitive deduplication preserving first spelling/order, join with '; ', retain only whole names fitting 255 characters
+- language: lowercase ISO 639-1; Java ISO3 mapping plus bibliographic aliases (including fre/ger); unknown or conflicting languages -> null
+- publicationYear: bare year, strict ISO date/year-month, or recognized English textual date; only 1–2100; ambiguous dates/ranges/circa -> null
+- Never use first_publish_year for edition publicationYear
+- genres: trim, discard null/blank/non-text/over 50, deduplicate ignoring case with Locale.ROOT, first spelling/order, first 10 valid values
+- Optional malformed metadata is discarded; valid partial proposals return 200; user-entered CRUD validation remains strict
+- Positive integral cover identifier produces HTTPS covers-base-url /b/id/{id}-L.jpg?default=false
+- Offered cover URLs use existing syntax-only HttpUrlValidator and maximum 2048; no image GET/HEAD/download/storage
+- 404: valid ISBN with no edition; 502: malformed/incompatible provider response or unsafe/repeated redirect
+- 503: connection/transport failure, upstream 429 or 5xx; valid upstream 429 Retry-After can be propagated
+- 504: request/connect timeout or exhausted total budget
+- Attempted enrichment failure uses the same errors rather than silently hiding provider failures
+- Errors use safe ProblemDetail messages: no upstream bodies, stack traces or configuration URLs
+- Offline tests use MockRestServiceServer, mocked transport timeouts and a controllable budget clock
+- No changes to Book, database schema, Flyway migrations or dependencies
 ```
 
 Metadata rules:

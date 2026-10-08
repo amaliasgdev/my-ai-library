@@ -119,6 +119,24 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void shouldDocumentConsultativeIsbnLookup() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode document = objectMapper.readTree(json);
+        JsonNode operation = document.path("paths").path("/api/books/isbn-lookup").path("get");
+        assertThat(parametersByName(operation).get("isbn").path("required").asBoolean()).isTrue();
+        assertThat(operation.path("description").asText()).contains("Open Library", "Partial", "spaces and hyphens", "does not read or write");
+        for (String status : new String[] {"200", "400", "404", "502", "503", "504"}) {
+            assertThat(operation.path("responses").has(status)).isTrue();
+        }
+        assertThat(operation.path("responses").path("200").path("content").path("application/json").path("schema").path("$ref").asText())
+            .isEqualTo("#/components/schemas/BookLookupResponse");
+        JsonNode fields = document.path("components").path("schemas").path("BookLookupResponse").path("properties");
+        assertThat(fields.size()).isEqualTo(9);
+        assertThat(fields.has("id") || fields.has("readingStatus") || fields.has("createdAt")).isFalse();
+    }
+
+    @Test
     void shouldDocumentMetadataAndValidationLimits() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();

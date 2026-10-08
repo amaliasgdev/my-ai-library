@@ -9,6 +9,8 @@ import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import org.mockito.Spy;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
 import java.time.Instant;
@@ -21,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
+    @Spy
+    private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
 
     @Mock
     private BookRepository bookRepository;

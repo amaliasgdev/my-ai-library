@@ -1,5 +1,8 @@
 package com.mibiblioteca.bookservice.common.exception;
 
+import com.mibiblioteca.bookservice.book.lookup.BookLookupException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.context.MessageSourceResolvable;
@@ -17,6 +20,24 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BookLookupException.class)
+    public ResponseEntity<ProblemDetail> handleBookLookup(BookLookupException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setTitle(ex.title());
+        if (ex.status() == HttpStatus.BAD_REQUEST) { problem.setProperty("errors", Map.of("isbn", ex.getMessage())); }
+        var response = ResponseEntity.status(ex.status());
+        if (ex.retryAfter() != null) { response.header("Retry-After", ex.retryAfter()); }
+        return response.body(problem);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Required request parameter is missing");
+        problem.setTitle("Validation error");
+        problem.setProperty("errors", Map.of(ex.getParameterName(), "is required"));
+        return problem;
+    }
 
     @ExceptionHandler(BookNotFoundException.class)
     public ProblemDetail handleBookNotFound(BookNotFoundException ex) {

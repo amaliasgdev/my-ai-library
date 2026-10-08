@@ -10,6 +10,7 @@ import com.mibiblioteca.bookservice.book.dto.ReadingDateRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingDatesRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
@@ -30,9 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookService {
 
     private final BookRepository bookRepository;
+    private final IsbnNormalizer isbnNormalizer;
 
-    public BookService(BookRepository bookRepository) {
+    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer) {
         this.bookRepository = bookRepository;
+        this.isbnNormalizer = isbnNormalizer;
     }
 
     @Transactional
@@ -208,10 +211,7 @@ public class BookService {
     }
 
     private String normalizeIsbn(String isbn) {
-        if (isbn == null || isbn.isBlank()) {
-            return null;
-        }
-        return isbn.replace("-", "").replace(" ", "").trim().toUpperCase();
+        return isbnNormalizer.normalize(isbn);
     }
 
     private Sort createSort(String sortBy, Sort.Direction direction) {

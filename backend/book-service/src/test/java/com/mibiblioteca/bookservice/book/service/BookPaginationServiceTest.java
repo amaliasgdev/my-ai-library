@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import org.mockito.Spy;
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookPaginationServiceTest {
+    @Spy
+    private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;
     @InjectMocks private BookService bookService;
 

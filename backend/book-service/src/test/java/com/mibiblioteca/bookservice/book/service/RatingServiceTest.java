@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
+import org.mockito.Spy;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RatingServiceTest {
+    @Spy
+    private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @Mock private BookRepository bookRepository;
     @InjectMocks private BookService bookService;
 
