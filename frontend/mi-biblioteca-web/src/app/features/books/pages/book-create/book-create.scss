@@ -1,0 +1,51 @@
+:host {
+  display: block;
+}
+
+h1 {
+  margin-block: 0 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.genre-entry,
+.actions {
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.genre-entry mat-form-field {
+  flex: 1 1 15rem;
+}
+
+.field-error {
+  color: var(--mat-sys-error);
+}
+
+.error-panel {
+  padding: 1rem;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  border-radius: var(--app-panel-radius);
+}
+
+@media (min-width: 48rem) {
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -5,6 +5,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { MatPaginator } from '@angular/material/paginator';
 import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
 
@@ -16,7 +17,7 @@ describe('BooksCatalog', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [BooksCatalog],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(BooksCatalog);
@@ -106,6 +107,8 @@ describe('BooksCatalog', () => {
     expect(element.textContent).toContain('Tu biblioteca todavía no tiene libros');
     expect(element.querySelector('app-book-card')).toBeNull();
     expect(paginator().length).toBe(0);
+    expect(element.querySelector('a')?.textContent).toContain('Añadir libro');
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/new');
   });
 
   it('should show an empty out-of-range page with real totals and allow returning to page 0', () => {
@@ -134,6 +137,7 @@ describe('BooksCatalog', () => {
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')?.textContent).toBe(message);
     expect(element.textContent).not.toContain('INTERNAL SECRET');
+    expect(element.querySelector('a')?.textContent).toContain('Añadir libro');
     expect(element.querySelector('app-book-card')).toBeNull();
     expect(element.querySelector('button')?.textContent).toContain('Reintentar');
   });

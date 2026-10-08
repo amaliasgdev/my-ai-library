@@ -1,4 +1,20 @@
-import { BookPageResponse, BookResponse } from './book.models';
+import { BookPageResponse, BookRequest, BookResponse } from './book.models';
+
+export function testBookRequest(overrides: Partial<BookRequest> = {}): BookRequest {
+  return {
+    title: 'Libro de prueba',
+    author: 'Autora de prueba',
+    isbn: null,
+    description: null,
+    coverUrl: null,
+    publisher: null,
+    publicationYear: null,
+    pageCount: null,
+    language: null,
+    genres: [],
+    ...overrides,
+  };
+}
 
 // Offline fixtures for unit tests only; never used by the application.
 export function testBook(overrides: Partial<BookResponse> = {}): BookResponse {

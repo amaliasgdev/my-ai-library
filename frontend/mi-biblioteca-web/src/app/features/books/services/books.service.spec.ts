@@ -2,8 +2,8 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { API_CONFIG } from '../../../core/config/api.config';
-import { BookPageResponse } from '../models/book.models';
-import { testBookPage } from '../models/book.testing';
+import { BookPageResponse, BookResponse } from '../models/book.models';
+import { testBook, testBookPage, testBookRequest } from '../models/book.testing';
 import { BooksService } from './books.service';
 
 describe('BooksService', () => {
@@ -19,6 +19,30 @@ describe('BooksService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('should POST the complete BookRequest unchanged and return BookResponse', () => {
+    const body = testBookRequest({ isbn: '978-0132350884', genres: ['Fantasía'] });
+    let result: BookResponse | undefined;
+    service.createBook(body).subscribe((book) => (result = book));
+    const request = http.expectOne('/api/books');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    expect(request.request.params.keys()).toEqual([]);
+    const response = testBook();
+    request.flush(response, { status: 201, statusText: 'Created' });
+    expect(result).toEqual(response);
+  });
+
+  it('should propagate POST errors without replacing ProblemDetail', () => {
+    let result: HttpErrorResponse | undefined;
+    service
+      .createBook(testBookRequest())
+      .subscribe({ error: (error: HttpErrorResponse) => (result = error) });
+    const problem = { status: 409, detail: 'Duplicate ISBN' };
+    http.expectOne('/api/books').flush(problem, { status: 409, statusText: 'Conflict' });
+    expect(result?.status).toBe(409);
+    expect(result?.error).toEqual(problem);
+  });
 
   it('should GET /api/books with all default parameters and return the page', () => {
     let result: BookPageResponse | undefined;
@@ -82,6 +106,12 @@ describe('BooksService with alternative API_CONFIG', () => {
     const http = TestBed.inject(HttpTestingController);
     TestBed.inject(BooksService).getBooks().subscribe();
     http.expectOne((req) => req.url === '/alternative-api/books').flush(testBookPage());
+    const body = testBookRequest();
+    TestBed.inject(BooksService).createBook(body).subscribe();
+    const request = http.expectOne('/alternative-api/books');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    request.flush(testBook());
     http.verify();
   });
 });
