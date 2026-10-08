@@ -449,9 +449,10 @@ Verified:
 - Book reading status is implemented
 - Book rating is implemented
 - Book reading dates are implemented
-- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates)
+- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL)
 - OpenAPI documentation is available
 - Book pagination and book search pagination are implemented
+- Optional book cover URL references are implemented (no image storage or downloads)
 
 ---
 
@@ -473,6 +474,8 @@ Book pagination is completed.
 
 Book search pagination is completed.
 
+Book cover URL support is completed.
+
 No next feature is planned. Wait for explicit user instruction.
 
 Initial Book fields:
@@ -483,6 +486,7 @@ title
 author
 isbn
 description
+coverUrl
 createdAt
 updatedAt
 readingStatus
@@ -542,6 +546,27 @@ BookController
 search request DTO
 validation
 tests
+```
+
+Cover URL rules:
+
+```text
+- coverUrl is an optional String mapped to nullable cover_url VARCHAR(2048)
+- V5__add_book_cover_url.sql adds the column without a default, index or uniqueness constraint
+- BookRequest validates @Size(max = 2048) and the custom Jakarta @HttpUrl constraint
+- @HttpUrl uses java.net.URI only: no DNS, HTTP calls or resource checks
+- only absolute HTTP/HTTPS URLs (case-insensitive scheme) with a host are accepted
+- hostnames, localhost and IP addresses are accepted when URI parses them as a host
+- paths, query parameters, fragments and valid percent-encoding are accepted
+- an explicit port must be 1 to 65535; embedded userInfo is rejected
+- null is valid; empty strings, unencoded whitespace and malformed URLs return 400 ProblemDetail with errors.coverUrl
+- URLs are stored as supplied, without trim or rewriting
+- POST /api/books accepts coverUrl; omission or null creates a book without a cover
+- PUT /api/books/{id} replaces coverUrl; omission or null removes the reference (not a partial update)
+- BookResponse includes coverUrl on creation, update, get-by-id, paginated list and paginated search
+- coverUrl is not a search filter or an allowed sortBy field
+- there are no dedicated cover endpoints yet
+- current scope is URL references only: no multipart, file upload, NAS, S3, thumbnails, image processing or external book provider integration
 ```
 
 Reading status rules:

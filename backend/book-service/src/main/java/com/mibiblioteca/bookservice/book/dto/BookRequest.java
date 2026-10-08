@@ -1,5 +1,6 @@
 package com.mibiblioteca.bookservice.book.dto;
 
+import com.mibiblioteca.bookservice.book.validation.HttpUrl;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -14,6 +15,10 @@ public record BookRequest(
         message = "isbn must be a valid ISBN-10 or ISBN-13"
     )
     @Schema(description = "ISBN-10 or ISBN-13; hyphens and spaces are accepted and removed before storage", example = "978-0132350884") String isbn,
-    @Size(max = 5000) String description
+    @Size(max = 5000) String description,
+    @Size(max = 2048)
+    @HttpUrl
+    @Schema(description = "Optional HTTP/HTTPS cover reference; null or omission means no cover, including on PUT. No image is downloaded.", format = "uri", nullable = true, example = "https://example.com/covers/clean-code.jpg")
+    String coverUrl
 ) {
 }

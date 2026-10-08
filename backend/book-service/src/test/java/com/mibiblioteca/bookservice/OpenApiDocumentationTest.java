@@ -85,6 +85,31 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void shouldDocumentOptionalNullableCoverAndExistingValidationResponses() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode document = objectMapper.readTree(json);
+        JsonNode schemas = document.path("components").path("schemas");
+        for (String name : new String[] {"BookRequest", "BookResponse"}) {
+            JsonNode schema = schemas.path(name);
+            JsonNode cover = schema.path("properties").path("coverUrl");
+            assertThat(cover.path("format").asText()).isEqualTo("uri");
+            assertThat(cover.path("example").asText()).isEqualTo("https://example.com/covers/clean-code.jpg");
+            assertThat(cover.path("description").asText()).contains("HTTP/HTTPS", "null");
+            assertThat(cover.path("nullable").asBoolean() || cover.path("type").toString().contains("\"null\""))
+                .as("%s.coverUrl must be nullable", name).isTrue();
+            assertThat(schema.path("required").toString()).doesNotContain("coverUrl");
+        }
+        assertThat(schemas.path("BookRequest").path("properties").path("coverUrl").path("maxLength").asInt())
+            .isEqualTo(2048);
+        assertThat(document.path("paths").path("/api/books").path("post").path("responses").path("400").path("$ref").asText())
+            .isEqualTo("#/components/responses/BadRequest");
+        assertThat(document.path("paths").path("/api/books/{id}").path("put").path("responses").path("400").path("$ref").asText())
+            .isEqualTo("#/components/responses/BadRequest");
+        assertThat(document.path("paths").has("/api/books/{id}/cover")).isFalse();
+    }
+
+    @Test
     void swaggerUiShouldBeAvailable() throws Exception {
         mockMvc.perform(get("/swagger-ui.html"))
             .andExpect(status().is3xxRedirection())

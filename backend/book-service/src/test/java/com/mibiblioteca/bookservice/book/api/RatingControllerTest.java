@@ -28,7 +28,7 @@ class RatingControllerTest {
     @Test
     void updateRatingShouldReturn200() throws Exception {
         when(bookService.updateRating(eq(1L), any()))
-            .thenReturn(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, 5, null, null));
+            .thenReturn(new BookResponse(1L, "Clean Code", "Robert C. Martin", null, null, Instant.now(), Instant.now(), ReadingStatus.TO_READ, 5, null, null, null));
 
         mockMvc.perform(put("/api/books/1/rating").contentType(MediaType.APPLICATION_JSON).content("{\"rating\":5}"))
             .andExpect(status().isOk())

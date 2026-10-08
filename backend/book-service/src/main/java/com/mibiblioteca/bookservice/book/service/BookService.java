@@ -43,6 +43,7 @@ public class BookService {
         book.setAuthor(request.author().trim());
         book.setIsbn(normalizedIsbn);
         book.setDescription(request.description());
+        book.setCoverUrl(request.coverUrl());
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -101,6 +102,7 @@ public class BookService {
         book.setAuthor(request.author().trim());
         book.setIsbn(normalizedIsbn);
         book.setDescription(request.description());
+        book.setCoverUrl(request.coverUrl());
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -253,7 +255,8 @@ public class BookService {
             book.getReadingStatus(),
             book.getRating(),
             book.getStartedOn(),
-            book.getFinishedOn()
+            book.getFinishedOn(),
+            book.getCoverUrl()
         );
     }
 }

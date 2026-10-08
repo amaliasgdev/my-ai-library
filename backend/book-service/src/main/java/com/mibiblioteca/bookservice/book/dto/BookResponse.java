@@ -16,6 +16,7 @@ public record BookResponse(
     @Schema(description = "Current reading status; new books default to TO_READ", example = "TO_READ") ReadingStatus readingStatus,
     @Schema(description = "Optional integer rating from 1 to 5; null when not rated", example = "5") Integer rating,
     @Schema(description = "Reading start date in ISO-8601 format", example = "2026-10-01") LocalDate startedOn,
-    @Schema(description = "Reading finish date in ISO-8601 format", example = "2026-10-07") LocalDate finishedOn
+    @Schema(description = "Reading finish date in ISO-8601 format", example = "2026-10-07") LocalDate finishedOn,
+    @Schema(description = "Optional HTTP/HTTPS cover reference; null means no cover.", format = "uri", nullable = true, example = "https://example.com/covers/clean-code.jpg") String coverUrl
 ) {
 }
