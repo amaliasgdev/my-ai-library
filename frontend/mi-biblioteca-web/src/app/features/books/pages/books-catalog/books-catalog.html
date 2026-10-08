@@ -1,0 +1,41 @@
+<section aria-labelledby="books-heading">
+  <h1 id="books-heading">Mi Biblioteca</h1>
+  <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+  <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
+    @let current = state();
+    @switch (current.status) {
+      @case ('loading') {
+        <div class="loading">
+          <mat-spinner diameter="40" aria-label="Cargando libros" />
+        </div>
+      }
+      @case ('error') {
+        <div class="error-panel">
+          <p role="alert">{{ current.message }}</p>
+          <button mat-flat-button type="button" (click)="retry()">Reintentar</button>
+        </div>
+      }
+      @case ('success') {
+        @if (current.response.content.length > 0) {
+          <ul class="book-grid" aria-label="Libros">
+            @for (book of current.response.content; track book.id) {
+              <li><app-book-card [book]="book" /></li>
+            }
+          </ul>
+        } @else if (current.response.totalElements > 0) {
+          <button mat-button type="button" (click)="firstPage()">Volver a la primera página</button>
+        }
+      }
+    }
+  </div>
+  <mat-paginator
+    aria-label="Paginación de libros"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [length]="totalElements()"
+    [pageSizeOptions]="pageSizeOptions"
+    [disabled]="state().status !== 'success'"
+    showFirstLastButtons
+    (page)="onPageChange($event)"
+  />
+</section>
