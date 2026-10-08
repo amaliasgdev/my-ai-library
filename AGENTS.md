@@ -455,6 +455,7 @@ Verified:
 - Optional book cover URL references are implemented (no image storage or downloads)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
+- Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 
 ---
 
@@ -481,6 +482,8 @@ Book cover URL support is completed.
 Book metadata is completed.
 
 Book ISBN lookup is completed.
+
+Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
 
@@ -521,6 +524,9 @@ POST   /api/books/{id}/start-reading
 POST   /api/books/{id}/finish-reading
 PUT    /api/books/{id}/reading-dates
 DELETE /api/books/{id}/reading-dates
+POST   /api/books/{id}/cover
+DELETE /api/books/{id}/cover
+GET    /api/covers/{filename}
 ```
 
 Search endpoints:
@@ -576,8 +582,54 @@ Cover URL rules:
 - PUT /api/books/{id} replaces coverUrl; omission or null removes the reference (not a partial update)
 - BookResponse includes coverUrl on creation, update, get-by-id, paginated list and paginated search
 - coverUrl is not a search filter or an allowed sortBy field
-- there are no dedicated cover endpoints yet
-- cover CRUD scope is URL references only: no multipart, file upload, NAS, S3, thumbnails or image processing; separate consultative provider lookup is described below
+- managed URLs are reserved: POST book cannot assign one; PUT can preserve only that book's current managed URL
+- external URLs remain accepted, without downloading their resources
+- upload/storage rules are below; ISBN lookup still returns references without downloading images
+```
+
+Cover upload and storage rules:
+
+```text
+- POST /api/books/{id}/cover consumes multipart/form-data with mandatory file, returns 200 BookResponse
+- DELETE /api/books/{id}/cover returns 204; idempotent for an existing book without a cover, missing book -> 404
+- GET /api/covers/{filename} returns managed binary JPEG/PNG only; invalid or missing filenames -> 404
+- Components: BookCoverController, CoverContentController, BookCoverService, CoverImageValidator, CoverStorage, FileSystemCoverStorage
+- CoverStorage exposes safe keys and image bytes, never physical Paths or arbitrary user URLs
+- CoverStorageProperties binds storage.covers; directory defaults to ./data/covers relative to the process working directory
+- COVERS_DIRECTORY overrides the physical directory; COVERS_PUBLIC_BASE_URL overrides the public HTTP/HTTPS base URL
+- Public base URL has no credentials, query or fragment and is never derived from an incoming Host header
+- Default public-base-url: http://localhost:8081/api/covers; directory never appears in coverUrl
+- Managed files are private filesystem data, outside the classpath and target, excluded from Git
+- Changing directory to an accessible mounted NAS folder requires configuration only; NAS deployment is not implemented or verified
+- Preserve public origin/path when moving storage; existing absolute URLs are not rewritten automatically
+- Only JPEG/image/jpeg and static PNG/image/png; WebP/GIF/SVG/APNG are unsupported (415)
+- Validate presence, nonempty bytes, reported and actual bounded size, declared MIME, signature, MIME/format agreement, ImageIO reader, dimensions and full decode
+- PNG chunks are bounded and CRC-checked; APNG animation chunks are rejected; truncated/corrupt images -> 400
+- Preserve original image bytes; no resizing, conversion, compression, thumbnails or metadata stripping
+- Maximum file 5 MiB (5242880 bytes); Spring multipart max-file-size 5MB, max-request-size 6MB
+- Maximum width/height 6000, maximum pixels 20000000, positive dimensions without an aesthetic minimum
+- Tomcat max-swallow-size 8MB allows bounded draining for ordinary oversized uploads to receive 413; extreme oversized clients may have their connection closed
+- Generated filenames: {positive bookId}-{lowercase uuid}.jpg/.png; extension derives from detected content, original filename is ignored
+- Temporary CREATE_NEW writes and same-directory move without REPLACE_EXISTING publish complete files; no overwrite or temporary GET access
+- Filename whitelist rejects arbitrary names, overflow IDs, separators, absolute paths and encoded traversal
+- Reject symlink files and symlink directory ancestors; managed directory must be writable only by trusted application/administrative processes
+- Ownership requires configured origin, managed path, exact valid filename and matching bookId, not URL-prefix matching alone
+- Upload: initial existence check, validation, full file storage, short REQUIRES_NEW TransactionTemplate, reload book, update/flush coverUrl, commit, cleanup old managed file
+- New file is removed on confirmed rollback or failure to begin; cleanup failure is logged without hiding the primary error
+- Unknown commit outcome retains the new file rather than risking a committed reference pointing to a deleted file
+- DELETE cover clears the reference and commits before deleting the old managed file; missing physical files count as success
+- PUT book removing/replacing a managed cover and DELETE book schedule identical after-commit cleanup
+- Failed post-commit cleanup is logged; preserve 200/204 and never pretend the committed database change rolled back
+- External references are replaced/cleared only; no HTTP request or resource deletion, including Open Library references
+- No distributed transaction or automatic orphan sweeper; process crashes/cleanup failures can leave orphan files
+- No pessimistic lock, @Version or global concurrency changes; existing last-writer semantics remain
+- Sequential failure handling is coordinated, but concurrent writes/cleanup are not serializable and can leave stale references or orphan files; avoid overlapping edits of the same book in v1
+- GET returns canonical real Content-Type, Content-Length, inline disposition, nosniff, public max-age=86400
+- Public reading has no authentication; UUID is not authorization and caches may retain a deleted cover for one day
+- Errors: 400 missing/empty/malformed/corrupt/dimensions; 404 missing book/cover; 413 size; 415 unsupported/mismatched type; 500 storage/persistence
+- ProblemDetail includes errors.file or errors.coverUrl when appropriate; never expose original unsafe names, physical paths, NAS information or stack traces
+- Tests use temporary directories and real PostgreSQL commits for coordination, no real NAS or external provider calls
+- No migrations, new dependencies, bibliographic changes, S3/CDN/WebP/OCR/advanced image processing
 ```
 
 ISBN lookup rules:
