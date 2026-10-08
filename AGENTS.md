@@ -449,10 +449,11 @@ Verified:
 - Book reading status is implemented
 - Book rating is implemented
 - Book reading dates are implemented
-- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL)
+- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL), V6 (book metadata)
 - OpenAPI documentation is available
 - Book pagination and book search pagination are implemented
 - Optional book cover URL references are implemented (no image storage or downloads)
+- Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 
 ---
 
@@ -476,6 +477,8 @@ Book search pagination is completed.
 
 Book cover URL support is completed.
 
+Book metadata is completed.
+
 No next feature is planned. Wait for explicit user instruction.
 
 Initial Book fields:
@@ -487,6 +490,11 @@ author
 isbn
 description
 coverUrl
+publisher
+publicationYear
+pageCount
+language
+genres
 createdAt
 updatedAt
 readingStatus
@@ -567,6 +575,30 @@ Cover URL rules:
 - coverUrl is not a search filter or an allowed sortBy field
 - there are no dedicated cover endpoints yet
 - current scope is URL references only: no multipart, file upload, NAS, S3, thumbnails, image processing or external book provider integration
+```
+
+Metadata rules:
+
+```text
+- V6__add_book_metadata.sql adds publisher, publication_year, page_count, language and genres
+- publisher: nullable VARCHAR(255), maximum 255 input characters; trim outer spaces and map the resulting empty string to null
+- publicationYear: nullable Integer/INTEGER, 1 to 2100; null means unknown
+- pageCount: nullable Integer/INTEGER, strictly positive; null means unknown
+- decimal values for integer fields are rejected using the existing Jackson configuration
+- language: nullable VARCHAR(2), two ASCII letters recognized by Locale.getISOLanguages()
+- language accepts either case and is stored in lowercase using Locale.ROOT; blank, unknown codes and regional tags are invalid
+- genres: List<String> mapped natively with Hibernate @JdbcTypeCode(SqlTypes.ARRAY) to PostgreSQL VARCHAR(50)[]
+- genres is NOT NULL with database default '{}'; no entity, association table or @ElementCollection
+- maximum 10 genres and 50 input characters per genre; null/empty/blank elements are invalid
+- trim genre outer spaces, preserve case and order, and reject duplicates after trim ignoring case using Locale.ROOT
+- omitted/null/[] genres are stored and returned as []
+- POST omitted scalar metadata becomes null; PUT replaces metadata and omitted/null scalar fields remove previous values
+- PUT omitted/null/[] genres removes all previous genres
+- metadata appears in BookResponse for CRUD, paginated list and paginated search
+- new metadata fields are not search filters or allowed sortBy values; no dedicated metadata endpoints
+- invalid metadata returns the existing 400 ProblemDetail with field errors, including genres and genres[index]
+- V6 CHECKs enforce year/page ranges, lowercase two-letter language format, genre count and absence of null array elements
+- no new indexes, external integrations or dependencies are required
 ```
 
 Reading status rules:
