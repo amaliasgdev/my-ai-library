@@ -6,8 +6,8 @@ export const routes: Routes = [
     path: 'books',
     title: 'Mi Biblioteca',
     loadComponent: () =>
-      import('./features/books/pages/books-placeholder/books-placeholder').then(
-        (module) => module.BooksPlaceholder,
+      import('./features/books/pages/books-catalog/books-catalog').then(
+        (module) => module.BooksCatalog,
       ),
   },
 ];

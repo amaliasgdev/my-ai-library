@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+h1 {
+  margin-block: 0.5rem 1rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.catalog-status {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 1.125rem;
+}
+
+.catalog-content {
+  min-height: 8rem;
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.error-panel {
+  padding: 1.5rem;
+  border-radius: var(--app-panel-radius);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 1.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  li {
+    min-width: 0;
+  }
+}
+
+mat-paginator {
+  margin-block-start: 1.5rem;
+  background: transparent;
+}

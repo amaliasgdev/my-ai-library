@@ -1,0 +1,26 @@
+<mat-card appearance="outlined">
+  <div class="cover">
+    @if (book().coverUrl && !imageFailed()) {
+      <img
+        [src]="book().coverUrl"
+        [alt]="'Portada de ' + book().title"
+        loading="lazy"
+        (error)="onImageError()"
+      />
+    } @else {
+      <span class="cover-fallback">Sin portada</span>
+    }
+  </div>
+  <mat-card-header>
+    <mat-card-title
+      ><h2>{{ book().title }}</h2></mat-card-title
+    >
+    <mat-card-subtitle>{{ book().author }}</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <p class="reading-status">{{ statusLabels[book().readingStatus] }}</p>
+    @if (book().rating !== null) {
+      <p class="rating">Valoración: {{ book().rating }} de 5</p>
+    }
+  </mat-card-content>
+</mat-card>
