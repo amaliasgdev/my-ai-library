@@ -1,5 +1,38 @@
 # My AI Library
 
+## Frontend technical base
+
+Location: [`frontend/mi-biblioteca-web`](frontend/mi-biblioteca-web/README.md).
+Requires Node **22.22.3+ within Node 22** and npm **10+**.
+
+```powershell
+cd frontend/mi-biblioteca-web
+npm install
+npm start
+```
+
+Open `http://localhost:4200/`: `/` redirects to `/books`, a standalone technical
+placeholder. Angular Material is the **only UI library**, with SCSS/CSS Grid and
+Flexbox for responsive layout. PrimeNG, Tailwind and Bootstrap are not installed.
+There is no catalog, CRUD, search, fake book data, SSR or PWA yet.
+
+```powershell
+npm run lint
+npm run format:check
+npm run build
+npm run test:ci
+```
+
+Use `npm run format` to apply frontend formatting and `npm ci` for subsequent
+reproducible installations. Vitest tests do not require a running backend.
+
+Future HTTP services use the centralized `/api` base URL. During development,
+Angular proxies `/api/**` to Spring Boot at `http://localhost:8081`, without backend
+CORS changes. Run the backend separately when exercising real API requests.
+The proxy is not part of the production bundle; production routing is a future
+deployment responsibility. A Material light theme is active; dark theme styles
+are prepared under `html.app-dark`, without a theme selector.
+
 ## ISBN metadata lookup
 
 `GET /api/books/isbn-lookup?isbn=978-0132350884`

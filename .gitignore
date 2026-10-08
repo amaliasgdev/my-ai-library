@@ -35,3 +35,10 @@ application-local.properties
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Angular / Node
+node_modules/
+.angular/
+dist/
+coverage/
+.npm-cache/
