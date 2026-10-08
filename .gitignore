@@ -35,3 +35,6 @@ application-local.properties
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Managed cover files (relative default depends on the launch directory)
+**/data/covers/

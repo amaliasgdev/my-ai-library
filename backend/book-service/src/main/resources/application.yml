@@ -1,9 +1,16 @@
 server:
   port: 8081
+  tomcat:
+    # Bounded draining lets ordinary oversized multipart requests receive our 413.
+    max-swallow-size: 8MB
 
 spring:
   application:
     name: book-service
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   jackson:
     deserialization:
       accept-float-as-int: false
@@ -39,3 +46,12 @@ external:
       lookup-timeout: 8s
       user-agent: MyAILibrary
       contact: ${OPEN_LIBRARY_CONTACT:}
+
+storage:
+  covers:
+    directory: ${COVERS_DIRECTORY:./data/covers}
+    public-base-url: ${COVERS_PUBLIC_BASE_URL:http://localhost:8081/api/covers}
+    max-file-size: 5MB
+    max-width: 6000
+    max-height: 6000
+    max-pixels: 20000000

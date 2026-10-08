@@ -1,6 +1,12 @@
 package com.mibiblioteca.bookservice.common.exception;
 
 import com.mibiblioteca.bookservice.book.lookup.BookLookupException;
+import com.mibiblioteca.bookservice.book.cover.CoverException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.TransactionException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import java.util.LinkedHashMap;
@@ -20,6 +26,29 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(CoverException.class)
+    public ProblemDetail handleCover(CoverException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setTitle(ex.status().getReasonPhrase());
+        if (ex.field() != null) { problem.setProperty("errors", Map.of(ex.field(), ex.getMessage())); }
+        return problem;
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail handleUploadSize(MaxUploadSizeExceededException ex) {
+        return handleCover(new CoverException(HttpStatus.PAYLOAD_TOO_LARGE, "Multipart upload exceeds the allowed size", "file"));
+    }
+
+    @ExceptionHandler({MultipartException.class, MissingServletRequestPartException.class})
+    public ProblemDetail handleMultipart(Exception ex) {
+        return handleCover(new CoverException(HttpStatus.BAD_REQUEST, "A valid multipart file part is required", "file"));
+    }
+
+    @ExceptionHandler({DataAccessException.class, TransactionException.class})
+    public ProblemDetail handlePersistence(Exception ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Database operation failed");
+    }
 
     @ExceptionHandler(BookLookupException.class)
     public ResponseEntity<ProblemDetail> handleBookLookup(BookLookupException ex) {
