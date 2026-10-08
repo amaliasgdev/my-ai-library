@@ -1,0 +1,51 @@
+:host {
+  display: block;
+}
+
+.placeholder-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 2rem;
+}
+
+.eyebrow {
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+h1 {
+  margin-block: 0.5rem 1rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.lead {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 1.125rem;
+}
+
+.setup-card {
+  min-width: 0;
+  border-radius: var(--app-panel-radius);
+
+  h2 {
+    margin: 0;
+    font: inherit;
+  }
+
+  p {
+    line-height: 1.6;
+  }
+}
+
+@media (min-width: 48rem) {
+  .placeholder-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3rem;
+  }
+}

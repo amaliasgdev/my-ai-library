@@ -1,0 +1,16 @@
+@use './styles/material-theme';
+@use './styles/tokens';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
