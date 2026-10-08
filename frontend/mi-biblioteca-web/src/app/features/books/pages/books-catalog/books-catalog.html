@@ -1,6 +1,9 @@
 <section aria-labelledby="books-heading">
-  <h1 id="books-heading">Mi Biblioteca</h1>
+  <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
   <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+  @if (deleteError()) {
+    <p class="error-panel" role="alert">{{ deleteError() }}</p>
+  }
   <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
   <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
     @let current = state();
@@ -20,7 +23,14 @@
         @if (current.response.content.length > 0) {
           <ul class="book-grid" aria-label="Libros">
             @for (book of current.response.content; track book.id) {
-              <li><app-book-card [book]="book" /></li>
+              <li>
+                <app-book-card
+                  [book]="book"
+                  [deleting]="deletingId() === book.id"
+                  [deleteDisabled]="deletingId() !== null"
+                  (deleteRequested)="openDeleteDialog($event)"
+                />
+              </li>
             }
           </ul>
         } @else if (current.response.totalElements > 0) {
@@ -35,7 +45,7 @@
     [pageSize]="pageSize()"
     [length]="totalElements()"
     [pageSizeOptions]="pageSizeOptions"
-    [disabled]="state().status !== 'success'"
+    [disabled]="state().status !== 'success' || deletingId() !== null"
     showFirstLastButtons
     (page)="onPageChange($event)"
   />

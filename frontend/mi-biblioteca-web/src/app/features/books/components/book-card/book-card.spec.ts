@@ -18,7 +18,7 @@ describe('BookCard', () => {
     fixture.detectChanges();
   });
 
-  it('should render title, author and only an accessible edit action without extra metadata', async () => {
+  it('should render title, author and accessible edit/delete actions without extra metadata', async () => {
     fixture.componentRef.setInput(
       'book',
       testBook({
@@ -38,8 +38,42 @@ describe('BookCard', () => {
     expect(link?.textContent?.trim()).toBe('Editar');
     expect(link?.getAttribute('href')).toBe('/books/1/edit');
     expect(link?.getAttribute('aria-label')).toBe('Editar Libro de prueba');
-    expect(element.querySelectorAll('a, button')).toHaveLength(1);
+    const deletion = element.querySelector('button');
+    expect(deletion?.textContent?.trim()).toBe('Eliminar');
+    expect(deletion?.getAttribute('aria-label')).toBe('Eliminar Libro de prueba');
+    expect(element.querySelectorAll('a, button')).toHaveLength(2);
     expect(element.textContent).not.toMatch(/Hidden|9780132350884|2008/);
+  });
+
+  it('should emit the book to its parent without HTTP or a dialog', () => {
+    const requested = vi.fn();
+    fixture.componentInstance.deleteRequested.subscribe(requested);
+    (element.querySelector('button') as HTMLButtonElement).click();
+    expect(requested).toHaveBeenCalledExactlyOnceWith(testBook());
+  });
+
+  it('should disable only deletion for other cards during an active delete', () => {
+    fixture.componentRef.setInput('deleteDisabled', true);
+    fixture.detectChanges();
+    const requested = vi.fn();
+    fixture.componentInstance.deleteRequested.subscribe(requested);
+    expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/1/edit');
+    fixture.componentInstance.requestDelete();
+    expect(requested).not.toHaveBeenCalled();
+  });
+
+  it('should block edit and delete and announce progress for the affected book', () => {
+    fixture.componentRef.setInput('deleting', true);
+    fixture.detectChanges();
+    expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
+    expect(element.querySelector('a')?.getAttribute('href')).toBeNull();
+    expect(element.querySelector('a')?.getAttribute('aria-disabled')).toBe('true');
+    expect(element.querySelector('[role="status"]')?.textContent).toBe('Eliminando…');
+    const requested = vi.fn();
+    fixture.componentInstance.deleteRequested.subscribe(requested);
+    fixture.componentInstance.requestDelete();
+    expect(requested).not.toHaveBeenCalled();
   });
 
   it.each([

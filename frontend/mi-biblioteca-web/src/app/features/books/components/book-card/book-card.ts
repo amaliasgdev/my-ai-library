@@ -1,4 +1,4 @@
-import { Component, input, OnChanges, signal } from '@angular/core';
+import { Component, input, OnChanges, output, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
@@ -12,6 +12,9 @@ import { BookResponse, ReadingStatus } from '../../models/book.models';
 })
 export class BookCard implements OnChanges {
   readonly book = input.required<BookResponse>();
+  readonly deleting = input(false);
+  readonly deleteDisabled = input(false);
+  readonly deleteRequested = output<BookResponse>();
   protected readonly imageFailed = signal(false);
   protected readonly statusLabels: Record<ReadingStatus, string> = {
     TO_READ: 'Por leer',
@@ -30,5 +33,9 @@ export class BookCard implements OnChanges {
 
   protected onImageError(): void {
     this.imageFailed.set(true);
+  }
+
+  requestDelete(): void {
+    if (!this.deleting() && !this.deleteDisabled()) this.deleteRequested.emit(this.book());
   }
 }
