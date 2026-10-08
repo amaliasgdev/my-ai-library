@@ -1,5 +1,6 @@
 <section aria-labelledby="books-heading">
   <h1 id="books-heading">Mi Biblioteca</h1>
+  <a mat-flat-button routerLink="/books/new">Añadir libro</a>
   <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
   <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
     @let current = state();

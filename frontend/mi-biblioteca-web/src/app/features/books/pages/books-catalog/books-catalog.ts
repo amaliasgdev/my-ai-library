@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -41,7 +42,7 @@ function catalogError(error: unknown): string {
 
 @Component({
   selector: 'app-books-catalog',
-  imports: [BookCard, MatButtonModule, MatPaginatorModule, MatProgressSpinnerModule],
+  imports: [BookCard, MatButtonModule, MatPaginatorModule, MatProgressSpinnerModule, RouterLink],
   providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
   styleUrl: './books-catalog.scss',
