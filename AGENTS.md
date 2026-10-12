@@ -161,10 +161,19 @@ frontend/mi-biblioteca-web/
 - BookEdit validates digit-only positive safe integer route IDs before GET, uses loading/loaded/error states and switchMap cancellation for GET only; no empty form while loading
 - Preloaded text nulls become empty inputs, numbers stay numeric/null, and the form starts pristine/untouched; PUT replaces all 10 BookRequest fields
 - coverUrl is preloaded and submitted exactly, including managed URLs; backend alone checks ownership and handles cleanup, with no URL rewriting or image manipulation in Angular
+- Managed cover UI is available only in BookEdit at /books/:id/edit, outside BookRequest; BookCreate has no upload; BooksService.uploadCover(id, File) POSTs FormData with exactly field file and no manual Content-Type, returning BookResponse; deleteCover(id) sends bodyless DELETE and receives 204
+- COVERS_CONFIG centralizes publicBaseUrl (development default matches backend http://localhost:8081/api/covers); configure it to match backend COVERS_PUBLIC_BASE_URL when deploying, without physical storage paths or inferred incoming origins
+- isManagedCover is a fail-closed UX-only classifier: absolute HTTP/HTTPS URL, configured scheme/host/effective port/raw path, no credentials/query/fragment, exact current bookId-lowercaseUUID.jpg/png; repaired URLs and lookalike prefixes are not classified as managed, and backend remains the ownership authority
+- BookEdit displays the confirmed current cover/fallback and selected filename, with no local preview; Eliminar portada is offered only for a confirmed managed cover, while external references are edited/cleared through ordinary coverUrl PUT
+- File selection/upload validates presence, nonempty bytes, MIME image/jpeg or image/png, and <=5242880 bytes; original extension is ignored and backend alone validates signature/static PNG/CRC/dimensions/decode
+- Upload/delete writes save immediately independent of general Guardar; one screen write at a time excludes PUT/upload/delete/reload, blocks file/actions/form/Cancelar with code guards, and no new navigation guard is introduced
+- Initial BookForm preload is separate from cover confirmations: only coverUrl is synchronized after upload or DELETE+GET, replacing its manual draft but preserving all other edits, pending genres, dirty/touched and validation errors; image changes only on confirmed response, upload success clears selected file/input and failures retain it
+- DELETE cover 204 triggers GET book; until confirmed synchronization no new writes are allowed; failed GET uses a distinct synchronization error and Reintentar actualización repeats only GET, never the successful DELETE
+- Cover subscriptions use takeUntilDestroyed, and route ID changes cancel old cover operations and reject stale responses; cancellation on the client does not roll back a server commit
 - The catalog exposes Añadir libro and each BookCard exposes an accessible Editar link; successful creation/editing and Cancelar navigate to /books, which reloads from the backend
 - BookForm validates the existing CRUD contract, not ISBN lookup checksum; genres are trimmed, limited to 10 and unique ignoring case, with pending text resolved before submit
 - Creation/edit errors are safe inline messages; known ProblemDetail fields map to server control errors cleared on editing, and 409 duplicate ISBN marks isbn
-- Submission blocks duplicate POST/PUT and genre/cancel actions; no automatic retries, cover preview or unsaved-change guard
+- Submission blocks duplicate POST/PUT and genre/cancel actions; no automatic retries, local cover preview or unsaved-change guard
 - BookCard displays cover/fallback, title, author, readable readingStatus/rating, immediate Material status/rating selects and Editar/Eliminar actions; the whole card is not clickable; actions are emitted to the catalog, never HTTP in the card
 - Status PATCH sends only UpdateReadingStatusRequest { readingStatus } and rating PUT sends only UpdateRatingRequest { rating: integer 1..5 }; both return BookResponse; Sin valorar uses bodyless DELETE rating (204), never PUT null
 - Reading status/rating selectors explicitly restore confirmed MatSelect values before emitting; there is no optimistic update, errors preserve prior values and PATCH status never infers, changes or clears reading dates
@@ -189,7 +198,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend details, filters, ISBN lookup in editing, automatic lookup, cover upload, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend details, filters, ISBN lookup in editing, automatic lookup, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -593,6 +602,7 @@ Verified:
 - Frontend readingStatus and rating editing is implemented in BookCard with PATCH status, PUT rating and DELETE rating; confirmed response replacement or current-query reload preserves server sorting
 - Frontend reading dates are implemented with local-today start/finish actions and a dedicated Material dialog for PUT/DELETE dates; status changes only as confirmed by the quick-action backend response
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
+- Frontend managed cover upload/delete is implemented in BookEdit with configured UX ownership classification and partial coverUrl synchronization, without upload in creation
 
 ---
 
