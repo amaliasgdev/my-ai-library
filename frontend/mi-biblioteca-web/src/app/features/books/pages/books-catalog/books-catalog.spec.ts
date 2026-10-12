@@ -48,7 +48,7 @@ describe('BooksCatalog', () => {
   }
 
   async function deleteFirstBook() {
-    (element.querySelector('app-book-card button') as HTMLButtonElement).click();
+    (element.querySelector('app-book-card mat-card-actions button') as HTMLButtonElement).click();
     await fixture.whenStable();
     const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
     await (
@@ -109,7 +109,7 @@ describe('BooksCatalog', () => {
     expect(fixture.componentInstance.deletingId()).toBe(42);
     expect(paginator().disabled).toBe(true);
     expect(
-      Array.from(element.querySelectorAll('app-book-card button')).every(
+      Array.from(element.querySelectorAll('app-book-card mat-card-actions button')).every(
         (button) => (button as HTMLButtonElement).disabled,
       ),
     ).toBe(true);
@@ -244,7 +244,7 @@ describe('BooksCatalog', () => {
     await fixture.whenStable();
     expect(element.textContent).toContain('No se puede conectar con el servidor');
     http.expectNone((req) => req.method === 'DELETE');
-    (element.querySelector('app-book-card button') as HTMLButtonElement).click();
+    (element.querySelector('app-book-card mat-card-actions button') as HTMLButtonElement).click();
     await fixture.whenStable();
     http.expectNone((req) => req.method === 'DELETE');
     TestBed.inject(MatDialog).closeAll();

@@ -24,7 +24,9 @@ describe('App', () => {
 
   it('should render the shell and route the root URL to the catalog', async () => {
     const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
     await TestBed.inject(Router).navigateByUrl('/');
+    fixture.detectChanges();
     TestBed.inject(HttpTestingController)
       .expectOne((req) => req.url === '/api/books')
       .flush(testBookPage());

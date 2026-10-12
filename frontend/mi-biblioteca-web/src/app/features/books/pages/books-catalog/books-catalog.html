@@ -108,6 +108,9 @@
                   [updateError]="updateErrors().get(book.id) ?? null"
                   (readingStatusRequested)="updateReadingStatus($event)"
                   (ratingRequested)="updateRating($event)"
+                  (startReadingRequested)="startReading($event)"
+                  (finishReadingRequested)="finishReading($event)"
+                  (readingDatesRequested)="openReadingDatesDialog($event)"
                   (deleteRequested)="openDeleteDialog($event)"
                 />
               </li>

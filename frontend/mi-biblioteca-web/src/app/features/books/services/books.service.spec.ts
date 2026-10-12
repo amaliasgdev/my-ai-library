@@ -21,6 +21,72 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it.each(['start', 'finish'] as const)(
+    'should POST %s reading with its exact date DTO and confirmed response',
+    (action) => {
+      const request = { date: '2026-10-12' };
+      const next = vi.fn();
+      (action === 'start'
+        ? service.startReading(42, request)
+        : service.finishReading(42, request)
+      ).subscribe(next);
+      const httpRequest = http.expectOne(`/api/books/42/${action}-reading`);
+      expect(httpRequest.request.method).toBe('POST');
+      expect(httpRequest.request.body).toEqual(request);
+      const book = testBook({ id: 42, startedOn: request.date });
+      httpRequest.flush(book);
+      expect(next).toHaveBeenCalledWith(book);
+    },
+  );
+
+  it.each([
+    { startedOn: '2024-02-29', finishedOn: null },
+    { startedOn: null, finishedOn: '2026-10-12' },
+    { startedOn: '2026-10-12', finishedOn: '2026-10-12' },
+  ])('should PUT both reading-date fields exactly: %j', (body) => {
+    const next = vi.fn();
+    service.updateReadingDates(42, body).subscribe(next);
+    const request = http.expectOne('/api/books/42/reading-dates');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(body);
+    const book = testBook({ id: 42, ...body });
+    request.flush(book);
+    expect(next).toHaveBeenCalledWith(book);
+  });
+
+  it('should DELETE reading dates without a body and complete on 204', () => {
+    const complete = vi.fn();
+    service.deleteReadingDates(42).subscribe({ complete });
+    const request = http.expectOne('/api/books/42/reading-dates');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it.each(['start', 'finish', 'update', 'delete'] as const)(
+    'should propagate %s reading-date errors',
+    (action) => {
+      const error = vi.fn();
+      const request: Observable<BookResponse | void> =
+        action === 'start'
+          ? service.startReading(42, { date: '2026-10-12' })
+          : action === 'finish'
+            ? service.finishReading(42, { date: '2026-10-12' })
+            : action === 'update'
+              ? service.updateReadingDates(42, { startedOn: null, finishedOn: '2026-10-12' })
+              : service.deleteReadingDates(42);
+      request.subscribe({ error });
+      http
+        .expectOne(
+          `/api/books/42/${action === 'start' || action === 'finish' ? action + '-reading' : 'reading-dates'}`,
+        )
+        .flush({ detail: 'PRIVATE' }, { status: 400, statusText: 'Bad Request' });
+      expect(error.mock.calls[0][0].status).toBe(400);
+      expect(error.mock.calls[0][0].error).toEqual({ detail: 'PRIVATE' });
+    },
+  );
+
   it('should PATCH the exact reading status DTO and return BookResponse', () => {
     const next = vi.fn();
     service.updateReadingStatus(42, 'READING').subscribe(next);
@@ -322,6 +388,17 @@ describe('BooksService with alternative API_CONFIG', () => {
     expect(clear.request.method).toBe('DELETE');
     expect(clear.request.body).toBeNull();
     clear.flush(null, { status: 204, statusText: 'No Content' });
+    const service = TestBed.inject(BooksService);
+    service.startReading(42, { date: '2026-10-12' }).subscribe();
+    http.expectOne('/alternative-api/books/42/start-reading').flush(testBook());
+    service.finishReading(42, { date: '2026-10-12' }).subscribe();
+    http.expectOne('/alternative-api/books/42/finish-reading').flush(testBook());
+    service.updateReadingDates(42, { startedOn: '2026-10-12', finishedOn: null }).subscribe();
+    http.expectOne('/alternative-api/books/42/reading-dates').flush(testBook());
+    service.deleteReadingDates(42).subscribe();
+    http
+      .expectOne('/alternative-api/books/42/reading-dates')
+      .flush(null, { status: 204, statusText: 'No Content' });
     http.verify();
   });
 });
