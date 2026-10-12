@@ -10,11 +10,20 @@ import { BookCreate } from './features/books/pages/book-create/book-create';
 import { testBook, testBookPage } from './features/books/models/book.testing';
 import { BookEdit } from './features/books/pages/book-edit/book-edit';
 import { BookDetail } from './features/books/pages/book-detail/book-detail';
+import { MatDialog, MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
 
 describe('Application routes', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter(routes),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: MAT_DIALOG_DEFAULT_OPTIONS,
+          useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
+        },
+      ],
     }),
   );
 
@@ -122,6 +131,86 @@ describe('Application routes', () => {
     expect(
       routes.filter((route) => route.path?.startsWith('books')).map((route) => route.path),
     ).toEqual(['books/new', 'books/:id/edit', 'books/:id', 'books']);
+  });
+
+  it('should preserve catalog context through detail, edit cancellation and successful PUT', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    const router = TestBed.inject(Router);
+    const context = { page: '2', size: '50', sortBy: 'author', direction: 'DESC', title: 'Dune' };
+    const url = '/books?page=2&size=50&sortBy=author&direction=DESC&title=Dune';
+    await harness.navigateByUrl(url, BooksCatalog);
+    http
+      .expectOne((req) => req.url === '/api/books/search')
+      .flush(testBookPage({ page: 2, size: 50 }));
+    await harness.fixture.whenStable();
+    const click = (text: string) =>
+      Array.from(harness.routeNativeElement!.querySelectorAll('a'))
+        .find((a) => a.textContent?.trim() === text)!
+        .click();
+    click('Ver detalle');
+    await harness.fixture.whenStable();
+    expect(router.parseUrl(router.url).queryParams).toEqual(context);
+    const get = http.expectOne('/api/books/1');
+    expect(get.request.params.keys()).toEqual([]);
+    get.flush(testBook());
+    await harness.fixture.whenStable();
+    click('Editar');
+    await harness.fixture.whenStable();
+    expect(router.parseUrl(router.url).queryParams).toEqual(context);
+    http.expectOne('/api/books/1').flush(testBook());
+    await harness.fixture.whenStable();
+    (harness.routeDebugElement!.componentInstance as BookEdit).cancel();
+    await harness.fixture.whenStable();
+    expect(router.url).toBe(url);
+    const list = http.expectOne((req) => req.url === '/api/books/search');
+    expect(list.request.params.get('page')).toBe('2');
+    list.flush(testBookPage({ page: 2, size: 50 }));
+    await harness.fixture.whenStable();
+    click('Editar');
+    await harness.fixture.whenStable();
+    http.expectOne('/api/books/1').flush(testBook());
+    await harness.fixture.whenStable();
+    const edit = harness.routeDebugElement!.componentInstance as BookEdit;
+    edit.editor()!.form.controls.title.setValue('Edited');
+    edit.editor()!.submit();
+    const put = http.expectOne('/api/books/1');
+    expect(put.request.params.keys()).toEqual([]);
+    put.flush(testBook({ title: 'Edited' }));
+    await harness.fixture.whenStable();
+    expect(router.url).toBe(url);
+    http
+      .expectOne((req) => req.url === '/api/books/search')
+      .flush(testBookPage({ page: 2, size: 50 }));
+  });
+
+  it('should return and delete from detail with context, without adding context to book HTTP', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    const router = TestBed.inject(Router);
+    const detail = await harness.navigateByUrl(
+      '/books/42?page=3&sortBy=rating&direction=DESC',
+      BookDetail,
+    );
+    http.expectOne('/api/books/42').flush(testBook({ id: 42 }));
+    await harness.fixture.whenStable();
+    const back = Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
+      (a) => a.textContent?.trim() === 'Volver al catálogo',
+    )!;
+    expect(back.getAttribute('href')).toBe('/books?page=3&sortBy=rating&direction=DESC');
+    detail.openDeleteDialog();
+    TestBed.inject(MatDialog).openDialogs[0].close(true);
+    await vi.waitFor(() => expect(detail.deleting()).toBe(true));
+    const deletion = http.expectOne('/api/books/42');
+    expect(deletion.request.method).toBe('DELETE');
+    expect(deletion.request.params.keys()).toEqual([]);
+    deletion.flush(null, { status: 204, statusText: 'No Content' });
+    await harness.fixture.whenStable();
+    expect(router.url).toBe('/books?page=3&sortBy=rating&direction=DESC');
+    const get = http.expectOne((req) => req.url === '/api/books');
+    expect(get.request.params.get('page')).toBe('3');
+    get.flush(testBookPage({ page: 3, content: [] }));
+    http.expectNone('/api/books/42');
   });
 
   it('should navigate from the card edit link and reload the catalog after saving changes', async () => {

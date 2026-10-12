@@ -28,6 +28,7 @@ import { BooksService } from '../../services/books.service';
 import { COVERS_CONFIG } from '../../../../core/config/covers.config';
 import { isManagedCover } from '../../models/managed-cover';
 import { parseBookId } from '../../models/book-id';
+import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
 
 type EditState =
   | { status: 'loading' }
@@ -283,7 +284,7 @@ export class BookEdit {
       )
       .subscribe({
         next: () => {
-          void this.router.navigate(['/books']);
+          this.returnToCatalog();
         },
         error: (error: unknown) => {
           let message = 'No se pudieron guardar los cambios';
@@ -305,6 +306,14 @@ export class BookEdit {
   }
 
   cancel(): void {
-    if (!this.submitting() && !this.coverPending()) void this.router.navigate(['/books']);
+    if (!this.submitting() && !this.coverPending()) this.returnToCatalog();
+  }
+
+  private returnToCatalog(): void {
+    const queryParams = serializeBookCatalogQuery(
+      parseBookCatalogQuery(this.route.snapshot.queryParamMap),
+    );
+    if (Object.keys(queryParams).length) void this.router.navigate(['/books'], { queryParams });
+    else void this.router.navigate(['/books']);
   }
 }

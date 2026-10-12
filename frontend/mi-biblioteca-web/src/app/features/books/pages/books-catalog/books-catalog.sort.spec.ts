@@ -10,6 +10,10 @@ import { provideRouter } from '@angular/router';
 import { BookCatalogSort } from '../../models/book.models';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
+import {
+  provideCatalogRoutingTesting,
+  setCatalogPageTesting,
+} from './books-catalog-routing.testing';
 
 describe('BooksCatalog sorting', () => {
   let fixture: ComponentFixture<BooksCatalog>;
@@ -23,6 +27,7 @@ describe('BooksCatalog sorting', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        provideCatalogRoutingTesting(),
         {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
@@ -44,6 +49,7 @@ describe('BooksCatalog sorting', () => {
     return http.expectOne((req) => req.url === '/api/books/search');
   }
   function loadList(page = 0, size = 20) {
+    setCatalogPageTesting(page, size);
     listRequest().flush(
       testBookPage({ page, size, totalElements: 121, totalPages: Math.ceil(121 / size) }),
     );
@@ -159,6 +165,7 @@ describe('BooksCatalog sorting', () => {
   it('should retain applied search, not unsubmitted input edits, when changing sort', async () => {
     loadList();
     submitSearch();
+    setCatalogPageTesting(2, 50);
     searchRequest().flush(testBookPage({ page: 2, size: 50, totalElements: 121, totalPages: 3 }));
     await fixture.whenStable();
     fixture.componentInstance.searchForm.controls.title.setValue('Not submitted');
@@ -189,7 +196,7 @@ describe('BooksCatalog sorting', () => {
     submitSearch();
     const request = searchRequest();
     expectSort(request, 'rating', 'DESC');
-    request.flush(testBookPage({ page: 1, size: 50 }));
+    request.flush(testBookPage({ page: 0, size: 50 }));
     await fixture.whenStable();
     const clear = await TestbedHarnessEnvironment.loader(fixture).getHarness(
       MatButtonHarness.with({ text: 'Limpiar búsqueda' }),
@@ -325,6 +332,7 @@ describe('BooksCatalog sorting', () => {
       loadList(1, 50);
       if (search) {
         submitSearch();
+        setCatalogPageTesting(1, 50);
         searchRequest().flush(testBookPage({ page: 1, size: 50 }));
         await fixture.whenStable();
       }
@@ -363,6 +371,7 @@ describe('BooksCatalog sorting', () => {
       loadList(2);
       if (search) {
         submitSearch();
+        setCatalogPageTesting(2);
         searchRequest().flush(testBookPage({ page: 2, totalElements: 41, totalPages: 3 }));
         await fixture.whenStable();
       }

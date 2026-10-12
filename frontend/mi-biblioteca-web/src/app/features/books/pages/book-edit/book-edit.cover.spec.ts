@@ -25,7 +25,13 @@ describe('BookEdit managed covers', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { paramMap: params.asObservable() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: params.asObservable(),
+            snapshot: { queryParamMap: convertToParamMap({}) },
+          },
+        },
         { provide: COVERS_CONFIG, useValue: { publicBaseUrl: base } },
       ],
     });

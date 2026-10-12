@@ -32,7 +32,13 @@ describe('BookDetail', () => {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
         },
-        { provide: ActivatedRoute, useValue: { paramMap: params.asObservable() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: params.asObservable(),
+            snapshot: { queryParamMap: convertToParamMap({}) },
+          },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
