@@ -138,13 +138,18 @@ frontend/mi-biblioteca-web/
 - BooksCatalog is a server-paginated catalog with local signals, loading/success/error states and switchMap cancellation for GET; no stale cards during loading
 - BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest), deleteBook(id), updateReadingStatus(id, status), updateRating(id, rating), deleteRating(id), startReading(id, ReadingDateRequest), finishReading(id, ReadingDateRequest), updateReadingDates(id, UpdateReadingDatesRequest) and deleteReadingDates(id); list/search UI defaults to title ASC with server-side sorting
 - BookCatalogSort/currentSort exposes only title, author, createdAt, readingStatus and rating with ASC/DESC; separate Material selects apply changes immediately, reset page to 0 and retain pageSize/currentSearch; selecting the same value does not reload
-- CatalogQuery snapshots currentSearch/currentSort for one cancelable GET chain, server pagination, exact failed-request retry and DELETE reload; edited search inputs never apply implicitly when sorting
+- BookCatalogQuery in models/book-catalog-query.ts represents URL-applied page/size/sortBy/direction/search using existing types; URL is the sole source of navigable catalog state, with no default HTTP trigger before reading queryParamMap
+- Only page/size/sortBy/direction/title/author/isbn are supported; page is digit-only 0..2147483647, size is 10/20/50/100, sortBy is title/author/createdAt/readingStatus/rating and direction is exactly ASC/DESC; invalid or repeated parameters fall back independently, unknown parameters are removed
+- Defaults page=0/size=20/sortBy=title/direction=ASC/search=null are omitted from deterministic serialization; pure parse/serialize/canonical comparison helpers compare keys/values independent of order, and noncanonical URLs replace history before any GET
+- URL search trims text, discards blank/overlong values without truncation, uses the existing CRUD ISBN syntax without checksum, gives valid ISBN priority over title/author and retains valid title/author if ISBN is invalid; invalid URLs produce no validation alerts
+- User search/sort/page/size actions only navigate normally when the applied state changes; accepted canonical URL updates signals and drives one switchMap GET chain with internal retry/write-reload events, removing stale cards and canceling previous GET
+- Search inputs synchronize initially or when URL-applied search changes, never on page/sort/retry/write reload; drafts stay independent from currentSearch and do not navigate or request until explicit valid submit
 - New searches and Limpiar búsqueda preserve currentSort; page-size changes preserve sorting/search and reset page to 0; no frontend sorting, custom status order or null-rating rearrangement
 - Backend list/search has no readingStatus, rating, genres or publicationYear filters; do not create currentFilters or unsupported filtering controls
 - BooksCatalog has an inline typed Reactive search form for title/author/isbn; only Buscar or native form submit starts a search, never keystrokes
-- currentSearch is the last submitted criteria snapshot (null means normal list), independent from edited inputs; one GET chain selects getBooks() or searchBooks(), preserving criteria for pagination, retry and DELETE reload
+- currentSearch is the URL-applied search snapshot (null means normal list), independent from edited inputs; one GET chain selects getBooks() or searchBooks(), preserving criteria for pagination, retry and DELETE reload
 - Search requires at least one nonblank criterion; title/author can combine, ISBN is exclusive; limits are 255/255/20 and ISBN uses the shared CRUD syntax pattern without checksum or ISBN lookup
-- New searches and page-size changes use page 0 and retain current criteria/size as applicable; Limpiar resets inputs and snapshot, loads /api/books page 0 and retains pageSize; no URL/localStorage persistence
+- New searches and page-size changes navigate to page 0 and retain current criteria/size/sort as applicable; Limpiar always resets draft inputs and navigates to normal list page 0 preserving size/sort, without GET if effective state is unchanged; no localStorage/sessionStorage persistence
 - Search failures preserve form and snapshot with safe inline messages and explicit retry of the actual failed request; no results means No se encontraron libros, not an empty library
 - Frontend BookResponse/BookPageResponse models mirror the backend; nullable fields remain nullable and ISO dates remain strings
 - BookRequest is a separate frontend request model with exactly 10 creation/edit fields; empty optional values become null and absent genres become []
@@ -155,6 +160,8 @@ frontend/mi-biblioteca-web/
 - BookDetail shows confirmed cover/fallback, title/author, all bibliographic metadata, ISO language code unchanged, ordered read-only Material genre chips, status/rating, reading dates, description with preserved newlines and discreet createdAt/updatedAt; responsive local CSS Grid uses cover/content columns on desktop and one column on mobile
 - book-display.ts shares reading-status labels and text-only YYYY-MM-DD -> DD/MM/YYYY (Sin fecha for null) with BookCard; DatePipe separately formats timestamps as local dd/MM/yyyy HH:mm without changing source strings
 - BookDetail links Editar to /books/:id/edit and Volver al catálogo to /books; deletion reuses BookDeleteDialog and deleteBook(id), only explicit confirmation writes, success navigates to /books without GET, and failures remain inline (404 is not success)
+- BookCard receives serialized applied catalog params as an input for detail/edit links; BookDetail forwards only normalized supported context to edit/back/delete-success navigation, and BookEdit preserves context on Cancelar/PUT success; query params never affect book GET/PUT/forms, BookCreate is unchanged, and direct entry without valid context returns to /books
+- Browser Back/Forward restores catalog directly from URL, without history.back(), NavigationState, storage, global store or scroll-restoration machinery
 - book-delete.helpers.ts shares only dialog configuration and safe DELETE error mapping with BooksCatalog; BookDetail guards duplicate dialogs/writes, blocks its navigation while DELETE is pending, closes dialogs/cancels client requests on route change or destruction and rejects stale results; cancellation does not roll back a server commit
 - BookDetail has no inline editing, reading-state/date writes, cover management or ISBN lookup
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
@@ -200,7 +207,8 @@ frontend/mi-biblioteca-web/
 - Start/finish replaces confirmed BookResponse unless currentSort is readingStatus; manual PUT replaces it, DELETE dates always reloads; changed query/missing visible book/pending GET also reloads current search/sort/page/size through GET cancellation, without local sorting or repeating successful writes
 - BookDeleteDialog is a specific Material confirmation with initial focus on Cancelar; only explicit true starts DELETE, while Escape/backdrop cancel
 - Catalog deletingId allows only one DELETE; all Eliminar buttons, MatPaginator, Buscar/Limpiar búsqueda and both sorting selects are disabled with code guards, Editar is disabled only for the affected book, search inputs remain editable and Añadir libro stays available; finalize releases deletingId
-- Successful DELETE reloads the current backend page in list/search mode with the submitted criteria and sort snapshots and same size; empty content on page > 0 requests exactly page - 1 once, preserving search/sort without local removal, total decrements or last-valid-page calculations
+- Successful catalog DELETE internally reloads the current URL query without navigation; an empty result at page > 0 navigates exactly to page - 1 with replaceUrl and URL drives the next GET once, preserving search/sort/size without local removal, total decrements or last-valid-page calculations; detail DELETE returns with context but does not trigger automatic page fallback
+- Retry never navigates and reloads the current canonical URL query, not edited search inputs or obsolete failed-request state; successful writes needing reload use that same chain and request generation prevents replacement on an old query/page
 - DELETE errors are safe inline messages separate from load errors and preserve cards/pagination; 404 is not success, retries require confirmation, and a failed reload never repeats DELETE
 - Frontend deletion calls only DELETE /api/books/{id}; managed cover cleanup remains entirely in the backend
 - Cover URLs are used unchanged by img with lazy loading; null/failed images show Sin portada, and changing coverUrl resets image failure
@@ -613,6 +621,7 @@ Verified:
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 - Frontend managed cover upload/delete is implemented in BookEdit with configured UX ownership classification and partial coverUrl synchronization, without upload in creation
 - Frontend book detail at /books/:id is implemented with complete read-only data, shared ID/display helpers, explicit GET retry, Editar/catalog navigation and existing-dialog book deletion
+- Frontend catalog URL query persistence is implemented with canonical page/size/sort/search, safe normalization, Back/Forward and detail/edit context; retry and successful-write reloads share one cancelable GET chain
 
 ---
 
