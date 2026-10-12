@@ -98,6 +98,13 @@
   <mat-card-actions>
     <a
       mat-button
+      [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id]"
+      [disabled]="deleting() || pendingAction() !== null"
+      [attr.aria-label]="'Ver detalle de ' + book().title"
+      >Ver detalle</a
+    >
+    <a
+      mat-button
       [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id, 'edit']"
       [disabled]="deleting() || pendingAction() !== null"
       [attr.aria-label]="'Editar ' + book().title"

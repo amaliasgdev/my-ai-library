@@ -27,6 +27,7 @@ import { BookRequest, BookResponse } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
 import { COVERS_CONFIG } from '../../../../core/config/covers.config';
 import { isManagedCover } from '../../models/managed-cover';
+import { parseBookId } from '../../models/book-id';
 
 type EditState =
   | { status: 'loading' }
@@ -99,8 +100,8 @@ export class BookEdit {
           this.clearFileInput();
           this.imageFailed.set(false);
           this.initialBook.set(null);
-          const id = Number(rawId);
-          if (!rawId || !/^\d+$/.test(rawId) || !Number.isSafeInteger(id) || id <= 0) {
+          const id = parseBookId(rawId);
+          if (id === null) {
             return of<EditState>({
               status: 'error',
               message: 'El identificador del libro no es válido',

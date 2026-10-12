@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book.models';
+import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-display';
 
 @Component({
   selector: 'app-book-card',
@@ -37,12 +38,7 @@ export class BookCard implements OnChanges {
   protected readonly statuses: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
   protected readonly ratings = [1, 2, 3, 4, 5];
   protected readonly imageFailed = signal(false);
-  protected readonly statusLabels: Record<ReadingStatus, string> = {
-    TO_READ: 'Por leer',
-    READING: 'Leyendo',
-    READ: 'Leído',
-    ABANDONED: 'Abandonado',
-  };
+  protected readonly statusLabels = READING_STATUS_LABELS;
   private previousCoverUrl: string | null | undefined;
 
   ngOnChanges(): void {
@@ -61,9 +57,7 @@ export class BookCard implements OnChanges {
       this.deleteRequested.emit(this.book());
   }
 
-  protected displayDate(value: string | null): string {
-    return value ? value.split('-').reverse().join('/') : 'Sin fecha';
-  }
+  protected readonly displayDate = displayReadingDate;
 
   requestReadingAction(action: 'startReading' | 'finishReading' | 'dates'): void {
     if (this.deleting() || this.pendingAction() || this.updateDisabled()) return;

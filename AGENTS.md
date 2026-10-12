@@ -110,6 +110,7 @@ frontend/mi-biblioteca-web/
     │       └── pages/
     │           ├── books-catalog/
     │           ├── book-create/
+    │           ├── book-detail/
     │           └── book-edit/
     └── styles/
         ├── _material-theme.scss
@@ -148,6 +149,14 @@ frontend/mi-biblioteca-web/
 - Frontend BookResponse/BookPageResponse models mirror the backend; nullable fields remain nullable and ISO dates remain strings
 - BookRequest is a separate frontend request model with exactly 10 creation/edit fields; empty optional values become null and absent genres become []
 - /books/new and /books/:id/edit lazy-load standalone BookCreate and BookEdit; static routes precede dynamic routes
+- /books/:id lazy-loads standalone BookDetail; route order is books/new, books/:id/edit, books/:id, books. BookCard has separate accessible Ver detalle, Editar and Eliminar actions; the whole card is not a link
+- BookDetail uses existing getBook(id), local loading/loaded/error state and one switchMap GET chain for route IDs and explicit retry; changing ID immediately removes old content and cancels GET, and takeUntilDestroyed cancels subscriptions
+- book-id.ts shares digit-only positive safe-integer parsing between BookEdit and BookDetail; invalid IDs produce a local error without HTTP or retry. Valid-ID GET errors use safe 404/0/general messages and retry only the current GET
+- BookDetail shows confirmed cover/fallback, title/author, all bibliographic metadata, ISO language code unchanged, ordered read-only Material genre chips, status/rating, reading dates, description with preserved newlines and discreet createdAt/updatedAt; responsive local CSS Grid uses cover/content columns on desktop and one column on mobile
+- book-display.ts shares reading-status labels and text-only YYYY-MM-DD -> DD/MM/YYYY (Sin fecha for null) with BookCard; DatePipe separately formats timestamps as local dd/MM/yyyy HH:mm without changing source strings
+- BookDetail links Editar to /books/:id/edit and Volver al catálogo to /books; deletion reuses BookDeleteDialog and deleteBook(id), only explicit confirmation writes, success navigates to /books without GET, and failures remain inline (404 is not success)
+- book-delete.helpers.ts shares only dialog configuration and safe DELETE error mapping with BooksCatalog; BookDetail guards duplicate dialogs/writes, blocks its navigation while DELETE is pending, closes dialogs/cancels client requests on route change or destruction and rejects stale results; cancellation does not roll back a server commit
+- BookDetail has no inline editing, reading-state/date writes, cover management or ISBN lookup
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
 - BookCreate/BookEdit own HTTP, submission state, safe general messages and navigation; no inheritance or generic form framework
 - ISBN lookup is available only at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; BookEdit exposes no lookup controls/states
@@ -170,11 +179,11 @@ frontend/mi-biblioteca-web/
 - Initial BookForm preload is separate from cover confirmations: only coverUrl is synchronized after upload or DELETE+GET, replacing its manual draft but preserving all other edits, pending genres, dirty/touched and validation errors; image changes only on confirmed response, upload success clears selected file/input and failures retain it
 - DELETE cover 204 triggers GET book; until confirmed synchronization no new writes are allowed; failed GET uses a distinct synchronization error and Reintentar actualización repeats only GET, never the successful DELETE
 - Cover subscriptions use takeUntilDestroyed, and route ID changes cancel old cover operations and reject stale responses; cancellation on the client does not roll back a server commit
-- The catalog exposes Añadir libro and each BookCard exposes an accessible Editar link; successful creation/editing and Cancelar navigate to /books, which reloads from the backend
+- The catalog exposes Añadir libro and each BookCard exposes accessible Ver detalle and Editar links; successful creation/editing and Cancelar navigate to /books, which reloads from the backend
 - BookForm validates the existing CRUD contract, not ISBN lookup checksum; genres are trimmed, limited to 10 and unique ignoring case, with pending text resolved before submit
 - Creation/edit errors are safe inline messages; known ProblemDetail fields map to server control errors cleared on editing, and 409 duplicate ISBN marks isbn
 - Submission blocks duplicate POST/PUT and genre/cancel actions; no automatic retries, local cover preview or unsaved-change guard
-- BookCard displays cover/fallback, title, author, readable readingStatus/rating, immediate Material status/rating selects and Editar/Eliminar actions; the whole card is not clickable; actions are emitted to the catalog, never HTTP in the card
+- BookCard displays cover/fallback, title, author, readable readingStatus/rating, immediate Material status/rating selects and separate Ver detalle/Editar/Eliminar actions; the whole card is not clickable; write actions are emitted to the catalog, never HTTP in the card
 - Status PATCH sends only UpdateReadingStatusRequest { readingStatus } and rating PUT sends only UpdateRatingRequest { rating: integer 1..5 }; both return BookResponse; Sin valorar uses bodyless DELETE rating (204), never PUT null
 - Reading status/rating selectors explicitly restore confirmed MatSelect values before emitting; there is no optimistic update, errors preserve prior values and PATCH status never infers, changes or clears reading dates
 - Catalog pendingUpdates/updateErrors are local maps by book ID; different books can update concurrently, but one pending action per book blocks both selects, Editar and Eliminar on that book; progress and safe inline errors are accessible in its card
@@ -198,7 +207,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend details, filters, ISBN lookup in editing, automatic lookup, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend filters, ISBN lookup in editing, automatic lookup, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -603,6 +612,7 @@ Verified:
 - Frontend reading dates are implemented with local-today start/finish actions and a dedicated Material dialog for PUT/DELETE dates; status changes only as confirmed by the quick-action backend response
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 - Frontend managed cover upload/delete is implemented in BookEdit with configured UX ownership classification and partial coverUrl synchronization, without upload in creation
+- Frontend book detail at /books/:id is implemented with complete read-only data, shared ID/display helpers, explicit GET retry, Editar/catalog navigation and existing-dialog book deletion
 
 ---
 

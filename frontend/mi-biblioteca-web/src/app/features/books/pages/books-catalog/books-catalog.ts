@@ -46,6 +46,10 @@ import {
 import { BooksService } from '../../services/books.service';
 import { BookReadingDatesDialog } from '../../components/book-reading-dates-dialog/book-reading-dates-dialog';
 import { localDateString } from '../../models/reading-date';
+import {
+  bookDeleteDialogConfig,
+  bookDeleteError,
+} from '../../components/book-delete-dialog/book-delete.helpers';
 import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.search-validators';
 
 type CatalogQuery = BooksPageRequest & {
@@ -290,14 +294,7 @@ export class BooksCatalog {
       return;
     const ref = this.dialog.open<BookDeleteDialog, BookDeleteDialogData, boolean>(
       BookDeleteDialog,
-      {
-        data: { title: book.title },
-        autoFocus: '.cancel-delete',
-        restoreFocus: true,
-        ariaDescribedBy: 'book-delete-description',
-        width: '28rem',
-        maxWidth: 'calc(100vw - 2rem)',
-      },
+      bookDeleteDialogConfig(book.title),
     );
     this.confirmation = ref;
     ref
@@ -326,14 +323,7 @@ export class BooksCatalog {
           this.loadPage(this.pageIndex(), this.pageSize(), true);
         },
         error: (error: unknown) => {
-          let message = 'No se pudo eliminar el libro';
-          if (error instanceof HttpErrorResponse) {
-            if (error.status === 404) message = 'El libro ya no existe';
-            else if (error.status === 0) message = 'No se puede conectar con el servidor';
-            else if (error.status >= 500 && error.status < 600)
-              message = 'El servidor no pudo eliminar el libro';
-          }
-          this.deleteError.set(message);
+          this.deleteError.set(bookDeleteError(error));
         },
       });
   }

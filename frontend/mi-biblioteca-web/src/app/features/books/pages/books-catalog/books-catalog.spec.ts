@@ -114,9 +114,9 @@ describe('BooksCatalog', () => {
       ),
     ).toBe(true);
     expect(element.querySelector('app-book-card a')?.getAttribute('href')).toBeNull();
-    expect(element.querySelectorAll('app-book-card a')[1].getAttribute('href')).toBe(
-      '/books/43/edit',
-    );
+    expect(
+      element.querySelectorAll('app-book-card a[aria-label^="Editar "]')[1].getAttribute('href'),
+    ).toBe('/books/43/edit');
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/new');
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
     fixture.componentInstance.openDeleteDialog(testBook({ id: 43 }));

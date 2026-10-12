@@ -1,0 +1,83 @@
+:host {
+  display: block;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 2rem;
+}
+.cover {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  aspect-ratio: 3 / 4;
+  background: var(--mat-sys-surface-container);
+  border-radius: var(--app-panel-radius);
+  overflow: hidden;
+}
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+h1 {
+  margin-block-start: 0;
+  overflow-wrap: anywhere;
+}
+.author {
+  font-size: 1.2rem;
+}
+.information {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.information section {
+  margin-block: 2rem;
+}
+dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+dt {
+  font-weight: 600;
+}
+dd {
+  margin: 0.25rem 0 0;
+}
+.description {
+  white-space: pre-wrap;
+}
+.metadata {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 1.5rem;
+}
+.loading {
+  display: grid;
+  justify-items: center;
+  padding: 2rem;
+}
+.error-panel {
+  padding: 1rem;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  border-radius: var(--app-panel-radius);
+}
+@media (max-width: 42rem) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .cover {
+    width: min(100%, 15rem);
+  }
+  dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

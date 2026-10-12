@@ -9,6 +9,7 @@ import { BooksCatalog } from './features/books/pages/books-catalog/books-catalog
 import { BookCreate } from './features/books/pages/book-create/book-create';
 import { testBook, testBookPage } from './features/books/models/book.testing';
 import { BookEdit } from './features/books/pages/book-edit/book-edit';
+import { BookDetail } from './features/books/pages/book-detail/book-detail';
 
 describe('Application routes', () => {
   beforeEach(() =>
@@ -82,13 +83,58 @@ describe('Application routes', () => {
     expect(TestBed.inject(Title).getTitle()).toBe('Editar libro | Mi Biblioteca');
   });
 
+  it('should lazy-load detail through the card link and navigate to edit and catalog', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    await harness.navigateByUrl('/books', BooksCatalog);
+    http.expectOne((req) => req.url === '/api/books').flush(testBookPage());
+    await harness.fixture.whenStable();
+    (
+      harness.routeNativeElement?.querySelector(
+        'app-book-card a[aria-label^="Ver detalle de "]',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/books/1');
+    expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(BookDetail);
+    http.expectOne('/api/books/1').flush(testBook());
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Libro de prueba');
+    const anchors = () => Array.from(harness.routeNativeElement!.querySelectorAll('a'));
+    anchors()
+      .find((a) => a.textContent?.trim() === 'Editar')!
+      .click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/books/1/edit');
+    http.expectOne('/api/books/1').flush(testBook());
+    await harness.navigateByUrl('/books/1', BookDetail);
+    http.expectOne('/api/books/1').flush(testBook());
+    await harness.fixture.whenStable();
+    anchors()
+      .find((a) => a.textContent?.trim() === 'Volver al catálogo')!
+      .click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/books');
+    http.expectOne((req) => req.url === '/api/books').flush(testBookPage());
+  });
+
+  it('should keep static new and edit routes before detail', () => {
+    expect(
+      routes.filter((route) => route.path?.startsWith('books')).map((route) => route.path),
+    ).toEqual(['books/new', 'books/:id/edit', 'books/:id', 'books']);
+  });
+
   it('should navigate from the card edit link and reload the catalog after saving changes', async () => {
     const harness = await RouterTestingHarness.create();
     const http = TestBed.inject(HttpTestingController);
     await harness.navigateByUrl('/books', BooksCatalog);
     http.expectOne((req) => req.url === '/api/books').flush(testBookPage());
     await harness.fixture.whenStable();
-    (harness.routeNativeElement?.querySelector('app-book-card a') as HTMLAnchorElement).click();
+    (
+      harness.routeNativeElement?.querySelector(
+        'app-book-card a[aria-label^="Editar "]',
+      ) as HTMLAnchorElement
+    ).click();
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/books/1/edit');
     http.expectOne('/api/books/1').flush(testBook());
