@@ -1,0 +1,144 @@
+<section class="book-detail" [attr.aria-busy]="state().status === 'loading' || deleting()">
+  @let current = state();
+  @switch (current.status) {
+    @case ('loading') {
+      <h1>Detalle del libro</h1>
+      <div class="loading" role="status" aria-live="polite">
+        <mat-spinner diameter="40" aria-hidden="true" />
+        <p>Cargando libro…</p>
+      </div>
+    }
+    @case ('error') {
+      <h1>Detalle del libro</h1>
+      <p class="error-panel" role="alert">{{ current.message }}</p>
+      @if (current.id !== null) {
+        <button mat-button type="button" (click)="retry()">Reintentar</button>
+      }
+    }
+    @case ('loaded') {
+      <article class="detail-grid">
+        <div class="cover">
+          @if (current.book.coverUrl && !imageFailed()) {
+            <img
+              [src]="current.book.coverUrl"
+              [alt]="'Portada de ' + current.book.title"
+              loading="lazy"
+              (error)="imageFailed.set(true)"
+            />
+          } @else {
+            <span>Sin portada</span>
+          }
+        </div>
+        <div class="information">
+          <header>
+            <h1>{{ current.book.title }}</h1>
+            <p class="author">{{ current.book.author }}</p>
+            <p>
+              {{ statusLabels[current.book.readingStatus] }} ·
+              {{ current.book.rating === null ? 'Sin valorar' : current.book.rating + '/5' }}
+            </p>
+          </header>
+          <section aria-labelledby="bibliography-heading">
+            <h2 id="bibliography-heading">Información bibliográfica</h2>
+            <dl>
+              <div>
+                <dt>ISBN</dt>
+                <dd>{{ current.book.isbn ?? 'Sin información' }}</dd>
+              </div>
+              <div>
+                <dt>Editorial</dt>
+                <dd>{{ current.book.publisher ?? 'Sin información' }}</dd>
+              </div>
+              <div>
+                <dt>Año</dt>
+                <dd>{{ current.book.publicationYear ?? 'Sin información' }}</dd>
+              </div>
+              <div>
+                <dt>Páginas</dt>
+                <dd>{{ current.book.pageCount ?? 'Sin información' }}</dd>
+              </div>
+              <div>
+                <dt>Idioma</dt>
+                <dd>{{ current.book.language ?? 'Sin información' }}</dd>
+              </div>
+            </dl>
+            <h3>Géneros</h3>
+            @if (current.book.genres.length) {
+              <mat-chip-set aria-label="Géneros">
+                @for (genre of current.book.genres; track genre) {
+                  <mat-chip>{{ genre }}</mat-chip>
+                }
+              </mat-chip-set>
+            } @else {
+              <p>Sin géneros</p>
+            }
+          </section>
+          <section aria-labelledby="reading-heading">
+            <h2 id="reading-heading">Lectura</h2>
+            <dl>
+              <div>
+                <dt>Estado</dt>
+                <dd>{{ statusLabels[current.book.readingStatus] }}</dd>
+              </div>
+              <div>
+                <dt>Valoración</dt>
+                <dd>
+                  {{ current.book.rating === null ? 'Sin valorar' : current.book.rating + '/5' }}
+                </dd>
+              </div>
+              <div>
+                <dt>Fecha de inicio</dt>
+                <dd>{{ displayDate(current.book.startedOn) }}</dd>
+              </div>
+              <div>
+                <dt>Fecha de fin</dt>
+                <dd>{{ displayDate(current.book.finishedOn) }}</dd>
+              </div>
+            </dl>
+          </section>
+          <section aria-labelledby="description-heading">
+            <h2 id="description-heading">Descripción</h2>
+            <p
+              class="description"
+              [textContent]="
+                current.book.description?.trim() ? current.book.description : 'Sin descripción'
+              "
+            ></p>
+          </section>
+          <footer class="metadata">
+            <p>
+              Creado:
+              <time [attr.datetime]="current.book.createdAt">{{
+                current.book.createdAt | date: 'dd/MM/yyyy HH:mm'
+              }}</time>
+            </p>
+            <p>
+              Actualizado:
+              <time [attr.datetime]="current.book.updatedAt">{{
+                current.book.updatedAt | date: 'dd/MM/yyyy HH:mm'
+              }}</time>
+            </p>
+          </footer>
+        </div>
+      </article>
+      <div class="actions">
+        <a
+          mat-button
+          [routerLink]="deleting() ? null : ['/books', current.id, 'edit']"
+          [disabled]="deleting()"
+          >Editar</a
+        >
+        <button mat-button type="button" [disabled]="deleting()" (click)="openDeleteDialog()">
+          Eliminar
+        </button>
+      </div>
+      <p role="status" aria-live="polite">{{ deleting() ? 'Eliminando libro…' : '' }}</p>
+      @if (deleteError()) {
+        <p class="error-panel" role="alert">{{ deleteError() }}</p>
+      }
+    }
+  }
+  <a mat-button [routerLink]="deleting() ? null : ['/books']" [disabled]="deleting()"
+    >Volver al catálogo</a
+  >
+</section>

@@ -36,18 +36,22 @@ describe('BookCard', () => {
     expect(await card.getTitleText()).toBe('Libro de prueba');
     expect(await card.getSubtitleText()).toBe('Autora de prueba');
     expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
-    const link = element.querySelector('a');
+    const link = element.querySelector('a[aria-label^="Editar "]');
     expect(link?.textContent?.trim()).toBe('Editar');
     expect(link?.getAttribute('href')).toBe('/books/1/edit');
     expect(link?.getAttribute('aria-label')).toBe('Editar Libro de prueba');
     const deletion = element.querySelector('mat-card-actions button');
     expect(deletion?.textContent?.trim()).toBe('Eliminar');
     expect(deletion?.getAttribute('aria-label')).toBe('Eliminar Libro de prueba');
-    expect(element.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(2);
+    expect(element.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(3);
     expect(element.textContent).not.toMatch(/Hidden|9780132350884|2008/);
   });
 
   it('should emit the book to its parent without HTTP or a dialog', () => {
+    const detail = element.querySelector('a[aria-label^="Ver detalle de "]');
+    expect(detail?.textContent?.trim()).toBe('Ver detalle');
+    expect(detail?.getAttribute('href')).toBe('/books/1');
+    expect(detail?.getAttribute('aria-label')).toBe('Ver detalle de Libro de prueba');
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
     (element.querySelector('mat-card-actions button') as HTMLButtonElement).click();
@@ -62,7 +66,9 @@ describe('BookCard', () => {
     expect((element.querySelector('mat-card-actions button') as HTMLButtonElement).disabled).toBe(
       true,
     );
-    expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/1/edit');
+    expect(element.querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
+      '/books/1/edit',
+    );
     fixture.componentInstance.requestDelete();
     expect(requested).not.toHaveBeenCalled();
   });

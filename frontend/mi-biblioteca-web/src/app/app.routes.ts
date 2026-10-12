@@ -15,6 +15,12 @@ export const routes: Routes = [
       import('./features/books/pages/book-edit/book-edit').then((module) => module.BookEdit),
   },
   {
+    path: 'books/:id',
+    title: 'Detalle del libro | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/books/pages/book-detail/book-detail').then((module) => module.BookDetail),
+  },
+  {
     path: 'books',
     title: 'Mi Biblioteca',
     loadComponent: () =>

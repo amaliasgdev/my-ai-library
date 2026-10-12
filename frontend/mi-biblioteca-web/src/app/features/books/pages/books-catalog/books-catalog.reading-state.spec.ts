@@ -286,7 +286,9 @@ describe('BooksCatalog reading state', () => {
       expect(element.textContent).not.toContain('SECRET');
       expect(await (await selects())[0].getValueText()).toBe('Por leer');
       expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
-      expect(firstCard().querySelector('a')?.getAttribute('href')).toBe('/books/1/edit');
+      expect(firstCard().querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
+        '/books/1/edit',
+      );
       http.expectNone((req) => req.method === 'GET');
       await selectStatus();
       expect(firstCard().querySelector('[role="alert"]')).toBeNull();
@@ -387,7 +389,9 @@ describe('BooksCatalog reading state', () => {
     reload.flush(testBookPage({ content: [testBook({ id: 9 })] }));
     await fixture.whenStable();
     expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
-    expect(element.querySelector('app-book-card a')?.getAttribute('href')).toBe('/books/9/edit');
+    expect(
+      element.querySelector('app-book-card a[aria-label^="Editar "]')?.getAttribute('href'),
+    ).toBe('/books/9/edit');
   });
 
   it('should cancel intermediate GETs when concurrent writes both require a reload', async () => {

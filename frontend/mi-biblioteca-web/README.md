@@ -140,6 +140,18 @@ reemplaza la respuesta confirmada y DELETE fechas siempre recarga la consulta
 vigente. Se mantienen búsqueda, orden, página y tamaño. Las acciones de fechas
 comparten las guardas por libro y la exclusión global con DELETE de libro.
 
+## Detalle del libro
+
+**Ver detalle** en cada tarjeta abre `/books/:id`, con portada, datos bibliográficos,
+géneros, estado/valoración, fechas de lectura, descripción y metadatos de creación
+y actualización. La vista es de solo lectura, responsive y usa el GET existente.
+Las fechas de lectura se presentan sin conversiones UTC y los timestamps en hora
+local. Un ID inválido no consulta el backend; los errores de carga permiten
+reintentar el GET del libro actual. **Editar** abre el formulario y **Volver al
+catálogo** vuelve a `/books`. **Eliminar** reutiliza la confirmación existente;
+solo tras DELETE correcto vuelve al catálogo, sin recargar detalle. No hay edición
+inline, upload ni lookup en esta página.
+
 ## Portadas en edición
 
 `/books/:id/edit` tiene una sección **Portada** independiente del formulario.
