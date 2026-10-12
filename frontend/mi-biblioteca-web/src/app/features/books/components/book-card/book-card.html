@@ -22,19 +22,61 @@
     @if (book().rating !== null) {
       <p class="rating">Valoración: {{ book().rating }} de 5</p>
     }
+    <div class="reading-controls">
+      <mat-form-field appearance="outline">
+        <mat-label>Estado de lectura de {{ book().title }}</mat-label>
+        <mat-select
+          [value]="book().readingStatus"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          [aria-label]="'Estado de lectura de ' + book().title"
+          (selectionChange)="onReadingStatusChange($event)"
+        >
+          @for (status of statuses; track status) {
+            <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Valoración de {{ book().title }}</mat-label>
+        <mat-select
+          [value]="book().rating"
+          [canSelectNullableOptions]="true"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          [aria-label]="'Valoración de ' + book().title"
+          (selectionChange)="onRatingChange($event)"
+        >
+          <mat-option [value]="null">Sin valorar</mat-option>
+          @for (rating of ratings; track rating) {
+            <mat-option [value]="rating">{{ rating }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <p role="status" aria-live="polite">
+      {{
+        pendingAction() === 'readingStatus'
+          ? 'Actualizando estado…'
+          : pendingAction()
+            ? 'Actualizando valoración…'
+            : ''
+      }}
+    </p>
+    @if (updateError()) {
+      <p class="update-error" role="alert">{{ updateError() }}</p>
+    }
   </mat-card-content>
   <mat-card-actions>
     <a
       mat-button
-      [routerLink]="deleting() ? null : ['/books', book().id, 'edit']"
-      [disabled]="deleting()"
+      [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id, 'edit']"
+      [disabled]="deleting() || pendingAction() !== null"
       [attr.aria-label]="'Editar ' + book().title"
       >Editar</a
     >
     <button
       mat-button
       type="button"
-      [disabled]="deleteDisabled() || deleting()"
+      [disabled]="deleteDisabled() || deleting() || pendingAction() !== null"
       [attr.aria-label]="'Eliminar ' + book().title"
       (click)="requestDelete()"
     >

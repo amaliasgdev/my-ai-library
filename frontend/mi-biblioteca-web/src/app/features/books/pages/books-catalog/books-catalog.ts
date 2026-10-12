@@ -40,6 +40,8 @@ import {
   BookResponse,
   BookSearchRequest,
   BooksPageRequest,
+  BookUpdateAction,
+  ReadingStatus,
 } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
 import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.search-validators';
@@ -144,6 +146,8 @@ export class BooksCatalog {
   );
   readonly deletingId = signal<number | null>(null);
   readonly deleteError = signal<string | null>(null);
+  readonly pendingUpdates = signal<ReadonlyMap<number, BookUpdateAction>>(new Map());
+  readonly updateErrors = signal<ReadonlyMap<number, string>>(new Map());
   protected readonly state = signal<CatalogState>({ status: 'loading' });
   protected readonly pageIndex = signal(0);
   protected readonly pageSize = signal(20);
@@ -273,7 +277,12 @@ export class BooksCatalog {
   }
 
   openDeleteDialog(book: BookResponse): void {
-    if (this.confirmation || this.deletingId() !== null || this.state().status !== 'success')
+    if (
+      this.confirmation ||
+      this.deletingId() !== null ||
+      this.pendingUpdates().size > 0 ||
+      this.state().status !== 'success'
+    )
       return;
     const ref = this.dialog.open<BookDeleteDialog, BookDeleteDialogData, boolean>(
       BookDeleteDialog,
@@ -292,12 +301,13 @@ export class BooksCatalog {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmed) => {
         this.confirmation = null;
-        if (confirmed === true && this.deletingId() === null) this.deleteBook(book.id);
+        if (confirmed === true && this.deletingId() === null && this.pendingUpdates().size === 0)
+          this.deleteBook(book.id);
       });
   }
 
   private deleteBook(id: number): void {
-    if (this.deletingId() !== null) return;
+    if (this.deletingId() !== null || this.pendingUpdates().size > 0) return;
     this.deletingId.set(id);
     this.deleteError.set(null);
     this.booksService
@@ -320,6 +330,104 @@ export class BooksCatalog {
               message = 'El servidor no pudo eliminar el libro';
           }
           this.deleteError.set(message);
+        },
+      });
+  }
+
+  updateReadingStatus(event: { id: number; status: ReadingStatus }): void {
+    const book = this.visibleBook(event.id);
+    if (
+      !book ||
+      !['TO_READ', 'READING', 'READ', 'ABANDONED'].includes(event.status) ||
+      book.readingStatus === event.status
+    )
+      return;
+    this.runUpdate(event.id, 'readingStatus', () =>
+      this.booksService.updateReadingStatus(event.id, event.status),
+    );
+  }
+
+  updateRating(event: { id: number; rating: number | null }): void {
+    const book = this.visibleBook(event.id);
+    if (
+      !book ||
+      book.rating === event.rating ||
+      (event.rating !== null &&
+        (!Number.isInteger(event.rating) || event.rating < 1 || event.rating > 5))
+    )
+      return;
+    const rating = event.rating;
+    if (rating === null)
+      this.runUpdate(event.id, 'deleteRating', () => this.booksService.deleteRating(event.id));
+    else this.runUpdate(event.id, 'rating', () => this.booksService.updateRating(event.id, rating));
+  }
+
+  private visibleBook(id: number): BookResponse | undefined {
+    const state = this.state();
+    return state.status === 'success'
+      ? state.response.content.find((book) => book.id === id)
+      : undefined;
+  }
+
+  private runUpdate(
+    id: number,
+    action: BookUpdateAction,
+    request: () => Observable<BookResponse | void>,
+  ): void {
+    if (this.deletingId() !== null || this.pendingUpdates().has(id) || !this.visibleBook(id))
+      return;
+    const startedQuery = this.query.value;
+    this.pendingUpdates.update((updates) => new Map(updates).set(id, action));
+    this.updateErrors.update((errors) => {
+      const next = new Map(errors);
+      next.delete(id);
+      return next;
+    });
+    request()
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() =>
+          this.pendingUpdates.update((updates) => {
+            const next = new Map(updates);
+            next.delete(id);
+            return next;
+          }),
+        ),
+      )
+      .subscribe({
+        next: (book) => {
+          const state = this.state();
+          const affectsOrder =
+            (action === 'readingStatus' && this.currentSort().sortBy === 'readingStatus') ||
+            (action === 'rating' && this.currentSort().sortBy === 'rating');
+          if (
+            !book ||
+            affectsOrder ||
+            state.status !== 'success' ||
+            this.query.value !== startedQuery ||
+            !state.response.content.some((item) => item.id === id)
+          ) {
+            this.restoreFocusAfterReload = true;
+            this.loadPage(this.pageIndex(), this.pageSize());
+            return;
+          }
+          this.state.set({
+            status: 'success',
+            response: {
+              ...state.response,
+              content: state.response.content.map((item) => (item.id === id ? book : item)),
+            },
+          });
+        },
+        error: (error: unknown) => {
+          let message = 'No se pudo actualizar el libro';
+          if (error instanceof HttpErrorResponse) {
+            if (error.status === 0) message = 'No se puede conectar con el servidor';
+            else if (error.status === 404) message = 'El libro ya no existe';
+            else if (error.status >= 500 && error.status < 600)
+              message = 'El servidor no pudo actualizar el libro';
+          }
+          this.updateErrors.update((errors) => new Map(errors).set(id, message));
         },
       });
   }

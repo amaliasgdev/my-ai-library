@@ -1,5 +1,15 @@
 export type ReadingStatus = 'TO_READ' | 'READING' | 'READ' | 'ABANDONED';
 
+export interface UpdateReadingStatusRequest {
+  readingStatus: ReadingStatus;
+}
+
+export interface UpdateRatingRequest {
+  rating: number;
+}
+
+export type BookUpdateAction = 'readingStatus' | 'rating' | 'deleteRating';
+
 export interface BookRequest {
   title: string;
   author: string;
