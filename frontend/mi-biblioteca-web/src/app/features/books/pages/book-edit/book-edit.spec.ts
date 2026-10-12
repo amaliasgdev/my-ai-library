@@ -47,6 +47,15 @@ describe('BookEdit', () => {
     fixture.detectChanges();
   }
 
+  it('should not enable or render ISBN lookup in editing', () => {
+    load();
+    expect(component.editor()!.lookupEnabled()).toBe(false);
+    expect(element.querySelector('.isbn-lookup')).toBeNull();
+    component.editor()!.form.controls.isbn.setValue('9780132350884');
+    component.editor()!.requestLookup();
+    http.expectNone((req) => req.url === '/api/books/isbn-lookup');
+  });
+
   it('should GET a positive id and show loading without rendering an empty form', () => {
     create();
     const request = http.expectOne('/api/books/42');

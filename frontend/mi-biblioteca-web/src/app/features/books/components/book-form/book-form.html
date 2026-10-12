@@ -16,6 +16,31 @@
       <mat-hint>Opcional; admite espacios y guiones</mat-hint>
       <mat-error>{{ fieldError(form.controls.isbn) }}</mat-error>
     </mat-form-field>
+    @if (lookupEnabled()) {
+      <div class="isbn-lookup">
+        <button
+          mat-button
+          type="button"
+          (click)="requestLookup()"
+          [disabled]="submitting() || lookupLoading() || !canLookup()"
+        >
+          Buscar por ISBN
+        </button>
+        <p>Completa los campos vacíos. Revisa los datos antes de guardar.</p>
+        <p role="status" aria-live="polite">
+          {{
+            lookupLoading()
+              ? 'Consultando ISBN…'
+              : lookupSuccess()
+                ? 'Consulta completada. Revisa y completa los datos antes de guardar.'
+                : ''
+          }}
+        </p>
+        @if (lookupError()) {
+          <p class="field-error" role="alert">{{ lookupError() }}</p>
+        }
+      </div>
+    }
     <mat-form-field>
       <mat-label>Editorial</mat-label>
       <input matInput formControlName="publisher" [readonly]="submitting()" />

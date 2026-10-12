@@ -150,6 +150,14 @@ frontend/mi-biblioteca-web/
 - /books/new and /books/:id/edit lazy-load standalone BookCreate and BookEdit; static routes precede dynamic routes
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
 - BookCreate/BookEdit own HTTP, submission state, safe general messages and navigation; no inheritance or generic form framework
+- ISBN lookup is available only at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; BookEdit exposes no lookup controls/states
+- BooksService.lookupByIsbn(isbn) uses GET /api/books/isbn-lookup with HttpParams and the raw typed ISBN; independent BookLookupResponse has isbn/title/author/publisher/publicationYear/pageCount/language/genres/coverUrl, never description
+- Lookup is consultative: no persistence, book creation or local duplicate checks; strict checksum/normalization remains backend-only, with local empty/pattern/length guards only
+- Lookup fills only currently empty text fields and null numeric fields, always replaces ISBN with the backend normalized value, never touches description, and preserves edits made during the GET; null proposals never erase values
+- Lookup genres apply only with no existing chips and no pending genre text, using existing validators without merge; coverUrl copies exactly into an empty field, without image requests/preview/upload
+- BookCreate owns idle/loading/success/error and one cancelable GET subscription; ISBN edits cancel and return idle without automatic requests, guarded snapshots prevent stale application, and normalized programmatic ISBN updates preserve success
+- Submission attempts, Cancelar and destruction cancel lookup; createBook remains the sole persistence path and uses the existing BookRequest builder; lookup never blocks the rest of the form
+- Changed lookup controls become dirty, untouched/touched is preserved, and provider errors are safe inline messages separate from CRUD field/general errors; 400/404/502/503/504/0 have specific messages, no automatic retry or Retry-After display
 - BookEdit validates digit-only positive safe integer route IDs before GET, uses loading/loaded/error states and switchMap cancellation for GET only; no empty form while loading
 - Preloaded text nulls become empty inputs, numbers stay numeric/null, and the form starts pristine/untouched; PUT replaces all 10 BookRequest fields
 - coverUrl is preloaded and submitted exactly, including managed URLs; backend alone checks ownership and handles cleanup, with no URL rewriting or image manipulation in Angular
@@ -181,7 +189,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend details, filters, ISBN lookup, cover upload, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend details, filters, ISBN lookup in editing, automatic lookup, cover upload, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -576,6 +584,7 @@ Verified:
 - Optional external book cover URL references are implemented (referenced images are not downloaded or stored locally)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
+- Frontend consultative ISBN lookup is available in /books/new only, filling empty fields with normalized ISBN and preserving description/user edits; saving remains explicit
 - Angular/Material frontend setup and read-only paginated /books catalog are implemented (BooksService, frontend book models, BookCard and MatPaginator)
 - Frontend creation at /books/new and editing at /books/:id/edit are implemented with shared BookForm, BookRequest, createBook(), getBook(), updateBook() and Material controls
 - Frontend deletion is implemented through deleteBook(), BookCard actions and BookDeleteDialog confirmation, with backend reload and one-page fallback when empty

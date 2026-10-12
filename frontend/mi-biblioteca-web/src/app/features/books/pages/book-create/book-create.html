@@ -3,5 +3,16 @@
   @if (generalError()) {
     <p role="alert" class="error-panel">{{ generalError() }}</p>
   }
-  <app-book-form [submitting]="submitting()" (save)="save($event)" (cancelled)="cancel()" />
+  <app-book-form
+    [submitting]="submitting()"
+    [lookupEnabled]="true"
+    [lookupLoading]="lookupState() === 'loading'"
+    [lookupSuccess]="lookupState() === 'success'"
+    [lookupError]="lookupError()"
+    (lookupRequested)="lookup($event)"
+    (isbnChanged)="cancelLookup()"
+    (submitAttempted)="cancelLookup()"
+    (save)="save($event)"
+    (cancelled)="cancel()"
+  />
 </section>

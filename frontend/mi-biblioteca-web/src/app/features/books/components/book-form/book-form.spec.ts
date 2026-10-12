@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BookForm } from './book-form';
-import { testBook, testBookRequest } from '../../models/book.testing';
+import { testBook, testBookLookup, testBookRequest } from '../../models/book.testing';
 
 describe('BookForm without HTTP or routing providers', () => {
   let fixture: ComponentFixture<BookForm>;
@@ -11,6 +11,47 @@ describe('BookForm without HTTP or routing providers', () => {
     fixture = TestBed.createComponent(BookForm);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('should keep lookup disabled by default, including its states and errors', () => {
+    fixture.componentRef.setInput('lookupLoading', true);
+    fixture.componentRef.setInput('lookupError', 'Hidden lookup error');
+    fixture.detectChanges();
+    const requested = vi.fn();
+    component.lookupRequested.subscribe(requested);
+    component.form.controls.isbn.setValue('9780132350884');
+    component.requestLookup();
+    expect(requested).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('.isbn-lookup')).toBeNull();
+  });
+
+  it('should emit lookup intent without HTTP providers and ignore POST-specific server errors', () => {
+    fixture.componentRef.setInput('lookupEnabled', true);
+    component.form.controls.isbn.setValue('978-0132350884');
+    component.markIsbnConflict();
+    fixture.detectChanges();
+    const requested = vi.fn();
+    component.lookupRequested.subscribe(requested);
+    component.requestLookup();
+    expect(requested).toHaveBeenCalledExactlyOnceWith('978-0132350884');
+  });
+
+  it('should apply genres using existing limits, uniqueness and per-chip validators', () => {
+    component.applyLookup(
+      testBookLookup({
+        genres: [
+          'Genre',
+          'genre',
+          'x'.repeat(51),
+          ...Array.from({ length: 8 }, (_, index) => String(index)),
+        ],
+      }),
+    );
+    expect(component.form.controls.genres.hasError('genreLimit')).toBe(true);
+    component.form.controls.genres.removeAt(10);
+    expect(component.form.controls.genres.hasError('duplicate')).toBe(true);
+    expect(component.form.controls.genres.at(2).hasError('maxlength')).toBe(true);
+    expect(component.form.controls.genres.untouched).toBe(true);
   });
 
   it('should emit only a valid full request after processing pending genres', () => {

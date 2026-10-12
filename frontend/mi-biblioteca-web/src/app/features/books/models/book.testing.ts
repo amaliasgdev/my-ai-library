@@ -1,4 +1,19 @@
-import { BookPageResponse, BookRequest, BookResponse } from './book.models';
+import { BookLookupResponse, BookPageResponse, BookRequest, BookResponse } from './book.models';
+
+export function testBookLookup(overrides: Partial<BookLookupResponse> = {}): BookLookupResponse {
+  return {
+    isbn: '9780132350884',
+    title: 'Clean Code',
+    author: 'Robert C. Martin',
+    publisher: 'Prentice Hall',
+    publicationYear: 2008,
+    pageCount: 464,
+    language: 'en',
+    genres: ['Software', 'Programming'],
+    coverUrl: 'https://covers.example.test/book.jpg',
+    ...overrides,
+  };
+}
 
 export function testBookRequest(overrides: Partial<BookRequest> = {}): BookRequest {
   return {

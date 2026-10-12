@@ -142,6 +142,22 @@ comparten las guardas por libro y la exclusión global con DELETE de libro.
 
 ## UI y tema
 
+### Consulta por ISBN en el alta
+
+En `/books/new`, **Buscar por ISBN** consulta metadatos sin crear ni guardar libros
+ni comprobar duplicados locales. Solo completa campos vacíos (título, autor,
+editorial, año, páginas, idioma y URL de portada); el ISBN se sustituye por el
+normalizado por backend. La descripción y los datos ya escritos se conservan,
+incluidos los editados durante la espera. Los géneros solo se aplican si no hay
+chips ni texto pendiente, sin fusionar listas. Los valores desconocidos no borran
+datos. Revisa la propuesta: **Guardar** sigue siendo la única creación.
+
+El resto del formulario permanece editable durante la consulta. Cambiar ISBN,
+intentar Guardar o cancelar/salir cancela la petición pendiente; escribir no inicia
+consultas. Los errores de proveedor se muestran inline y permiten volver a intentar
+o continuar manualmente, sin invalidar el formulario. No hay checksum frontend,
+lookup en edición, preview/descarga de portada, caché ni retries automáticos.
+
 Material es la única UI para controles, navegación y futuros formularios/tablas.
 Grid/Flexbox y SCSS/CSS propios cubren layout, responsive, espaciado y
 personalización. Preferir tokens y APIs públicas de Material; evitar `::ng-deep`,
