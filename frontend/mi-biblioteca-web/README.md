@@ -59,7 +59,7 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 - `src/styles/`: tema Material y tokens propios; componentes con SCSS local.
 
 La pantalla muestra el catálogo real con tarjetas y paginación del servidor, ordenado
-por título ASC. **Añadir libro** abre un formulario con título y autor obligatorios,
+inicialmente por título ASC. **Añadir libro** abre un formulario con título y autor obligatorios,
 metadatos opcionales, géneros y URL externa de portada. Guardar crea el libro y vuelve
 al catálogo. **Editar** en cada tarjeta abre el mismo formulario con los valores actuales;
 Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada recibida,
@@ -80,14 +80,25 @@ solo el formato ISBN del CRUD, sin checksum ni ISBN lookup. Buscar o Enter enví
 consulta; escribir no hace peticiones. La última búsqueda enviada se conserva como
 snapshot independiente de los inputs: paginación, Reintentar y recarga tras DELETE
 usan ese snapshot, aunque se editen después los campos. Las búsquedas nuevas vuelven
-a página 0 conservando el tamaño. **Limpiar** vacía campos y vuelve al listado en
-página 0, con el mismo tamaño. Buscar/Limpiar se bloquean durante DELETE, pero los
+a página 0 conservando el tamaño y el orden aplicado. **Limpiar búsqueda** vacía campos y vuelve al listado en
+página 0, con el mismo tamaño y orden. Buscar/Limpiar búsqueda se bloquean durante DELETE, pero los
 campos siguen editables. Sin coincidencias se muestra «No se encontraron libros»;
 los errores de búsqueda son inline y permiten Reintentar. No se persiste la búsqueda
 en URL/localStorage ni al volver de alta/edición. No implementa filtros avanzados, detalle,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
+
+**Ordenar libros** ofrece campo (Título, Autor, Fecha de creación, Estado de lectura
+o Valoración) y dirección (Ascendente/Descendente), separados del formulario de búsqueda.
+Cada cambio se aplica inmediatamente desde backend y vuelve a página 0, conservando
+el tamaño y la búsqueda ya enviada; los inputs editados sin Buscar no se aplican.
+El snapshot `currentSort` se conserva al paginar, cambiar tamaño, buscar, limpiar,
+reintentar y recargar después de DELETE, incluido el retroceso de una página vacía.
+Los dos selects se bloquean durante DELETE. No se ordena localmente ni se reubican
+estados o valoraciones nulas. No hay filtros: los endpoints actuales no admiten
+filtrar por estado, valoración, géneros ni año de publicación. El orden tampoco
+se persiste en URL/localStorage ni al volver de alta/edición.
 
 ## UI y tema
 
