@@ -64,3 +64,8 @@ export interface BookSearchRequest {
   author?: string;
   isbn?: string;
 }
+
+export interface BookCatalogSort {
+  sortBy: 'title' | 'author' | 'createdAt' | 'readingStatus' | 'rating';
+  direction: 'ASC' | 'DESC';
+}

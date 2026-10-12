@@ -14,6 +14,7 @@ import { RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -34,6 +35,7 @@ import {
   BookDeleteDialogData,
 } from '../../components/book-delete-dialog/book-delete-dialog';
 import {
+  BookCatalogSort,
   BookPageResponse,
   BookResponse,
   BookSearchRequest,
@@ -44,6 +46,7 @@ import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.se
 
 type CatalogQuery = BooksPageRequest & {
   search: BookSearchRequest | null;
+  sort: BookCatalogSort;
   afterDelete?: boolean;
 };
 
@@ -98,6 +101,7 @@ function searchError(error: unknown): string {
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
@@ -111,10 +115,19 @@ export class BooksCatalog {
   private readonly injector = inject(Injector);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private restoreFocusAfterReload = false;
+  readonly currentSort = signal<BookCatalogSort>({ sortBy: 'title', direction: 'ASC' });
+  protected readonly sortOptions: { value: BookCatalogSort['sortBy']; label: string }[] = [
+    { value: 'title', label: 'Título' },
+    { value: 'author', label: 'Autor' },
+    { value: 'createdAt', label: 'Fecha de creación' },
+    { value: 'readingStatus', label: 'Estado de lectura' },
+    { value: 'rating', label: 'Valoración' },
+  ];
   private readonly query = new BehaviorSubject<CatalogQuery>({
     page: 0,
     size: 20,
     search: null,
+    sort: { ...this.currentSort() },
   });
   private lastRequestedQuery: CatalogQuery = this.query.value;
   readonly currentSearch = signal<BookSearchRequest | null>(null);
@@ -241,6 +254,24 @@ export class BooksCatalog {
     this.loadPage(0, this.pageSize());
   }
 
+  onSortByChange(sortBy: BookCatalogSort['sortBy']): void {
+    if (!this.sortOptions.some((option) => option.value === sortBy)) return;
+    this.applySort({ ...this.currentSort(), sortBy });
+  }
+
+  onSortDirectionChange(direction: BookCatalogSort['direction']): void {
+    if (direction !== 'ASC' && direction !== 'DESC') return;
+    this.applySort({ ...this.currentSort(), direction });
+  }
+
+  private applySort(sort: BookCatalogSort): void {
+    if (this.deletingId() !== null) return;
+    const current = this.currentSort();
+    if (sort.sortBy === current.sortBy && sort.direction === current.direction) return;
+    this.currentSort.set(sort);
+    this.loadPage(0, this.pageSize());
+  }
+
   openDeleteDialog(book: BookResponse): void {
     if (this.confirmation || this.deletingId() !== null || this.state().status !== 'success')
       return;
@@ -298,8 +329,8 @@ export class BooksCatalog {
     const options: BooksPageRequest = {
       page: query.page,
       size: query.size,
-      sortBy: 'title',
-      direction: 'ASC',
+      sortBy: query.sort.sortBy,
+      direction: query.sort.direction,
     };
     const request = query.search
       ? this.booksService.searchBooks(query.search, options)
@@ -317,6 +348,12 @@ export class BooksCatalog {
   private loadPage(page: number, size: number, afterDelete = false): void {
     this.pageIndex.set(page);
     this.pageSize.set(size);
-    this.query.next({ page, size, afterDelete, search: this.currentSearch() });
+    this.query.next({
+      page,
+      size,
+      afterDelete,
+      search: this.currentSearch(),
+      sort: { ...this.currentSort() },
+    });
   }
 }

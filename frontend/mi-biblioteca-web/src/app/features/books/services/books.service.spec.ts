@@ -20,6 +20,23 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it.each(['title', 'author', 'createdAt', 'readingStatus', 'rating'] as const)(
+    'should send custom %s DESC sorting for both list and search',
+    (sortBy) => {
+      service.getBooks({ sortBy, direction: 'DESC' }).subscribe();
+      const listing = http.expectOne((req) => req.url === '/api/books');
+      expect(listing.request.params.get('sortBy')).toBe(sortBy);
+      expect(listing.request.params.get('direction')).toBe('DESC');
+      listing.flush(testBookPage());
+      service.searchBooks({ title: 'Dune' }, { sortBy, direction: 'DESC' }).subscribe();
+      const search = http.expectOne((req) => req.url === '/api/books/search');
+      expect(search.request.params.get('sortBy')).toBe(sortBy);
+      expect(search.request.params.get('direction')).toBe('DESC');
+      expect(search.request.params.get('title')).toBe('Dune');
+      search.flush(testBookPage());
+    },
+  );
+
   it.each([
     { title: 'Dune' },
     { author: 'Herbert' },

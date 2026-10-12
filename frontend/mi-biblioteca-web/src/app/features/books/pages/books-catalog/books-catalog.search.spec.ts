@@ -62,7 +62,7 @@ describe('BooksCatalog search', () => {
   }
   function clear() {
     const button = Array.from(element.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Limpiar',
+      (button) => button.textContent?.trim() === 'Limpiar búsqueda',
     )!;
     button.click();
     fixture.detectChanges();
@@ -85,11 +85,11 @@ describe('BooksCatalog search', () => {
     });
     expect(fixture.componentInstance.currentSearch()).toBeNull();
     expect(element.querySelector('form')?.getAttribute('aria-labelledby')).toBe('search-heading');
-    expect(element.querySelectorAll('mat-label')).toHaveLength(3);
+    expect(element.querySelectorAll('form mat-label')).toHaveLength(3);
     expect(element.querySelector('button[type="submit"]')?.textContent?.trim()).toBe('Buscar');
     expect(
       Array.from(element.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === 'Limpiar',
+        (button) => button.textContent?.trim() === 'Limpiar búsqueda',
       )?.type,
     ).toBe('button');
   });
@@ -308,7 +308,7 @@ describe('BooksCatalog search', () => {
     setInput('title', 'Not submitted');
     const searchButton = element.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     const clearButton = Array.from(element.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Limpiar',
+      (button) => button.textContent?.trim() === 'Limpiar búsqueda',
     )!;
     expect(searchButton.disabled).toBe(true);
     expect(clearButton.disabled).toBe(true);

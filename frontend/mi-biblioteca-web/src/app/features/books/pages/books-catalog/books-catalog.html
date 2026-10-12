@@ -44,10 +44,38 @@
     <div class="search-actions">
       <button mat-flat-button type="submit" [disabled]="deletingId() !== null">Buscar</button>
       <button mat-button type="button" [disabled]="deletingId() !== null" (click)="clearSearch()">
-        Limpiar
+        Limpiar búsqueda
       </button>
     </div>
   </form>
+  <section class="sort-controls" aria-labelledby="sort-heading">
+    <h2 id="sort-heading">Ordenar libros</h2>
+    <div class="sort-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Ordenar por</mat-label>
+        <mat-select
+          [value]="currentSort().sortBy"
+          [disabled]="deletingId() !== null"
+          (selectionChange)="onSortByChange($event.value)"
+        >
+          @for (option of sortOptions; track option.value) {
+            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Dirección</mat-label>
+        <mat-select
+          [value]="currentSort().direction"
+          [disabled]="deletingId() !== null"
+          (selectionChange)="onSortDirectionChange($event.value)"
+        >
+          <mat-option value="ASC">Ascendente</mat-option>
+          <mat-option value="DESC">Descendente</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </section>
   @if (deleteError()) {
     <p class="error-panel" role="alert">{{ deleteError() }}</p>
   }
