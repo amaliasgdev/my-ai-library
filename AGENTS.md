@@ -134,7 +134,7 @@ frontend/mi-biblioteca-web/
 - System fonts only initially; no remote font/CDN dependency
 - Root route redirects to /books; /books lazy-loads the standalone BooksCatalog page
 - BooksCatalog is a server-paginated catalog with local signals, loading/success/error states and switchMap cancellation for GET; no stale cards during loading
-- BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest) and deleteBook(id): Observable<void>; list/search UI defaults to title ASC with server-side sorting
+- BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest), deleteBook(id), updateReadingStatus(id, status), updateRating(id, rating) and deleteRating(id); list/search UI defaults to title ASC with server-side sorting
 - BookCatalogSort/currentSort exposes only title, author, createdAt, readingStatus and rating with ASC/DESC; separate Material selects apply changes immediately, reset page to 0 and retain pageSize/currentSearch; selecting the same value does not reload
 - CatalogQuery snapshots currentSearch/currentSort for one cancelable GET chain, server pagination, exact failed-request retry and DELETE reload; edited search inputs never apply implicitly when sorting
 - New searches and Limpiar búsqueda preserve currentSort; page-size changes preserve sorting/search and reset page to 0; no frontend sorting, custom status order or null-rating rearrangement
@@ -156,7 +156,13 @@ frontend/mi-biblioteca-web/
 - BookForm validates the existing CRUD contract, not ISBN lookup checksum; genres are trimmed, limited to 10 and unique ignoring case, with pending text resolved before submit
 - Creation/edit errors are safe inline messages; known ProblemDetail fields map to server control errors cleared on editing, and 409 duplicate ISBN marks isbn
 - Submission blocks duplicate POST/PUT and genre/cancel actions; no automatic retries, cover preview or unsaved-change guard
-- BookCard displays cover/fallback, title, author, readable readingStatus, optional noninteractive rating and Editar/Eliminar actions; the whole card is not clickable and deletion is emitted to the catalog, not executed by the card
+- BookCard displays cover/fallback, title, author, readable readingStatus/rating, immediate Material status/rating selects and Editar/Eliminar actions; the whole card is not clickable; actions are emitted to the catalog, never HTTP in the card
+- Status PATCH sends only UpdateReadingStatusRequest { readingStatus } and rating PUT sends only UpdateRatingRequest { rating: integer 1..5 }; both return BookResponse; Sin valorar uses bodyless DELETE rating (204), never PUT null
+- Reading status/rating selectors explicitly restore confirmed MatSelect values before emitting; there is no optimistic update, errors preserve prior values and PATCH status never infers, changes or clears reading dates
+- Catalog pendingUpdates/updateErrors are local maps by book ID; different books can update concurrently, but one pending action per book blocks both selects, Editar and Eliminar on that book; progress and safe inline errors are accessible in its card
+- PATCH/PUT replaces only the visible confirmed BookResponse with page/totals preserved unless the active sort depends on the modified field; dependent sorting and DELETE rating reload the current search/sort/page/size without local reordering
+- A changed query, missing visible book or pending GET at write confirmation reloads the current query through the GET cancellation chain, never inserts a book from an old page; failed reloads are load errors and never repeat successful writes
+- Updates and book DELETE are globally exclusive: any pending update disables all book Eliminar buttons and guards dialog opening/confirmation; active book DELETE disables status/rating in all cards with code guards; otherwise search/sorting/pagination/Añadir remain available
 - BookDeleteDialog is a specific Material confirmation with initial focus on Cancelar; only explicit true starts DELETE, while Escape/backdrop cancel
 - Catalog deletingId allows only one DELETE; all Eliminar buttons, MatPaginator, Buscar/Limpiar búsqueda and both sorting selects are disabled with code guards, Editar is disabled only for the affected book, search inputs remain editable and Añadir libro stays available; finalize releases deletingId
 - Successful DELETE reloads the current backend page in list/search mode with the submitted criteria and sort snapshots and same size; empty content on page > 0 requests exactly page - 1 once, preserving search/sort without local removal, total decrements or last-valid-page calculations
@@ -166,7 +172,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend details, filters, interactive rating/status, ISBN lookup, cover upload or fake runtime book data
+- No frontend details, filters, reading dates, ISBN lookup, cover upload, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -566,6 +572,7 @@ Verified:
 - Frontend deletion is implemented through deleteBook(), BookCard actions and BookDeleteDialog confirmation, with backend reload and one-page fallback when empty
 - Frontend submitted search by title/author or exclusive ISBN is implemented with searchBooks(), currentSearch snapshot, server pagination and search-preserving DELETE reload
 - Frontend server-side sorting UI is implemented for title/author/createdAt/readingStatus/rating with currentSort and ASC/DESC; search, pagination, retry and DELETE preserve the applied sorting; no filters
+- Frontend readingStatus and rating editing is implemented in BookCard with PATCH status, PUT rating and DELETE rating; confirmed response replacement or current-query reload preserves server sorting; no reading date endpoints
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 
 ---
@@ -594,7 +601,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
-Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search and server-side sorting are completed. Filters and other frontend interactions are not implemented.
+Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search, server-side sorting and readingStatus/rating editing are completed. Reading dates, filters and other frontend interactions are not implemented.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
