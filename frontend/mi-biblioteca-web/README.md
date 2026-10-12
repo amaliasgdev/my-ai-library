@@ -100,6 +100,27 @@ estados o valoraciones nulas. No hay filtros: los endpoints actuales no admiten
 filtrar por estado, valoración, géneros ni año de publicación. El orden tampoco
 se persiste en URL/localStorage ni al volver de alta/edición.
 
+Cada tarjeta permite cambiar **Estado de lectura** (Por leer, Leyendo, Leído,
+Abandonado) y **Valoración** (Sin valorar, 1–5) con selects Material. El cambio
+es inmediato, sin Guardar, pero el selector mantiene el valor confirmado mientras
+espera al backend. Estado usa PATCH con `{ readingStatus }`; valoración usa PUT
+con `{ rating }`, o DELETE sin body para Sin valorar. Cambiar estado no modifica
+fechas: no se llaman start-reading, finish-reading ni reading-dates.
+
+PATCH/PUT sustituye solo el libro confirmado si el orden no depende del campo
+modificado. Orden por ese campo, quitar valoración o cambiar de consulta durante
+la operación requiere recargar la consulta vigente, conservando búsqueda, orden,
+página y tamaño. No se ordena localmente. Un GET antiguo pendiente se cancela tras
+confirmar una escritura para no sobrescribir datos recientes.
+
+Se permiten actualizaciones simultáneas en libros distintos; cada libro bloquea
+sus selects, Editar y Eliminar mientras espera. Los errores seguros se muestran
+inline en su tarjeta, sin cambiar valores. Cualquier actualización pendiente
+bloquea Eliminar libro en todo el catálogo, y un DELETE de libro bloquea todos
+los selects de estado/valoración. Si solo hay actualizaciones, búsqueda, orden,
+paginación y Añadir libro permanecen disponibles. Una recarga fallida se trata
+como error de carga, sin repetir la escritura confirmada.
+
 ## UI y tema
 
 Material es la única UI para controles, navegación y futuros formularios/tablas.

@@ -2,11 +2,13 @@ import { Component, input, OnChanges, output, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
-import { BookResponse, ReadingStatus } from '../../models/book.models';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectChange, MatSelectModule } from '@angular/material/select';
+import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book.models';
 
 @Component({
   selector: 'app-book-card',
-  imports: [MatCardModule, MatButtonModule, RouterLink],
+  imports: [MatCardModule, MatButtonModule, RouterLink, MatFormFieldModule, MatSelectModule],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',
 })
@@ -15,6 +17,13 @@ export class BookCard implements OnChanges {
   readonly deleting = input(false);
   readonly deleteDisabled = input(false);
   readonly deleteRequested = output<BookResponse>();
+  readonly pendingAction = input<BookUpdateAction | null>(null);
+  readonly updateDisabled = input(false);
+  readonly updateError = input<string | null>(null);
+  readonly readingStatusRequested = output<{ id: number; status: ReadingStatus }>();
+  readonly ratingRequested = output<{ id: number; rating: number | null }>();
+  protected readonly statuses: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
+  protected readonly ratings = [1, 2, 3, 4, 5];
   protected readonly imageFailed = signal(false);
   protected readonly statusLabels: Record<ReadingStatus, string> = {
     TO_READ: 'Por leer',
@@ -36,6 +45,37 @@ export class BookCard implements OnChanges {
   }
 
   requestDelete(): void {
-    if (!this.deleting() && !this.deleteDisabled()) this.deleteRequested.emit(this.book());
+    if (!this.deleting() && !this.pendingAction() && !this.deleteDisabled())
+      this.deleteRequested.emit(this.book());
+  }
+
+  onReadingStatusChange(event: MatSelectChange): void {
+    const status: ReadingStatus = event.value;
+    // MatSelect has already selected the requested value. Restore the confirmed one
+    // explicitly even when the input binding has not changed.
+    event.source.value = this.book().readingStatus;
+    if (
+      this.deleting() ||
+      this.pendingAction() ||
+      this.updateDisabled() ||
+      status === this.book().readingStatus ||
+      !this.statuses.includes(status)
+    )
+      return;
+    this.readingStatusRequested.emit({ id: this.book().id, status });
+  }
+
+  onRatingChange(event: MatSelectChange): void {
+    const rating: number | null = event.value;
+    event.source.value = this.book().rating;
+    if (
+      this.deleting() ||
+      this.pendingAction() ||
+      this.updateDisabled() ||
+      rating === this.book().rating ||
+      (rating !== null && !this.ratings.includes(rating))
+    )
+      return;
+    this.ratingRequested.emit({ id: this.book().id, rating });
   }
 }

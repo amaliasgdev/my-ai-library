@@ -5,6 +5,7 @@ import { API_CONFIG } from '../../../core/config/api.config';
 import { BookPageResponse, BookResponse } from '../models/book.models';
 import { testBook, testBookPage, testBookRequest } from '../models/book.testing';
 import { BooksService } from './books.service';
+import { Observable } from 'rxjs';
 
 describe('BooksService', () => {
   let http: HttpTestingController;
@@ -19,6 +20,58 @@ describe('BooksService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('should PATCH the exact reading status DTO and return BookResponse', () => {
+    const next = vi.fn();
+    service.updateReadingStatus(42, 'READING').subscribe(next);
+    const request = http.expectOne('/api/books/42/reading-status');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ readingStatus: 'READING' });
+    const response = testBook({ id: 42, readingStatus: 'READING' });
+    request.flush(response);
+    expect(next).toHaveBeenCalledWith(response);
+  });
+
+  it('should PUT the exact numeric rating DTO and return BookResponse', () => {
+    const next = vi.fn();
+    service.updateRating(42, 4).subscribe(next);
+    const request = http.expectOne('/api/books/42/rating');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ rating: 4 });
+    const response = testBook({ id: 42, rating: 4 });
+    request.flush(response);
+    expect(next).toHaveBeenCalledWith(response);
+  });
+
+  it('should DELETE rating without a body and complete on 204', () => {
+    const complete = vi.fn();
+    service.deleteRating(42).subscribe({ complete });
+    const request = http.expectOne('/api/books/42/rating');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it.each(['status', 'rating', 'deleteRating'])(
+    'should propagate %s errors unchanged',
+    (action) => {
+      const error = vi.fn();
+      const request: Observable<BookResponse | void> =
+        action === 'status'
+          ? service.updateReadingStatus(42, 'READ')
+          : action === 'rating'
+            ? service.updateRating(42, 5)
+            : service.deleteRating(42);
+      request.subscribe({ error });
+      const problem = { detail: 'Internal detail' };
+      http
+        .expectOne(action === 'status' ? '/api/books/42/reading-status' : '/api/books/42/rating')
+        .flush(problem, { status: 404, statusText: 'Not Found' });
+      expect(error.mock.calls[0][0].status).toBe(404);
+      expect(error.mock.calls[0][0].error).toEqual(problem);
+    },
+  );
 
   it.each(['title', 'author', 'createdAt', 'readingStatus', 'rating'] as const)(
     'should send custom %s DESC sorting for both list and search',
@@ -254,6 +307,21 @@ describe('BooksService with alternative API_CONFIG', () => {
     expect(search.request.method).toBe('GET');
     expect(search.request.params.get('author')).toBe('Herbert');
     search.flush(testBookPage());
+    TestBed.inject(BooksService).updateReadingStatus(42, 'READ').subscribe();
+    const status = http.expectOne('/alternative-api/books/42/reading-status');
+    expect(status.request.method).toBe('PATCH');
+    expect(status.request.body).toEqual({ readingStatus: 'READ' });
+    status.flush(testBook({ id: 42, readingStatus: 'READ' }));
+    TestBed.inject(BooksService).updateRating(42, 3).subscribe();
+    const rating = http.expectOne('/alternative-api/books/42/rating');
+    expect(rating.request.method).toBe('PUT');
+    expect(rating.request.body).toEqual({ rating: 3 });
+    rating.flush(testBook({ id: 42, rating: 3 }));
+    TestBed.inject(BooksService).deleteRating(42).subscribe();
+    const clear = http.expectOne('/alternative-api/books/42/rating');
+    expect(clear.request.method).toBe('DELETE');
+    expect(clear.request.body).toBeNull();
+    clear.flush(null, { status: 204, statusText: 'No Content' });
     http.verify();
   });
 });

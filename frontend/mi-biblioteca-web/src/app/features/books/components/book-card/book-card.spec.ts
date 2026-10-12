@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatCardHarness } from '@angular/material/card/testing';
+import { MatSelectHarness } from '@angular/material/select/testing';
+import { MatSelect, MatSelectChange } from '@angular/material/select';
 import { ReadingStatus } from '../../models/book.models';
 import { testBook } from '../../models/book.testing';
 import { BookCard } from './book-card';
@@ -69,7 +71,9 @@ describe('BookCard', () => {
     expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
     expect(element.querySelector('a')?.getAttribute('href')).toBeNull();
     expect(element.querySelector('a')?.getAttribute('aria-disabled')).toBe('true');
-    expect(element.querySelector('[role="status"]')?.textContent).toBe('Eliminando…');
+    expect(element.querySelector('mat-card-actions [role="status"]')?.textContent).toBe(
+      'Eliminando…',
+    );
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
     fixture.componentInstance.requestDelete();
@@ -139,5 +143,120 @@ describe('BookCard', () => {
 
   it('should omit rating when null', () => {
     expect(element.querySelector('.rating')).toBeNull();
+  });
+
+  async function selects() {
+    return TestbedHarnessEnvironment.loader(fixture).getAllHarnesses(MatSelectHarness);
+  }
+
+  it('should initialize accessible selects with readable states and Sin valorar', async () => {
+    const [status, rating] = await selects();
+    expect(await status.getValueText()).toBe('Por leer');
+    expect(await rating.getValueText()).toBe('Sin valorar');
+    expect(element.querySelectorAll('mat-select')[0].getAttribute('aria-label')).toBe(
+      'Estado de lectura de Libro de prueba',
+    );
+    expect(element.querySelectorAll('mat-select')[1].getAttribute('aria-label')).toBe(
+      'Valoración de Libro de prueba',
+    );
+    await status.open();
+    expect(
+      await Promise.all((await status.getOptions()).map((option) => option.getText())),
+    ).toEqual(['Por leer', 'Leyendo', 'Leído', 'Abandonado']);
+    await status.close();
+    await rating.open();
+    expect(
+      await Promise.all((await rating.getOptions()).map((option) => option.getText())),
+    ).toEqual(['Sin valorar', '1', '2', '3', '4', '5']);
+    await rating.close();
+  });
+
+  it('should emit status intent but explicitly restore confirmed selection until a new BookResponse', async () => {
+    const requested = vi.fn();
+    fixture.componentInstance.readingStatusRequested.subscribe(requested);
+    const [status] = await selects();
+    await status.clickOptions({ text: 'Leyendo' });
+    expect(requested).toHaveBeenCalledExactlyOnceWith({ id: 1, status: 'READING' });
+    expect(await status.getValueText()).toBe('Por leer');
+    fixture.componentRef.setInput('book', testBook({ readingStatus: 'READING' }));
+    fixture.detectChanges();
+    expect(await status.getValueText()).toBe('Leyendo');
+  });
+
+  it('should not emit identical status or rating selections', async () => {
+    const statusRequested = vi.fn();
+    const ratingRequested = vi.fn();
+    fixture.componentInstance.readingStatusRequested.subscribe(statusRequested);
+    fixture.componentInstance.ratingRequested.subscribe(ratingRequested);
+    const [status, rating] = await selects();
+    await status.clickOptions({ text: 'Por leer' });
+    await rating.clickOptions({ text: 'Sin valorar' });
+    expect(statusRequested).not.toHaveBeenCalled();
+    expect(ratingRequested).not.toHaveBeenCalled();
+  });
+
+  it('should emit a number or deletion intent and retain confirmed rating', async () => {
+    fixture.componentRef.setInput('book', testBook({ rating: 4 }));
+    fixture.detectChanges();
+    const requested = vi.fn();
+    fixture.componentInstance.ratingRequested.subscribe(requested);
+    const [, rating] = await selects();
+    expect(await rating.getValueText()).toBe('4');
+    await rating.clickOptions({ text: '5' });
+    expect(requested).toHaveBeenLastCalledWith({ id: 1, rating: 5 });
+    expect(await rating.getValueText()).toBe('4');
+    await rating.clickOptions({ text: 'Sin valorar' });
+    expect(requested).toHaveBeenLastCalledWith({ id: 1, rating: null });
+    expect(await rating.getValueText()).toBe('4');
+    await rating.clickOptions({ text: '4' });
+    expect(requested).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['readingStatus', 'rating', 'deleteRating'])(
+    'should lock all actions while %s is pending and announce progress',
+    async (action) => {
+      fixture.componentRef.setInput('pendingAction', action);
+      fixture.detectChanges();
+      const [status, rating] = await selects();
+      expect(await status.isDisabled()).toBe(true);
+      expect(await rating.isDisabled()).toBe(true);
+      expect(element.querySelector('a')?.getAttribute('href')).toBeNull();
+      expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
+      expect(element.querySelector('mat-card-content [role="status"]')?.textContent?.trim()).toBe(
+        action === 'readingStatus' ? 'Actualizando estado…' : 'Actualizando valoración…',
+      );
+      const deletion = vi.fn();
+      fixture.componentInstance.deleteRequested.subscribe(deletion);
+      fixture.componentInstance.requestDelete();
+      expect(deletion).not.toHaveBeenCalled();
+    },
+  );
+
+  it('should guard emitted events in code while globally disabled and restore confirmed values', () => {
+    const status = vi.fn();
+    const rating = vi.fn();
+    fixture.componentInstance.readingStatusRequested.subscribe(status);
+    fixture.componentInstance.ratingRequested.subscribe(rating);
+    fixture.componentRef.setInput('updateDisabled', true);
+    fixture.detectChanges();
+    const source = { value: 'READING' } as MatSelect;
+    fixture.componentInstance.onReadingStatusChange(new MatSelectChange(source, 'READING'));
+    expect(source.value).toBe('TO_READ');
+    fixture.componentInstance.onRatingChange(new MatSelectChange(source, 5));
+    expect(source.value).toBeNull();
+    expect(status).not.toHaveBeenCalled();
+    expect(rating).not.toHaveBeenCalled();
+  });
+
+  it('should show a safe inline update error without altering values or locking actions', async () => {
+    fixture.componentRef.setInput('updateError', 'No se pudo actualizar el libro');
+    fixture.detectChanges();
+    expect(element.querySelector('[role="alert"]')?.textContent).toBe(
+      'No se pudo actualizar el libro',
+    );
+    const [status, rating] = await selects();
+    expect(await status.getValueText()).toBe('Por leer');
+    expect(await rating.getValueText()).toBe('Sin valorar');
+    expect(await status.isDisabled()).toBe(false);
   });
 });

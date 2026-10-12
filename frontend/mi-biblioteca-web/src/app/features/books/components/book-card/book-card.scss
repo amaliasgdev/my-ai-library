@@ -48,3 +48,17 @@ mat-card-subtitle {
 .rating {
   color: var(--mat-sys-on-surface-variant);
 }
+
+.reading-controls {
+  display: grid;
+  gap: 0.25rem;
+
+  mat-form-field {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.update-error {
+  color: var(--mat-sys-error);
+}

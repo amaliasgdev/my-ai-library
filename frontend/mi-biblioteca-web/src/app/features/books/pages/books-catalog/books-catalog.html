@@ -102,7 +102,12 @@
                 <app-book-card
                   [book]="book"
                   [deleting]="deletingId() === book.id"
-                  [deleteDisabled]="deletingId() !== null"
+                  [deleteDisabled]="deletingId() !== null || pendingUpdates().size > 0"
+                  [pendingAction]="pendingUpdates().get(book.id) ?? null"
+                  [updateDisabled]="deletingId() !== null"
+                  [updateError]="updateErrors().get(book.id) ?? null"
+                  (readingStatusRequested)="updateReadingStatus($event)"
+                  (ratingRequested)="updateRating($event)"
                   (deleteRequested)="openDeleteDialog($event)"
                 />
               </li>

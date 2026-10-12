@@ -8,12 +8,32 @@ import {
   BookResponse,
   BookSearchRequest,
   BooksPageRequest,
+  ReadingStatus,
+  UpdateReadingStatusRequest,
+  UpdateRatingRequest,
 } from '../models/book.models';
 
 @Injectable({ providedIn: 'root' })
 export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
+
+  updateReadingStatus(id: number, status: ReadingStatus): Observable<BookResponse> {
+    const request: UpdateReadingStatusRequest = { readingStatus: status };
+    return this.http.patch<BookResponse>(
+      `${this.apiConfig.apiBaseUrl}/books/${id}/reading-status`,
+      request,
+    );
+  }
+
+  updateRating(id: number, rating: number): Observable<BookResponse> {
+    const request: UpdateRatingRequest = { rating };
+    return this.http.put<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}/rating`, request);
+  }
+
+  deleteRating(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiConfig.apiBaseUrl}/books/${id}/rating`);
+  }
 
   deleteBook(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiConfig.apiBaseUrl}/books/${id}`);
