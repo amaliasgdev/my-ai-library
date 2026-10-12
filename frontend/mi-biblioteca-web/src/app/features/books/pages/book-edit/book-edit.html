@@ -1,0 +1,98 @@
+<section
+  aria-labelledby="edit-heading"
+  [attr.aria-busy]="state().status === 'loading' || submitting() || coverPending()"
+>
+  <h1 id="edit-heading">Editar libro</h1>
+  @let current = state();
+  @switch (current.status) {
+    @case ('loading') {
+      <div class="loading">
+        <mat-spinner diameter="40" aria-label="Cargando libro" />
+        <p role="status" aria-live="polite">Cargando libro…</p>
+      </div>
+    }
+    @case ('error') {
+      <p class="error-panel" role="alert">{{ current.message }}</p>
+    }
+    @case ('loaded') {
+      <section class="cover-section" aria-labelledby="cover-heading">
+        <h2 id="cover-heading">Portada</h2>
+        <div class="current-cover">
+          @if (current.book.coverUrl && !imageFailed()) {
+            <img
+              [src]="current.book.coverUrl"
+              [alt]="'Portada de ' + current.book.title"
+              (error)="imageFailed.set(true)"
+            />
+          } @else {
+            <span>Sin portada</span>
+          }
+        </div>
+        <p>
+          Subir o eliminar una portada se guarda inmediatamente, independientemente de Guardar los
+          demás cambios.
+        </p>
+        <label for="cover-file">Archivo de portada (JPEG o PNG, máximo 5 MiB)</label>
+        <input
+          #coverFile
+          id="cover-file"
+          type="file"
+          accept="image/jpeg,image/png"
+          [disabled]="writesBlocked()"
+          (change)="selectCover($event)"
+        />
+        @if (selectedFile(); as file) {
+          <p>Archivo seleccionado: {{ file.name }}</p>
+        }
+        <div class="cover-actions">
+          <button
+            mat-button
+            type="button"
+            [disabled]="writesBlocked() || !selectedFile()"
+            (click)="uploadCover()"
+          >
+            Subir portada
+          </button>
+          @if (managedCover()) {
+            <button mat-button type="button" [disabled]="writesBlocked()" (click)="deleteCover()">
+              Eliminar portada
+            </button>
+          }
+          @if (coverUnsynced() && !coverPending()) {
+            <button mat-button type="button" (click)="retryCoverReload()">
+              Reintentar actualización
+            </button>
+          }
+        </div>
+        <p role="status" aria-live="polite">
+          {{
+            coverOperation() === 'uploading'
+              ? 'Subiendo portada…'
+              : coverOperation() === 'deleting'
+                ? 'Eliminando portada…'
+                : coverOperation() === 'reloading'
+                  ? 'Actualizando información del libro…'
+                  : ''
+          }}
+        </p>
+        @if (coverError()) {
+          <p class="error-panel" role="alert">{{ coverError() }}</p>
+        }
+      </section>
+      @if (generalError()) {
+        <p class="error-panel" role="alert">{{ generalError() }}</p>
+      }
+      <app-book-form
+        [initialBook]="initialBook()"
+        [submitting]="submitting() || coverPending()"
+        [saveDisabled]="coverUnsynced()"
+        [submissionMessage]="submitting() ? 'Guardando libro…' : ''"
+        (save)="save($event)"
+        (cancelled)="cancel()"
+      />
+    }
+  }
+  @if (current.status !== 'loaded') {
+    <button mat-button type="button" (click)="cancel()">Volver al catálogo</button>
+  }
+</section>

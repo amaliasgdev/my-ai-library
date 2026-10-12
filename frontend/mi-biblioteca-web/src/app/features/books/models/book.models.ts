@@ -1,0 +1,109 @@
+export type ReadingStatus = 'TO_READ' | 'READING' | 'READ' | 'ABANDONED';
+
+export interface BookLookupResponse {
+  isbn: string;
+  title: string | null;
+  author: string | null;
+  publisher: string | null;
+  publicationYear: number | null;
+  pageCount: number | null;
+  language: string | null;
+  genres: string[];
+  coverUrl: string | null;
+}
+
+export interface UpdateReadingStatusRequest {
+  readingStatus: ReadingStatus;
+}
+
+export interface UpdateRatingRequest {
+  rating: number;
+}
+
+export interface ReadingDateRequest {
+  date: string;
+}
+
+export interface UpdateReadingDatesRequest {
+  startedOn: string | null;
+  finishedOn: string | null;
+}
+
+export type BookUpdateAction =
+  | 'readingStatus'
+  | 'rating'
+  | 'deleteRating'
+  | 'startReading'
+  | 'finishReading'
+  | 'updateReadingDates'
+  | 'deleteReadingDates';
+
+export interface BookRequest {
+  title: string;
+  author: string;
+  isbn: string | null;
+  description: string | null;
+  coverUrl: string | null;
+  publisher: string | null;
+  publicationYear: number | null;
+  pageCount: number | null;
+  language: string | null;
+  genres: string[];
+}
+
+export interface BookResponse {
+  id: number;
+  title: string;
+  author: string;
+  isbn: string | null;
+  description: string | null;
+  coverUrl: string | null;
+  publisher: string | null;
+  publicationYear: number | null;
+  pageCount: number | null;
+  language: string | null;
+  genres: string[];
+  createdAt: string;
+  updatedAt: string;
+  readingStatus: ReadingStatus;
+  rating: number | null;
+  startedOn: string | null;
+  finishedOn: string | null;
+}
+
+export interface BookPageResponse {
+  content: BookResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export type BookSortBy =
+  | 'id'
+  | 'title'
+  | 'author'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'readingStatus'
+  | 'rating'
+  | 'startedOn'
+  | 'finishedOn';
+
+export interface BooksPageRequest {
+  page?: number;
+  size?: number;
+  sortBy?: BookSortBy;
+  direction?: 'ASC' | 'DESC';
+}
+
+export interface BookSearchRequest {
+  title?: string;
+  author?: string;
+  isbn?: string;
+}
+
+export interface BookCatalogSort {
+  sortBy: 'title' | 'author' | 'createdAt' | 'readingStatus' | 'rating';
+  direction: 'ASC' | 'DESC';
+}

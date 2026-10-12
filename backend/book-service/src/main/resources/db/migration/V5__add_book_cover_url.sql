@@ -1,0 +1,1 @@
+ALTER TABLE book ADD COLUMN cover_url VARCHAR(2048);
