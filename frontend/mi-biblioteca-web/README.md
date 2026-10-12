@@ -105,7 +105,7 @@ Abandonado) y **Valoración** (Sin valorar, 1–5) con selects Material. El camb
 es inmediato, sin Guardar, pero el selector mantiene el valor confirmado mientras
 espera al backend. Estado usa PATCH con `{ readingStatus }`; valoración usa PUT
 con `{ rating }`, o DELETE sin body para Sin valorar. Cambiar estado no modifica
-fechas: no se llaman start-reading, finish-reading ni reading-dates.
+fechas: PATCH de estado sigue siendo independiente de los endpoints de fechas.
 
 PATCH/PUT sustituye solo el libro confirmado si el orden no depende del campo
 modificado. Orden por ese campo, quitar valoración o cambiar de consulta durante
@@ -120,6 +120,25 @@ bloquea Eliminar libro en todo el catálogo, y un DELETE de libro bloquea todos
 los selects de estado/valoración. Si solo hay actualizaciones, búsqueda, orden,
 paginación y Añadir libro permanecen disponibles. Una recarga fallida se trata
 como error de carga, sin repetir la escritura confirmada.
+
+Las tarjetas muestran siempre **Inicio** y **Fin**, con «Sin fecha» para valores
+ausentes. **Empezar lectura** (solo Por leer) y **Finalizar lectura** (Por leer o
+Leyendo) envían POST con `{ date: 'YYYY-MM-DD' }` usando la fecha local de hoy,
+sin conversión UTC ni confirmación adicional. Solo la respuesta backend cambia
+el estado: iniciar pasa a Leyendo y finalizar a Leído, sin inventar fechas ausentes.
+
+**Gestionar fechas** abre un diálogo específico con datepickers Material nativos
+y entrada estricta YYYY-MM-DD. Guardar reemplaza ambas fechas por PUT: requiere
+al menos una, permite solo inicio/solo fin, fechas iguales y futuras, y valida que
+fin no preceda a inicio. **Eliminar fechas** usa DELETE sin body, sin segunda
+confirmación. PUT/DELETE de fechas no cambian el estado de lectura.
+
+El diálogo no hace HTTP. Ante errores conserva los campos editados y muestra un
+mensaje seguro; durante la escritura bloquea campos, acciones, Escape y backdrop.
+El éxito lo cierra. Start/finish recarga si se ordena por estado; PUT fechas
+reemplaza la respuesta confirmada y DELETE fechas siempre recarga la consulta
+vigente. Se mantienen búsqueda, orden, página y tamaño. Las acciones de fechas
+comparten las guardas por libro y la exclusión global con DELETE de libro.
 
 ## UI y tema
 

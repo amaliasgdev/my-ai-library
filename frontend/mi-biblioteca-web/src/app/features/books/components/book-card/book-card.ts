@@ -22,6 +22,18 @@ export class BookCard implements OnChanges {
   readonly updateError = input<string | null>(null);
   readonly readingStatusRequested = output<{ id: number; status: ReadingStatus }>();
   readonly ratingRequested = output<{ id: number; rating: number | null }>();
+  readonly startReadingRequested = output<number>();
+  readonly finishReadingRequested = output<number>();
+  readonly readingDatesRequested = output<number>();
+  protected readonly progressLabels: Record<BookUpdateAction, string> = {
+    readingStatus: 'Actualizando estado…',
+    rating: 'Actualizando valoración…',
+    deleteRating: 'Actualizando valoración…',
+    startReading: 'Iniciando lectura…',
+    finishReading: 'Finalizando lectura…',
+    updateReadingDates: 'Actualizando fechas…',
+    deleteReadingDates: 'Eliminando fechas…',
+  };
   protected readonly statuses: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
   protected readonly ratings = [1, 2, 3, 4, 5];
   protected readonly imageFailed = signal(false);
@@ -47,6 +59,20 @@ export class BookCard implements OnChanges {
   requestDelete(): void {
     if (!this.deleting() && !this.pendingAction() && !this.deleteDisabled())
       this.deleteRequested.emit(this.book());
+  }
+
+  protected displayDate(value: string | null): string {
+    return value ? value.split('-').reverse().join('/') : 'Sin fecha';
+  }
+
+  requestReadingAction(action: 'startReading' | 'finishReading' | 'dates'): void {
+    if (this.deleting() || this.pendingAction() || this.updateDisabled()) return;
+    const status = this.book().readingStatus;
+    if (action === 'startReading' && status === 'TO_READ')
+      this.startReadingRequested.emit(this.book().id);
+    else if (action === 'finishReading' && (status === 'TO_READ' || status === 'READING'))
+      this.finishReadingRequested.emit(this.book().id);
+    else if (action === 'dates') this.readingDatesRequested.emit(this.book().id);
   }
 
   onReadingStatusChange(event: MatSelectChange): void {

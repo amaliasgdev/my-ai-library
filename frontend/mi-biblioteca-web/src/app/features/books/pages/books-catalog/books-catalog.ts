@@ -44,6 +44,8 @@ import {
   ReadingStatus,
 } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
+import { BookReadingDatesDialog } from '../../components/book-reading-dates-dialog/book-reading-dates-dialog';
+import { localDateString } from '../../models/reading-date';
 import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.search-validators';
 
 type CatalogQuery = BooksPageRequest & {
@@ -116,6 +118,7 @@ export class BooksCatalog {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
+  private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
   private restoreFocusAfterReload = false;
   readonly currentSort = signal<BookCatalogSort>({ sortBy: 'title', direction: 'ASC' });
   protected readonly sortOptions: { value: BookCatalogSort['sortBy']; label: string }[] = [
@@ -208,6 +211,7 @@ export class BooksCatalog {
         }
       });
     this.destroyRef.onDestroy(() => this.confirmation?.close(false));
+    this.destroyRef.onDestroy(() => this.datesDialog?.close());
   }
 
   onPageChange(event: PageEvent): void {
@@ -347,6 +351,64 @@ export class BooksCatalog {
     );
   }
 
+  startReading(id: number): void {
+    if (this.visibleBook(id)?.readingStatus !== 'TO_READ') return;
+    this.runUpdate(id, 'startReading', () =>
+      this.booksService.startReading(id, { date: localDateString(new Date()) }),
+    );
+  }
+
+  finishReading(id: number): void {
+    const status = this.visibleBook(id)?.readingStatus;
+    if (status !== 'TO_READ' && status !== 'READING') return;
+    this.runUpdate(id, 'finishReading', () =>
+      this.booksService.finishReading(id, { date: localDateString(new Date()) }),
+    );
+  }
+
+  openReadingDatesDialog(id: number): void {
+    const book = this.visibleBook(id);
+    if (
+      !book ||
+      this.datesDialog ||
+      this.confirmation ||
+      this.deletingId() !== null ||
+      this.pendingUpdates().has(id)
+    )
+      return;
+    const ref = this.dialog.open(BookReadingDatesDialog, {
+      data: book,
+      autoFocus: '.cancel-dates',
+      restoreFocus: true,
+      ariaDescribedBy: 'reading-dates-description',
+      width: '32rem',
+      maxWidth: 'calc(100vw - 2rem)',
+    });
+    this.datesDialog = ref;
+    ref.componentInstance.saveRequested.subscribe((request) => {
+      this.runUpdate(
+        id,
+        'updateReadingDates',
+        () => this.booksService.updateReadingDates(id, request),
+        ref,
+      );
+    });
+    ref.componentInstance.deleteRequested.subscribe(() => {
+      const current = this.visibleBook(id);
+      if (!current || (!current.startedOn && !current.finishedOn)) return;
+      this.runUpdate(id, 'deleteReadingDates', () => this.booksService.deleteReadingDates(id), ref);
+    });
+    ref.componentInstance.cancelRequested.subscribe(() => {
+      if (!ref.componentInstance.pending()) ref.close();
+    });
+    ref
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.datesDialog === ref) this.datesDialog = null;
+      });
+  }
+
   updateRating(event: { id: number; rating: number | null }): void {
     const book = this.visibleBook(event.id);
     if (
@@ -373,11 +435,17 @@ export class BooksCatalog {
     id: number,
     action: BookUpdateAction,
     request: () => Observable<BookResponse | void>,
+    dialog?: MatDialogRef<BookReadingDatesDialog>,
   ): void {
     if (this.deletingId() !== null || this.pendingUpdates().has(id) || !this.visibleBook(id))
       return;
     const startedQuery = this.query.value;
     this.pendingUpdates.update((updates) => new Map(updates).set(id, action));
+    if (dialog) {
+      dialog.disableClose = true;
+      dialog.componentInstance.error.set(null);
+      dialog.componentInstance.setPending(true, action);
+    }
     this.updateErrors.update((errors) => {
       const next = new Map(errors);
       next.delete(id);
@@ -386,19 +454,27 @@ export class BooksCatalog {
     request()
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        finalize(() =>
+        finalize(() => {
           this.pendingUpdates.update((updates) => {
             const next = new Map(updates);
             next.delete(id);
             return next;
-          }),
-        ),
+          });
+          if (dialog) {
+            dialog.componentInstance.setPending(false);
+            dialog.disableClose = false;
+          }
+        }),
       )
       .subscribe({
         next: (book) => {
+          dialog?.close();
           const state = this.state();
           const affectsOrder =
-            (action === 'readingStatus' && this.currentSort().sortBy === 'readingStatus') ||
+            ((action === 'readingStatus' ||
+              action === 'startReading' ||
+              action === 'finishReading') &&
+              this.currentSort().sortBy === 'readingStatus') ||
             (action === 'rating' && this.currentSort().sortBy === 'rating');
           if (
             !book ||
@@ -420,14 +496,30 @@ export class BooksCatalog {
           });
         },
         error: (error: unknown) => {
-          let message = 'No se pudo actualizar el libro';
+          const datesAction = [
+            'startReading',
+            'finishReading',
+            'updateReadingDates',
+            'deleteReadingDates',
+          ].includes(action);
+          let message = datesAction
+            ? 'No se pudieron actualizar las fechas de lectura'
+            : 'No se pudo actualizar el libro';
           if (error instanceof HttpErrorResponse) {
             if (error.status === 0) message = 'No se puede conectar con el servidor';
             else if (error.status === 404) message = 'El libro ya no existe';
+            else if (
+              error.status === 409 &&
+              (action === 'startReading' || action === 'finishReading')
+            )
+              message = 'El estado actual del libro no permite esta acción';
             else if (error.status >= 500 && error.status < 600)
-              message = 'El servidor no pudo actualizar el libro';
+              message = datesAction
+                ? 'El servidor no pudo actualizar las fechas de lectura'
+                : 'El servidor no pudo actualizar el libro';
           }
           this.updateErrors.update((errors) => new Map(errors).set(id, message));
+          dialog?.componentInstance.error.set(message);
         },
       });
   }

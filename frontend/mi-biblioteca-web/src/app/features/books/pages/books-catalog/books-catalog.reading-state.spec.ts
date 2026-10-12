@@ -212,9 +212,9 @@ describe('BooksCatalog reading state', () => {
     const rating = http.expectOne('/api/books/2/rating');
     expect(fixture.componentInstance.pendingUpdates().size).toBe(2);
     expect(
-      Array.from(element.querySelectorAll<HTMLButtonElement>('app-book-card button')).every(
-        (button) => button.disabled,
-      ),
+      Array.from(
+        element.querySelectorAll<HTMLButtonElement>('app-book-card mat-card-actions button'),
+      ).every((button) => button.disabled),
     ).toBe(true);
     fixture.componentInstance.openDeleteDialog(original());
     fixture.componentInstance.openDeleteDialog(testBook({ id: 2 }));

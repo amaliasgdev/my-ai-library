@@ -8,7 +8,23 @@ export interface UpdateRatingRequest {
   rating: number;
 }
 
-export type BookUpdateAction = 'readingStatus' | 'rating' | 'deleteRating';
+export interface ReadingDateRequest {
+  date: string;
+}
+
+export interface UpdateReadingDatesRequest {
+  startedOn: string | null;
+  finishedOn: string | null;
+}
+
+export type BookUpdateAction =
+  | 'readingStatus'
+  | 'rating'
+  | 'deleteRating'
+  | 'startReading'
+  | 'finishReading'
+  | 'updateReadingDates'
+  | 'deleteReadingDates';
 
 export interface BookRequest {
   title: string;

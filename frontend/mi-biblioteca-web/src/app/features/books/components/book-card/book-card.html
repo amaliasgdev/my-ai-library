@@ -52,15 +52,45 @@
         </mat-select>
       </mat-form-field>
     </div>
-    <p role="status" aria-live="polite">
-      {{
-        pendingAction() === 'readingStatus'
-          ? 'Actualizando estado…'
-          : pendingAction()
-            ? 'Actualizando valoración…'
-            : ''
-      }}
+    <p class="reading-dates">
+      Inicio: {{ displayDate(book().startedOn) }} · Fin: {{ displayDate(book().finishedOn) }}
     </p>
+    <div class="date-actions">
+      @if (book().readingStatus === 'TO_READ') {
+        <button
+          mat-button
+          type="button"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          [attr.aria-label]="'Empezar lectura de ' + book().title"
+          (click)="requestReadingAction('startReading')"
+        >
+          Empezar lectura
+        </button>
+      }
+      @if (book().readingStatus === 'TO_READ' || book().readingStatus === 'READING') {
+        <button
+          mat-button
+          type="button"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          [attr.aria-label]="'Finalizar lectura de ' + book().title"
+          (click)="requestReadingAction('finishReading')"
+        >
+          Finalizar lectura
+        </button>
+        <small>Usa la fecha de hoy</small>
+      }
+      <button
+        mat-button
+        type="button"
+        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+        [attr.aria-label]="'Gestionar fechas de lectura de ' + book().title"
+        (click)="requestReadingAction('dates')"
+      >
+        Gestionar fechas
+      </button>
+    </div>
+    @let action = pendingAction();
+    <p role="status" aria-live="polite">{{ action ? progressLabels[action] : '' }}</p>
     @if (updateError()) {
       <p class="update-error" role="alert">{{ updateError() }}</p>
     }

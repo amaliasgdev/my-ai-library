@@ -40,17 +40,17 @@ describe('BookCard', () => {
     expect(link?.textContent?.trim()).toBe('Editar');
     expect(link?.getAttribute('href')).toBe('/books/1/edit');
     expect(link?.getAttribute('aria-label')).toBe('Editar Libro de prueba');
-    const deletion = element.querySelector('button');
+    const deletion = element.querySelector('mat-card-actions button');
     expect(deletion?.textContent?.trim()).toBe('Eliminar');
     expect(deletion?.getAttribute('aria-label')).toBe('Eliminar Libro de prueba');
-    expect(element.querySelectorAll('a, button')).toHaveLength(2);
+    expect(element.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(2);
     expect(element.textContent).not.toMatch(/Hidden|9780132350884|2008/);
   });
 
   it('should emit the book to its parent without HTTP or a dialog', () => {
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
-    (element.querySelector('button') as HTMLButtonElement).click();
+    (element.querySelector('mat-card-actions button') as HTMLButtonElement).click();
     expect(requested).toHaveBeenCalledExactlyOnceWith(testBook());
   });
 
@@ -59,7 +59,9 @@ describe('BookCard', () => {
     fixture.detectChanges();
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
-    expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((element.querySelector('mat-card-actions button') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/1/edit');
     fixture.componentInstance.requestDelete();
     expect(requested).not.toHaveBeenCalled();
@@ -143,6 +145,84 @@ describe('BookCard', () => {
 
   it('should omit rating when null', () => {
     expect(element.querySelector('.rating')).toBeNull();
+  });
+
+  it('should always show both confirmed reading dates, including missing values', () => {
+    expect(element.querySelector('.reading-dates')?.textContent).toContain(
+      'Inicio: Sin fecha · Fin: Sin fecha',
+    );
+    fixture.componentRef.setInput('book', testBook({ startedOn: '2024-02-29', finishedOn: null }));
+    fixture.detectChanges();
+    expect(element.querySelector('.reading-dates')?.textContent).toContain(
+      'Inicio: 29/02/2024 · Fin: Sin fecha',
+    );
+    fixture.componentRef.setInput('book', testBook({ startedOn: null, finishedOn: '2026-10-12' }));
+    fixture.detectChanges();
+    expect(element.querySelector('.reading-dates')?.textContent).toContain(
+      'Inicio: Sin fecha · Fin: 12/10/2026',
+    );
+  });
+
+  it.each(['TO_READ', 'READING', 'READ', 'ABANDONED'] as const)(
+    'should expose only allowed reading actions in %s and emit guarded intents',
+    (readingStatus) => {
+      fixture.componentRef.setInput('book', testBook({ readingStatus }));
+      fixture.detectChanges();
+      const buttons = Array.from(
+        element.querySelectorAll<HTMLButtonElement>('.date-actions button'),
+      );
+      expect(buttons.map((button) => button.textContent?.trim())).toEqual(
+        readingStatus === 'TO_READ'
+          ? ['Empezar lectura', 'Finalizar lectura', 'Gestionar fechas']
+          : readingStatus === 'READING'
+            ? ['Finalizar lectura', 'Gestionar fechas']
+            : ['Gestionar fechas'],
+      );
+      expect(
+        buttons.every((button) => button.getAttribute('aria-label')?.includes('Libro de prueba')),
+      ).toBe(true);
+      const start = vi.fn();
+      const finish = vi.fn();
+      const dates = vi.fn();
+      fixture.componentInstance.startReadingRequested.subscribe(start);
+      fixture.componentInstance.finishReadingRequested.subscribe(finish);
+      fixture.componentInstance.readingDatesRequested.subscribe(dates);
+      buttons.forEach((button) => button.click());
+      expect(start).toHaveBeenCalledTimes(readingStatus === 'TO_READ' ? 1 : 0);
+      expect(finish).toHaveBeenCalledTimes(
+        readingStatus === 'TO_READ' || readingStatus === 'READING' ? 1 : 0,
+      );
+      expect(dates).toHaveBeenCalledExactlyOnceWith(1);
+      if (readingStatus === 'TO_READ' || readingStatus === 'READING')
+        expect(element.textContent).toContain('Usa la fecha de hoy');
+    },
+  );
+
+  it.each([
+    ['startReading', 'Iniciando lectura…'],
+    ['finishReading', 'Finalizando lectura…'],
+    ['updateReadingDates', 'Actualizando fechas…'],
+    ['deleteReadingDates', 'Eliminando fechas…'],
+  ])('should block all actions and announce %s', (action, label) => {
+    fixture.componentRef.setInput('pendingAction', action);
+    fixture.detectChanges();
+    expect(
+      Array.from(element.querySelectorAll<HTMLButtonElement>('button')).every(
+        (button) => button.disabled,
+      ),
+    ).toBe(true);
+    expect(element.querySelector('mat-card-content [role="status"]')?.textContent?.trim()).toBe(
+      label,
+    );
+    expect(element.querySelector('a')?.getAttribute('href')).toBeNull();
+    const requested = vi.fn();
+    fixture.componentInstance.startReadingRequested.subscribe(requested);
+    fixture.componentInstance.finishReadingRequested.subscribe(requested);
+    fixture.componentInstance.readingDatesRequested.subscribe(requested);
+    fixture.componentInstance.requestReadingAction('startReading');
+    fixture.componentInstance.requestReadingAction('finishReading');
+    fixture.componentInstance.requestReadingAction('dates');
+    expect(requested).not.toHaveBeenCalled();
   });
 
   async function selects() {
