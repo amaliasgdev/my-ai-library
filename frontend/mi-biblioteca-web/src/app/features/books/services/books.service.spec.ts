@@ -20,6 +20,61 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it.each([
+    { title: 'Dune' },
+    { author: 'Herbert' },
+    { title: 'Dune', author: 'Herbert' },
+    { isbn: '978-0-306-40615-7' },
+  ])('should search by the supplied criteria %j with defaults', (criteria) => {
+    const next = vi.fn();
+    service.searchBooks(criteria).subscribe(next);
+    const request = http.expectOne((req) => req.url === '/api/books/search');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('0');
+    expect(request.request.params.get('size')).toBe('20');
+    expect(request.request.params.get('sortBy')).toBe('title');
+    expect(request.request.params.get('direction')).toBe('ASC');
+    for (const field of ['title', 'author', 'isbn'] as const) {
+      expect(request.request.params.get(field)).toBe(criteria[field] ?? null);
+    }
+    request.flush(testBookPage());
+    expect(next).toHaveBeenCalledWith(testBookPage());
+  });
+
+  it('should omit empty criteria and encode query text using HttpParams', () => {
+    service
+      .searchBooks(
+        { title: 'A & B + C', author: ' ', isbn: '' },
+        { page: 2, size: 50, sortBy: 'author', direction: 'DESC' },
+      )
+      .subscribe();
+    const request = http.expectOne((req) => req.url === '/api/books/search');
+    expect(request.request.params.keys().sort()).toEqual([
+      'direction',
+      'page',
+      'size',
+      'sortBy',
+      'title',
+    ]);
+    expect(request.request.params.get('title')).toBe('A & B + C');
+    expect(request.request.params.get('page')).toBe('2');
+    expect(request.request.params.get('size')).toBe('50');
+    expect(request.request.params.get('sortBy')).toBe('author');
+    expect(request.request.params.get('direction')).toBe('DESC');
+    request.flush(testBookPage());
+  });
+
+  it('should propagate search HTTP errors unchanged', () => {
+    const error = vi.fn();
+    service.searchBooks({ title: 'Dune' }).subscribe({ error });
+    const problem = { detail: 'Internal detail' };
+    http
+      .expectOne((req) => req.url === '/api/books/search')
+      .flush(problem, { status: 400, statusText: 'Bad Request' });
+    expect(error.mock.calls[0][0].status).toBe(400);
+    expect(error.mock.calls[0][0].error).toEqual(problem);
+  });
+
   it('should DELETE by id without a body and complete on HTTP 204', () => {
     const next = vi.fn();
     const complete = vi.fn();
@@ -177,6 +232,11 @@ describe('BooksService with alternative API_CONFIG', () => {
     const deletion = http.expectOne('/alternative-api/books/42');
     expect(deletion.request.method).toBe('DELETE');
     deletion.flush(null, { status: 204, statusText: 'No Content' });
+    TestBed.inject(BooksService).searchBooks({ author: 'Herbert' }).subscribe();
+    const search = http.expectOne((req) => req.url === '/alternative-api/books/search');
+    expect(search.request.method).toBe('GET');
+    expect(search.request.params.get('author')).toBe('Herbert');
+    search.flush(testBookPage());
     http.verify();
   });
 });

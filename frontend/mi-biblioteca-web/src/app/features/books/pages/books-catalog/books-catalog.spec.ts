@@ -302,7 +302,7 @@ describe('BooksCatalog', () => {
     );
     fixture.detectChanges();
     expect(element.querySelector('h1')?.textContent).toBe('Mi Biblioteca');
-    expect(Array.from(element.querySelectorAll('h2'), (h) => h.textContent)).toEqual([
+    expect(Array.from(element.querySelectorAll('app-book-card h2'), (h) => h.textContent)).toEqual([
       'Zeta',
       'Alfa',
     ]);
@@ -383,7 +383,7 @@ describe('BooksCatalog', () => {
     expect(element.textContent).not.toContain('INTERNAL SECRET');
     expect(element.querySelector('a')?.textContent).toContain('Añadir libro');
     expect(element.querySelector('app-book-card')).toBeNull();
-    expect(element.querySelector('button')?.textContent).toContain('Reintentar');
+    expect(element.querySelector('.catalog-content button')?.textContent).toContain('Reintentar');
   });
 
   it('should explain a connection failure with status 0', () => {
@@ -398,7 +398,7 @@ describe('BooksCatalog', () => {
     pendingRequest().flush({}, { status: 500, statusText: 'Error' });
     fixture.detectChanges();
     http.expectNone((req) => req.url === '/api/books');
-    (element.querySelector('button') as HTMLButtonElement).click();
+    (element.querySelector('.catalog-content button') as HTMLButtonElement).click();
     const request = pendingRequest();
     expect(request.request.params.get('page')).toBe('0');
     fixture.detectChanges();
@@ -447,7 +447,7 @@ describe('BooksCatalog', () => {
       testBookPage({ content: [testBook({ title: 'Latest result' })], page: 1, totalElements: 42 }),
     );
     fixture.detectChanges();
-    expect(element.querySelector('h2')?.textContent).toBe('Latest result');
+    expect(element.querySelector('app-book-card h2')?.textContent).toBe('Latest result');
     expect(() => previous.flush(testBookPage())).toThrow();
   });
 

@@ -11,6 +11,9 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -30,8 +33,19 @@ import {
   BookDeleteDialog,
   BookDeleteDialogData,
 } from '../../components/book-delete-dialog/book-delete-dialog';
-import { BookPageResponse, BookResponse, BooksPageRequest } from '../../models/book.models';
+import {
+  BookPageResponse,
+  BookResponse,
+  BookSearchRequest,
+  BooksPageRequest,
+} from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
+import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.search-validators';
+
+type CatalogQuery = BooksPageRequest & {
+  search: BookSearchRequest | null;
+  afterDelete?: boolean;
+};
 
 type CatalogState =
   | { status: 'loading' }
@@ -63,9 +77,28 @@ function catalogError(error: unknown): string {
   return 'No se pudo cargar el catálogo';
 }
 
+function searchError(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    if (error.status === 0) return 'No se puede conectar con el servidor';
+    if (error.status === 400) return 'No se pudo realizar la búsqueda con estos criterios';
+    if (error.status >= 500 && error.status < 600)
+      return 'El servidor no pudo realizar la búsqueda';
+  }
+  return 'No se pudo realizar la búsqueda';
+}
+
 @Component({
   selector: 'app-books-catalog',
-  imports: [BookCard, MatButtonModule, MatPaginatorModule, MatProgressSpinnerModule, RouterLink],
+  imports: [
+    BookCard,
+    MatButtonModule,
+    MatPaginatorModule,
+    MatProgressSpinnerModule,
+    RouterLink,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+  ],
   providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
   styleUrl: './books-catalog.scss',
@@ -78,10 +111,24 @@ export class BooksCatalog {
   private readonly injector = inject(Injector);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private restoreFocusAfterReload = false;
-  private readonly query = new BehaviorSubject<BooksPageRequest & { afterDelete?: boolean }>({
+  private readonly query = new BehaviorSubject<CatalogQuery>({
     page: 0,
     size: 20,
+    search: null,
   });
+  private lastRequestedQuery: CatalogQuery = this.query.value;
+  readonly currentSearch = signal<BookSearchRequest | null>(null);
+  readonly searchForm = new FormGroup(
+    {
+      title: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
+      author: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
+      isbn: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(20), searchIsbnValidator],
+      }),
+    },
+    { validators: searchCriteriaValidator },
+  );
   readonly deletingId = signal<number | null>(null);
   readonly deleteError = signal<string | null>(null);
   protected readonly state = signal<CatalogState>({ status: 'loading' });
@@ -93,7 +140,10 @@ export class BooksCatalog {
     const state = this.state();
     if (state.status === 'loading') return 'Cargando libros…';
     if (state.status === 'error') return '';
-    if (state.response.totalElements === 0) return 'Tu biblioteca todavía no tiene libros';
+    if (state.response.totalElements === 0)
+      return this.currentSearch()
+        ? 'No se encontraron libros'
+        : 'Tu biblioteca todavía no tiene libros';
     if (state.response.content.length === 0) return 'No hay libros en esta página';
     return `Mostrando ${state.response.content.length} de ${state.response.totalElements} libros`;
   });
@@ -105,12 +155,15 @@ export class BooksCatalog {
           this.fetchPage(query).pipe(
             switchMap((response) =>
               query.afterDelete && response.content.length === 0 && response.page > 0
-                ? this.fetchPage({ ...query, page: response.page - 1 })
+                ? this.fetchPage({ ...query, page: response.page - 1, afterDelete: false })
                 : of(response),
             ),
             map((response): CatalogState => ({ status: 'success', response })),
             catchError((error: unknown) =>
-              of<CatalogState>({ status: 'error', message: catalogError(error) }),
+              of<CatalogState>({
+                status: 'error',
+                message: query.search ? searchError(error) : catalogError(error),
+              }),
             ),
             startWith<CatalogState>({ status: 'loading' }),
           ),
@@ -147,10 +200,44 @@ export class BooksCatalog {
   }
 
   protected retry(): void {
-    this.loadPage(this.pageIndex(), this.pageSize());
+    if (this.deletingId() !== null) return;
+    this.pageIndex.set(this.lastRequestedQuery.page ?? 0);
+    this.pageSize.set(this.lastRequestedQuery.size ?? 20);
+    this.query.next({ ...this.lastRequestedQuery });
   }
 
   protected firstPage(): void {
+    this.loadPage(0, this.pageSize());
+  }
+
+  submitSearch(): void {
+    if (this.deletingId() !== null) return;
+    if (this.searchForm.invalid) {
+      this.searchForm.markAllAsTouched();
+      const fields = ['title', 'author', 'isbn'] as const;
+      const firstInvalid =
+        fields.find((field) => this.searchForm.controls[field].invalid) ??
+        (this.searchForm.hasError('exclusiveIsbn') ? 'isbn' : 'title');
+      this.element.nativeElement
+        .querySelector<HTMLInputElement>(`[formControlName="${firstInvalid}"]`)
+        ?.focus();
+      return;
+    }
+    const value = this.searchForm.getRawValue();
+    const criteria: BookSearchRequest = {};
+    if (value.title.trim()) criteria.title = value.title.trim();
+    if (value.author.trim()) criteria.author = value.author.trim();
+    if (value.isbn.trim()) criteria.isbn = value.isbn;
+    this.currentSearch.set(criteria);
+    this.deleteError.set(null);
+    this.loadPage(0, this.pageSize());
+  }
+
+  clearSearch(): void {
+    if (this.deletingId() !== null) return;
+    this.searchForm.reset();
+    this.currentSearch.set(null);
+    this.deleteError.set(null);
     this.loadPage(0, this.pageSize());
   }
 
@@ -206,8 +293,18 @@ export class BooksCatalog {
       });
   }
 
-  private fetchPage(query: BooksPageRequest): Observable<BookPageResponse> {
-    return this.booksService.getBooks({ ...query, sortBy: 'title', direction: 'ASC' }).pipe(
+  private fetchPage(query: CatalogQuery): Observable<BookPageResponse> {
+    this.lastRequestedQuery = { ...query };
+    const options: BooksPageRequest = {
+      page: query.page,
+      size: query.size,
+      sortBy: 'title',
+      direction: 'ASC',
+    };
+    const request = query.search
+      ? this.booksService.searchBooks(query.search, options)
+      : this.booksService.getBooks(options);
+    return request.pipe(
       map((response) => {
         // HTTP generic types do not validate the actual JSON response.
         if (!response || !Array.isArray(response.content))
@@ -220,6 +317,6 @@ export class BooksCatalog {
   private loadPage(page: number, size: number, afterDelete = false): void {
     this.pageIndex.set(page);
     this.pageSize.set(size);
-    this.query.next({ page, size, afterDelete });
+    this.query.next({ page, size, afterDelete, search: this.currentSearch() });
   }
 }

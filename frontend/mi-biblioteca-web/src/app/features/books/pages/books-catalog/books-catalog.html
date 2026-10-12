@@ -1,6 +1,53 @@
 <section aria-labelledby="books-heading">
   <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
   <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+  <form
+    class="search-form"
+    [formGroup]="searchForm"
+    (ngSubmit)="submitSearch()"
+    aria-labelledby="search-heading"
+    aria-describedby="search-rules"
+  >
+    <h2 id="search-heading">Buscar libros</h2>
+    <p id="search-rules">Combina título y autor, o busca solo por ISBN.</p>
+    <div class="search-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Título</mat-label>
+        <input matInput formControlName="title" />
+        @if (searchForm.controls.title.hasError('maxlength')) {
+          <mat-error>El título no puede superar 255 caracteres</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Autor</mat-label>
+        <input matInput formControlName="author" />
+        @if (searchForm.controls.author.hasError('maxlength')) {
+          <mat-error>El autor no puede superar 255 caracteres</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>ISBN</mat-label>
+        <input matInput formControlName="isbn" />
+        @if (searchForm.controls.isbn.hasError('maxlength')) {
+          <mat-error>El ISBN no puede superar 20 caracteres</mat-error>
+        } @else if (searchForm.controls.isbn.hasError('isbn')) {
+          <mat-error>Introduce un ISBN con el formato admitido</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    @if (searchForm.touched && searchForm.hasError('noCriteria')) {
+      <p class="search-validation" role="alert">Introduce al menos un título, autor o ISBN</p>
+    }
+    @if (searchForm.touched && searchForm.hasError('exclusiveIsbn')) {
+      <p class="search-validation" role="alert">El ISBN no se puede combinar con título o autor</p>
+    }
+    <div class="search-actions">
+      <button mat-flat-button type="submit" [disabled]="deletingId() !== null">Buscar</button>
+      <button mat-button type="button" [disabled]="deletingId() !== null" (click)="clearSearch()">
+        Limpiar
+      </button>
+    </div>
+  </form>
   @if (deleteError()) {
     <p class="error-panel" role="alert">{{ deleteError() }}</p>
   }
