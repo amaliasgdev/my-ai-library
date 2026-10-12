@@ -142,9 +142,11 @@
       }
     </div>
   </div>
-  <p role="status" aria-live="polite">{{ submitting() ? 'Guardando libro…' : '' }}</p>
+  <p role="status" aria-live="polite">{{ submitting() ? submissionMessage() : '' }}</p>
   <div class="actions">
-    <button mat-flat-button type="submit" [disabled]="submitting()">Guardar</button>
+    <button mat-flat-button type="submit" [disabled]="submitting() || saveDisabled()">
+      Guardar
+    </button>
     <button mat-button type="button" (click)="cancel()" [disabled]="submitting()">Cancelar</button>
   </div>
 </form>

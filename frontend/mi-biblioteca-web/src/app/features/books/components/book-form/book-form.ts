@@ -50,6 +50,8 @@ export class BookForm implements OnChanges {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly initialBook = input<BookResponse | null>(null);
   readonly submitting = input(false);
+  readonly saveDisabled = input(false);
+  readonly submissionMessage = input('Guardando libro…');
   readonly save = output<BookRequest>();
   readonly submitAttempted = output<void>();
   readonly cancelled = output<void>();
@@ -111,6 +113,10 @@ export class BookForm implements OnChanges {
   canLookup(): boolean {
     const isbn = this.form.controls.isbn;
     return isbn.value.trim().length > 0 && !isbn.hasError('maxlength') && !isbn.hasError('pattern');
+  }
+
+  synchronizeCoverUrl(coverUrl: string | null): void {
+    this.form.controls.coverUrl.setValue(coverUrl ?? '');
   }
 
   requestLookup(): void {
@@ -194,7 +200,7 @@ export class BookForm implements OnChanges {
   }
 
   submit(): void {
-    if (this.submitting()) return;
+    if (this.submitting() || this.saveDisabled()) return;
     this.submitAttempted.emit();
     const pending = this.genreInput.value.length > 0;
     const added = !pending || this.addGenre();
