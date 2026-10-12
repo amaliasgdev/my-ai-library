@@ -1,4 +1,0 @@
-ALTER TABLE book ADD COLUMN rating INTEGER;
-
-ALTER TABLE book ADD CONSTRAINT chk_book_rating
-    CHECK (rating IS NULL OR rating BETWEEN 1 AND 5);
