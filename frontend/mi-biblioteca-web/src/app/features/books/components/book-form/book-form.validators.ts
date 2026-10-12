@@ -1,6 +1,6 @@
 import { ValidatorFn } from '@angular/forms';
 
-export const CRUD_ISBN_PATTERN = /^(?:97[89][- ]?)?[0-9][- 0-9]{8,}[0-9Xx]$/;
+export { CRUD_ISBN_PATTERN } from '../../models/isbn-pattern';
 
 // Java 21 Locale.getISOLanguages(), including the aliases accepted by the backend.
 const languages = new Set(

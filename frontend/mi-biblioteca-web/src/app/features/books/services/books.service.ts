@@ -6,6 +6,7 @@ import {
   BookPageResponse,
   BookRequest,
   BookResponse,
+  BookSearchRequest,
   BooksPageRequest,
 } from '../models/book.models';
 
@@ -40,5 +41,24 @@ export class BooksService {
       },
     });
     return this.http.get<BookPageResponse>(`${this.apiConfig.apiBaseUrl}/books`, { params });
+  }
+
+  searchBooks(
+    criteria: BookSearchRequest,
+    options: BooksPageRequest = {},
+  ): Observable<BookPageResponse> {
+    let params = new HttpParams({
+      fromObject: {
+        page: options.page ?? 0,
+        size: options.size ?? 20,
+        sortBy: options.sortBy ?? 'title',
+        direction: options.direction ?? 'ASC',
+      },
+    });
+    for (const field of ['title', 'author', 'isbn'] as const) {
+      const value = criteria[field];
+      if (value !== undefined && value.trim() !== '') params = params.set(field, value);
+    }
+    return this.http.get<BookPageResponse>(`${this.apiConfig.apiBaseUrl}/books/search`, { params });
   }
 }

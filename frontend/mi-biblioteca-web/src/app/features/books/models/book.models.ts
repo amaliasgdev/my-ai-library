@@ -58,3 +58,9 @@ export interface BooksPageRequest {
   sortBy?: BookSortBy;
   direction?: 'ASC' | 'DESC';
 }
+
+export interface BookSearchRequest {
+  title?: string;
+  author?: string;
+  isbn?: string;
+}

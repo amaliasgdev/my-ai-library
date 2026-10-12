@@ -134,7 +134,12 @@ frontend/mi-biblioteca-web/
 - System fonts only initially; no remote font/CDN dependency
 - Root route redirects to /books; /books lazy-loads the standalone BooksCatalog page
 - BooksCatalog is a server-paginated catalog with local signals, loading/success/error states and switchMap cancellation for GET; no stale cards during loading
-- BooksService uses HttpClient and API_CONFIG for getBooks(), createBook(), getBook(id), updateBook(id, BookRequest) and deleteBook(id): Observable<void>; list UI keeps title ASC fixed
+- BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest) and deleteBook(id): Observable<void>; list/search UI keeps title ASC fixed
+- BooksCatalog has an inline typed Reactive search form for title/author/isbn; only Buscar or native form submit starts a search, never keystrokes
+- currentSearch is the last submitted criteria snapshot (null means normal list), independent from edited inputs; one GET chain selects getBooks() or searchBooks(), preserving criteria for pagination, retry and DELETE reload
+- Search requires at least one nonblank criterion; title/author can combine, ISBN is exclusive; limits are 255/255/20 and ISBN uses the shared CRUD syntax pattern without checksum or ISBN lookup
+- New searches and page-size changes use page 0 and retain current criteria/size as applicable; Limpiar resets inputs and snapshot, loads /api/books page 0 and retains pageSize; no URL/localStorage persistence
+- Search failures preserve form and snapshot with safe inline messages and explicit retry of the actual failed request; no results means No se encontraron libros, not an empty library
 - Frontend BookResponse/BookPageResponse models mirror the backend; nullable fields remain nullable and ISO dates remain strings
 - BookRequest is a separate frontend request model with exactly 10 creation/edit fields; empty optional values become null and absent genres become []
 - /books/new and /books/:id/edit lazy-load standalone BookCreate and BookEdit; static routes precede dynamic routes
@@ -149,15 +154,15 @@ frontend/mi-biblioteca-web/
 - Submission blocks duplicate POST/PUT and genre/cancel actions; no automatic retries, cover preview or unsaved-change guard
 - BookCard displays cover/fallback, title, author, readable readingStatus, optional noninteractive rating and Editar/Eliminar actions; the whole card is not clickable and deletion is emitted to the catalog, not executed by the card
 - BookDeleteDialog is a specific Material confirmation with initial focus on Cancelar; only explicit true starts DELETE, while Escape/backdrop cancel
-- Catalog deletingId allows only one DELETE; all Eliminar buttons and MatPaginator are disabled, Editar is disabled only for the affected book, and Añadir libro stays available; finalize releases deletingId
-- Successful DELETE reloads the current backend page; empty content on page > 0 requests exactly page - 1 once, without local removal, total decrements or last-valid-page calculations
+- Catalog deletingId allows only one DELETE; all Eliminar buttons, MatPaginator and Buscar/Limpiar are disabled, Editar is disabled only for the affected book, search inputs remain editable and Añadir libro stays available; finalize releases deletingId
+- Successful DELETE reloads the current backend page in list/search mode with the submitted criteria snapshot; empty content on page > 0 requests exactly page - 1 once, without local removal, total decrements or last-valid-page calculations
 - DELETE errors are safe inline messages separate from load errors and preserve cards/pagination; 404 is not success, retries require confirmation, and a failed reload never repeats DELETE
 - Frontend deletion calls only DELETE /api/books/{id}; managed cover cleanup remains entirely in the backend
 - Cover URLs are used unchanged by img with lazy loading; null/failed images show Sin portada, and changing coverUrl resets image failure
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend search, details, filters, sorting selector, interactive rating/status, ISBN lookup, cover upload or fake runtime book data
+- No frontend details, advanced filters, sorting selector, interactive rating/status, ISBN lookup, cover upload or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -555,6 +560,7 @@ Verified:
 - Angular/Material frontend setup and read-only paginated /books catalog are implemented (BooksService, frontend book models, BookCard and MatPaginator)
 - Frontend creation at /books/new and editing at /books/:id/edit are implemented with shared BookForm, BookRequest, createBook(), getBook(), updateBook() and Material controls
 - Frontend deletion is implemented through deleteBook(), BookCard actions and BookDeleteDialog confirmation, with backend reload and one-page fallback when empty
+- Frontend submitted search by title/author or exclusive ISBN is implemented with searchBooks(), currentSearch snapshot, server pagination and search-preserving DELETE reload
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 
 ---
@@ -583,7 +589,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
-Frontend technical setup, paginated book catalog, book creation, editing and deletion are completed. Other frontend interactions are not implemented.
+Frontend technical setup, paginated book catalog, book creation, editing, deletion and submitted search are completed. Other frontend interactions are not implemented.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
