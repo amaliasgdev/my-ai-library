@@ -1,5 +1,17 @@
 export type ReadingStatus = 'TO_READ' | 'READING' | 'READ' | 'ABANDONED';
 
+export interface BookLookupResponse {
+  isbn: string;
+  title: string | null;
+  author: string | null;
+  publisher: string | null;
+  publicationYear: number | null;
+  pageCount: number | null;
+  language: string | null;
+  genres: string[];
+  coverUrl: string | null;
+}
+
 export interface UpdateReadingStatusRequest {
   readingStatus: ReadingStatus;
 }

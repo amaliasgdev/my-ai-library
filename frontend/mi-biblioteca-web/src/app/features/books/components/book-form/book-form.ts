@@ -21,7 +21,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { BookRequest, BookResponse } from '../../models/book.models';
+import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
 import { bookFormValue, buildBookRequest } from './book-form.helpers';
 import {
   CRUD_ISBN_PATTERN,
@@ -51,7 +51,14 @@ export class BookForm implements OnChanges {
   readonly initialBook = input<BookResponse | null>(null);
   readonly submitting = input(false);
   readonly save = output<BookRequest>();
+  readonly submitAttempted = output<void>();
   readonly cancelled = output<void>();
+  readonly lookupEnabled = input(false);
+  readonly lookupLoading = input(false);
+  readonly lookupSuccess = input(false);
+  readonly lookupError = input<string | null>(null);
+  readonly lookupRequested = output<string>();
+  readonly isbnChanged = output<string>();
   readonly genreInput = new FormControl('', {
     nonNullable: true,
     validators: [notBlank, Validators.maxLength(50)],
@@ -93,8 +100,53 @@ export class BookForm implements OnChanges {
   });
 
   constructor() {
+    this.form.controls.isbn.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.isbnChanged.emit(value));
     for (const control of Object.values(this.form.controls)) {
       this.watchServerErrors(control);
+    }
+  }
+
+  canLookup(): boolean {
+    const isbn = this.form.controls.isbn;
+    return isbn.value.trim().length > 0 && !isbn.hasError('maxlength') && !isbn.hasError('pattern');
+  }
+
+  requestLookup(): void {
+    if (!this.lookupEnabled() || this.lookupLoading() || this.submitting() || !this.canLookup())
+      return;
+    this.lookupRequested.emit(this.form.controls.isbn.value);
+  }
+
+  applyLookup(proposal: BookLookupResponse): void {
+    for (const field of ['title', 'author', 'publisher', 'language', 'coverUrl'] as const) {
+      const control = this.form.controls[field];
+      const value = proposal[field];
+      if (!control.value.trim() && value !== null && control.value !== value) {
+        control.setValue(value);
+        control.markAsDirty();
+      }
+    }
+    for (const field of ['publicationYear', 'pageCount'] as const) {
+      const control = this.form.controls[field];
+      const value = proposal[field];
+      if (control.value === null && value !== null) {
+        control.setValue(value);
+        control.markAsDirty();
+      }
+    }
+    const isbn = this.form.controls.isbn;
+    if (isbn.value !== proposal.isbn) {
+      // This confirmed normalization is not a user edit/cancellation event.
+      isbn.setValue(proposal.isbn, { emitEvent: false });
+      this.clearServerError(isbn);
+      isbn.markAsDirty();
+    }
+    const genres = this.form.controls.genres;
+    if (genres.length === 0 && this.genreInput.value.length === 0 && proposal.genres.length > 0) {
+      for (const genre of proposal.genres) genres.push(this.genreControl(genre));
+      genres.markAsDirty();
     }
   }
 
@@ -143,6 +195,7 @@ export class BookForm implements OnChanges {
 
   submit(): void {
     if (this.submitting()) return;
+    this.submitAttempted.emit();
     const pending = this.genreInput.value.length > 0;
     const added = !pending || this.addGenre();
     this.form.markAllAsTouched();

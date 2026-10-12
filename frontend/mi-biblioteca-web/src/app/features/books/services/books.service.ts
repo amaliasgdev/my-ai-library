@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import {
   BookPageResponse,
+  BookLookupResponse,
   BookRequest,
   BookResponse,
   BookSearchRequest,
@@ -19,6 +20,13 @@ import {
 export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
+
+  lookupByIsbn(isbn: string): Observable<BookLookupResponse> {
+    const params = new HttpParams().set('isbn', isbn);
+    return this.http.get<BookLookupResponse>(`${this.apiConfig.apiBaseUrl}/books/isbn-lookup`, {
+      params,
+    });
+  }
 
   startReading(id: number, request: ReadingDateRequest): Observable<BookResponse> {
     return this.http.post<BookResponse>(

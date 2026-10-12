@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { BookPageResponse, BookResponse } from '../models/book.models';
-import { testBook, testBookPage, testBookRequest } from '../models/book.testing';
+import { testBook, testBookLookup, testBookPage, testBookRequest } from '../models/book.testing';
 import { BooksService } from './books.service';
 import { Observable } from 'rxjs';
 
@@ -20,6 +20,30 @@ describe('BooksService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('should GET the independent lookup response with the ISBN unchanged', () => {
+    const next = vi.fn();
+    const isbn = ' 978-0132350884 ';
+    service.lookupByIsbn(isbn).subscribe(next);
+    const request = http.expectOne((req) => req.url === '/api/books/isbn-lookup');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.keys()).toEqual(['isbn']);
+    expect(request.request.params.get('isbn')).toBe(isbn);
+    expect(request.request.body).toBeNull();
+    const response = testBookLookup();
+    request.flush(response);
+    expect(next).toHaveBeenCalledExactlyOnceWith(response);
+  });
+
+  it.each([0, 400, 404, 502, 503, 504, 500])('should propagate lookup error %s', (status) => {
+    const error = vi.fn();
+    service.lookupByIsbn('1234567890').subscribe({ error });
+    const request = http.expectOne((req) => req.url === '/api/books/isbn-lookup');
+    if (status === 0) request.error(new ProgressEvent('error'));
+    else request.flush({ detail: 'PRIVATE' }, { status, statusText: 'Error' });
+    expect(error.mock.calls[0][0]).toBeInstanceOf(HttpErrorResponse);
+    expect(error.mock.calls[0][0].status).toBe(status);
+  });
 
   it.each(['start', 'finish'] as const)(
     'should POST %s reading with its exact date DTO and confirmed response',
@@ -347,6 +371,10 @@ describe('BooksService with alternative API_CONFIG', () => {
       ],
     });
     const http = TestBed.inject(HttpTestingController);
+    TestBed.inject(BooksService).lookupByIsbn('978-0132350884').subscribe();
+    const lookup = http.expectOne((req) => req.url === '/alternative-api/books/isbn-lookup');
+    expect(lookup.request.params.get('isbn')).toBe('978-0132350884');
+    lookup.flush(testBookLookup());
     TestBed.inject(BooksService).getBooks().subscribe();
     http.expectOne((req) => req.url === '/alternative-api/books').flush(testBookPage());
     const body = testBookRequest();

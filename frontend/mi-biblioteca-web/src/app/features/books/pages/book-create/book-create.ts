@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, Subscription } from 'rxjs';
 import { BookForm } from '../../components/book-form/book-form';
 import { BookRequest } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
@@ -20,9 +20,80 @@ export class BookCreate {
   readonly editor = viewChild.required(BookForm);
   readonly submitting = signal(false);
   readonly generalError = signal<string | null>(null);
+  readonly lookupState = signal<'idle' | 'loading' | 'success' | 'error'>('idle');
+  readonly lookupError = signal<string | null>(null);
+  private lookupSubscription: Subscription | null = null;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.cancelLookup());
+  }
+
+  cancelLookup(): void {
+    this.lookupSubscription?.unsubscribe();
+    this.lookupSubscription = null;
+    this.lookupState.set('idle');
+    this.lookupError.set(null);
+  }
+
+  lookup(isbn: string): void {
+    if (
+      this.submitting() ||
+      this.lookupState() === 'loading' ||
+      !this.editor().canLookup() ||
+      this.editor().form.controls.isbn.value !== isbn
+    )
+      return;
+    this.lookupState.set('loading');
+    this.lookupError.set(null);
+    this.lookupSubscription = this.service
+      .lookupByIsbn(isbn)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (proposal) => {
+          if (this.submitting() || this.editor().form.controls.isbn.value !== isbn) {
+            this.cancelLookup();
+            return;
+          }
+          this.editor().applyLookup(proposal);
+          this.lookupState.set('success');
+        },
+        error: (error: unknown) => {
+          if (this.editor().form.controls.isbn.value !== isbn) {
+            this.cancelLookup();
+            return;
+          }
+          let message = 'No se pudo consultar el ISBN';
+          if (error instanceof HttpErrorResponse) {
+            switch (error.status) {
+              case 0:
+                message = 'No se puede conectar con el servidor';
+                break;
+              case 400:
+                message = 'El ISBN no es válido';
+                break;
+              case 404:
+                message = 'No se encontraron datos para este ISBN';
+                break;
+              case 502:
+                message = 'No se pudieron interpretar los datos del proveedor';
+                break;
+              case 503:
+                message = 'El servicio de consulta de libros no está disponible';
+                break;
+              case 504:
+                message = 'La consulta ha tardado demasiado';
+                break;
+            }
+          }
+          this.lookupError.set(message);
+          this.lookupState.set('error');
+        },
+      });
+  }
 
   save(request: BookRequest): void {
     if (this.submitting()) return;
+    this.cancelLookup();
     this.generalError.set(null);
     this.submitting.set(true);
     this.service
@@ -54,6 +125,9 @@ export class BookCreate {
   }
 
   cancel(): void {
-    if (!this.submitting()) void this.router.navigate(['/books']);
+    if (!this.submitting()) {
+      this.cancelLookup();
+      void this.router.navigate(['/books']);
+    }
   }
 }
