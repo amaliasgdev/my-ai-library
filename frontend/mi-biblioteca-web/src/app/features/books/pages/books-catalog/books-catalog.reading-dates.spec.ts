@@ -13,6 +13,10 @@ import { BookResponse } from '../../models/book.models';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { localDateString, parseLocalDate } from '../../models/reading-date';
 import { BooksCatalog } from './books-catalog';
+import {
+  provideCatalogRoutingTesting,
+  setCatalogPageTesting,
+} from './books-catalog-routing.testing';
 
 describe('BooksCatalog reading dates', () => {
   let fixture: ComponentFixture<BooksCatalog>;
@@ -27,6 +31,7 @@ describe('BooksCatalog reading dates', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        provideCatalogRoutingTesting(),
         {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
@@ -36,6 +41,7 @@ describe('BooksCatalog reading dates', () => {
     fixture = TestBed.createComponent(BooksCatalog);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
+    setCatalogPageTesting(1, 50);
     get().flush(page());
     fixture.detectChanges();
   });
@@ -89,10 +95,13 @@ describe('BooksCatalog reading dates', () => {
   it('should keep the submitted query through a locally replaced date response', async () => {
     fixture.componentInstance.searchForm.controls.author.setValue('Herbert');
     fixture.componentInstance.submitSearch();
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     fixture.componentInstance.onSortByChange('author');
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     fixture.componentInstance.onSortDirectionChange('DESC');
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     const ref = await openDates();
     const dialog = ref.componentInstance as BookReadingDatesDialog;
@@ -213,6 +222,7 @@ describe('BooksCatalog reading dates', () => {
     'should reload current server order after %s when sorted by readingStatus',
     async (action) => {
       fixture.componentInstance.onSortByChange('readingStatus');
+      setCatalogPageTesting(1, 50);
       get().flush(page());
       await fixture.whenStable();
       if (action === 'start') fixture.componentInstance.startReading(1);
@@ -230,6 +240,7 @@ describe('BooksCatalog reading dates', () => {
 
   it('should PUT edited dates without changing status, close the dialog and preserve query totals', async () => {
     fixture.componentInstance.onSortByChange('readingStatus');
+    setCatalogPageTesting(1, 50);
     get().flush(page());
     const ref = await openDates();
     const dialog = ref.componentInstance as BookReadingDatesDialog;
@@ -415,10 +426,13 @@ describe('BooksCatalog reading dates', () => {
   it('should preserve submitted search, sorting, page and size after clearing dates', async () => {
     fixture.componentInstance.searchForm.controls.title.setValue('Dune');
     fixture.componentInstance.submitSearch();
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     fixture.componentInstance.onSortByChange('rating');
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     fixture.componentInstance.onSortDirectionChange('DESC');
+    setCatalogPageTesting(1, 50);
     get(true).flush(page());
     fixture.componentInstance.searchForm.controls.title.setValue('Unsubmitted');
     const ref = await openDates();

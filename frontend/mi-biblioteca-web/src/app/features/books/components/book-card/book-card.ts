@@ -1,7 +1,7 @@
 import { Component, input, OnChanges, output, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterLink } from '@angular/router';
+import { Params, RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book.models';
@@ -15,6 +15,7 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-dis
 })
 export class BookCard implements OnChanges {
   readonly book = input.required<BookResponse>();
+  readonly catalogParams = input<Params>({});
   readonly deleting = input(false);
   readonly deleteDisabled = input(false);
   readonly deleteRequested = output<BookResponse>();

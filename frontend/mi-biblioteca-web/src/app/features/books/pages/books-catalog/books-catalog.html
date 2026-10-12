@@ -101,6 +101,7 @@
               <li>
                 <app-book-card
                   [book]="book"
+                  [catalogParams]="catalogParams()"
                   [deleting]="deletingId() === book.id"
                   [deleteDisabled]="deletingId() !== null || pendingUpdates().size > 0"
                   [pendingAction]="pendingUpdates().get(book.id) ?? null"

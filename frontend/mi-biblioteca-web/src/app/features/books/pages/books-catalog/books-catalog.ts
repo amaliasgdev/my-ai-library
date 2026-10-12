@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -20,7 +20,9 @@ import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/materi
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
-  BehaviorSubject,
+  EMPTY,
+  distinctUntilChanged,
+  Subject,
   catchError,
   finalize,
   map,
@@ -51,12 +53,16 @@ import {
   bookDeleteError,
 } from '../../components/book-delete-dialog/book-delete.helpers';
 import { searchCriteriaValidator, searchIsbnValidator } from './books-catalog.search-validators';
+import {
+  BookCatalogQuery,
+  parseBookCatalogQuery,
+  serializeBookCatalogQuery,
+  isCanonicalBookCatalogQuery,
+  sameBookCatalogQuery,
+  sameBookSearch,
+} from '../../models/book-catalog-query';
 
-type CatalogQuery = BooksPageRequest & {
-  search: BookSearchRequest | null;
-  sort: BookCatalogSort;
-  afterDelete?: boolean;
-};
+type CatalogReload = { afterDelete: boolean };
 
 type CatalogState =
   | { status: 'loading' }
@@ -121,6 +127,8 @@ export class BooksCatalog {
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
   private restoreFocusAfterReload = false;
@@ -132,13 +140,17 @@ export class BooksCatalog {
     { value: 'readingStatus', label: 'Estado de lectura' },
     { value: 'rating', label: 'Valoración' },
   ];
-  private readonly query = new BehaviorSubject<CatalogQuery>({
-    page: 0,
-    size: 20,
-    search: null,
-    sort: { ...this.currentSort() },
-  });
-  private lastRequestedQuery: CatalogQuery = this.query.value;
+  private readonly reloadRequested = new Subject<CatalogReload>();
+  private appliedQuery: BookCatalogQuery | null = null;
+  private requestGeneration = 0;
+  readonly catalogParams = computed(() =>
+    serializeBookCatalogQuery({
+      page: this.pageIndex(),
+      size: this.pageSize(),
+      ...this.currentSort(),
+      search: this.currentSearch(),
+    }),
+  );
   readonly currentSearch = signal<BookSearchRequest | null>(null);
   readonly searchForm = new FormGroup(
     {
@@ -173,31 +185,66 @@ export class BooksCatalog {
   });
 
   constructor() {
-    this.query
+    this.route.queryParamMap
       .pipe(
-        switchMap((query) =>
-          this.fetchPage(query).pipe(
-            switchMap((response) =>
-              query.afterDelete && response.content.length === 0 && response.page > 0
-                ? this.fetchPage({ ...query, page: response.page - 1, afterDelete: false })
-                : of(response),
-            ),
-            map((response): CatalogState => ({ status: 'success', response })),
-            catchError((error: unknown) =>
-              of<CatalogState>({
-                status: 'error',
-                message: query.search ? searchError(error) : catalogError(error),
-              }),
-            ),
-            startWith<CatalogState>({ status: 'loading' }),
-          ),
+        map((params) => {
+          const query = parseBookCatalogQuery(params);
+          if (!isCanonicalBookCatalogQuery(params, query)) {
+            this.state.set({ status: 'loading' });
+            void this.router.navigate(['/books'], {
+              queryParams: serializeBookCatalogQuery(query),
+              replaceUrl: true,
+            });
+            return null;
+          }
+          return query;
+        }),
+        distinctUntilChanged(
+          (a, b) => a === b || (a !== null && b !== null && sameBookCatalogQuery(a, b)),
         ),
+        switchMap((query) => {
+          if (!query) return EMPTY;
+          if (!this.appliedQuery || !sameBookSearch(this.appliedQuery.search, query.search)) {
+            this.searchForm.reset({
+              title: query.search?.title ?? '',
+              author: query.search?.author ?? '',
+              isbn: query.search?.isbn ?? '',
+            });
+          }
+          this.appliedQuery = query;
+          this.currentSearch.set(query.search);
+          this.currentSort.set({ sortBy: query.sortBy, direction: query.direction });
+          this.pageIndex.set(query.page);
+          this.pageSize.set(query.size);
+          this.deleteError.set(null);
+          return this.reloadRequested.pipe(
+            startWith<CatalogReload>({ afterDelete: false }),
+            switchMap((reload) => {
+              this.requestGeneration++;
+              return this.fetchPage(query).pipe(
+                switchMap((response) => {
+                  if (reload.afterDelete && response.content.length === 0 && query.page > 0) {
+                    this.navigateQuery({ ...query, page: query.page - 1 }, true);
+                    return EMPTY;
+                  }
+                  return of(response);
+                }),
+                map((response): CatalogState => ({ status: 'success', response })),
+                catchError((error: unknown) =>
+                  of<CatalogState>({
+                    status: 'error',
+                    message: query.search ? searchError(error) : catalogError(error),
+                  }),
+                ),
+                startWith<CatalogState>({ status: 'loading' }),
+              );
+            }),
+          );
+        }),
         takeUntilDestroyed(),
       )
       .subscribe((state) => {
         if (state.status === 'success') {
-          this.pageIndex.set(state.response.page);
-          this.pageSize.set(state.response.size);
           this.totalElements.set(state.response.totalElements);
         }
         this.state.set(state);
@@ -221,18 +268,16 @@ export class BooksCatalog {
   onPageChange(event: PageEvent): void {
     if (this.deletingId() !== null) return;
     const page = event.pageSize === this.pageSize() ? event.pageIndex : 0;
-    this.loadPage(page, event.pageSize);
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, page, size: event.pageSize });
   }
 
   protected retry(): void {
     if (this.deletingId() !== null) return;
-    this.pageIndex.set(this.lastRequestedQuery.page ?? 0);
-    this.pageSize.set(this.lastRequestedQuery.size ?? 20);
-    this.query.next({ ...this.lastRequestedQuery });
+    this.reloadCurrentQuery();
   }
 
   protected firstPage(): void {
-    this.loadPage(0, this.pageSize());
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, page: 0 });
   }
 
   submitSearch(): void {
@@ -252,18 +297,14 @@ export class BooksCatalog {
     const criteria: BookSearchRequest = {};
     if (value.title.trim()) criteria.title = value.title.trim();
     if (value.author.trim()) criteria.author = value.author.trim();
-    if (value.isbn.trim()) criteria.isbn = value.isbn;
-    this.currentSearch.set(criteria);
-    this.deleteError.set(null);
-    this.loadPage(0, this.pageSize());
+    if (value.isbn.trim()) criteria.isbn = value.isbn.trim();
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, search: criteria, page: 0 });
   }
 
   clearSearch(): void {
     if (this.deletingId() !== null) return;
     this.searchForm.reset();
-    this.currentSearch.set(null);
-    this.deleteError.set(null);
-    this.loadPage(0, this.pageSize());
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, search: null, page: 0 });
   }
 
   onSortByChange(sortBy: BookCatalogSort['sortBy']): void {
@@ -280,8 +321,7 @@ export class BooksCatalog {
     if (this.deletingId() !== null) return;
     const current = this.currentSort();
     if (sort.sortBy === current.sortBy && sort.direction === current.direction) return;
-    this.currentSort.set(sort);
-    this.loadPage(0, this.pageSize());
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, ...sort, page: 0 });
   }
 
   openDeleteDialog(book: BookResponse): void {
@@ -320,7 +360,7 @@ export class BooksCatalog {
       .subscribe({
         next: () => {
           this.restoreFocusAfterReload = true;
-          this.loadPage(this.pageIndex(), this.pageSize(), true);
+          this.reloadCurrentQuery(true);
         },
         error: (error: unknown) => {
           this.deleteError.set(bookDeleteError(error));
@@ -429,7 +469,7 @@ export class BooksCatalog {
   ): void {
     if (this.deletingId() !== null || this.pendingUpdates().has(id) || !this.visibleBook(id))
       return;
-    const startedQuery = this.query.value;
+    const startedGeneration = this.requestGeneration;
     this.pendingUpdates.update((updates) => new Map(updates).set(id, action));
     if (dialog) {
       dialog.disableClose = true;
@@ -470,11 +510,11 @@ export class BooksCatalog {
             !book ||
             affectsOrder ||
             state.status !== 'success' ||
-            this.query.value !== startedQuery ||
+            this.requestGeneration !== startedGeneration ||
             !state.response.content.some((item) => item.id === id)
           ) {
             this.restoreFocusAfterReload = true;
-            this.loadPage(this.pageIndex(), this.pageSize());
+            this.reloadCurrentQuery();
             return;
           }
           this.state.set({
@@ -514,13 +554,12 @@ export class BooksCatalog {
       });
   }
 
-  private fetchPage(query: CatalogQuery): Observable<BookPageResponse> {
-    this.lastRequestedQuery = { ...query };
+  private fetchPage(query: BookCatalogQuery): Observable<BookPageResponse> {
     const options: BooksPageRequest = {
       page: query.page,
       size: query.size,
-      sortBy: query.sort.sortBy,
-      direction: query.sort.direction,
+      sortBy: query.sortBy,
+      direction: query.direction,
     };
     const request = query.search
       ? this.booksService.searchBooks(query.search, options)
@@ -535,15 +574,19 @@ export class BooksCatalog {
     );
   }
 
-  private loadPage(page: number, size: number, afterDelete = false): void {
-    this.pageIndex.set(page);
-    this.pageSize.set(size);
-    this.query.next({
-      page,
-      size,
-      afterDelete,
-      search: this.currentSearch(),
-      sort: { ...this.currentSort() },
+  private reloadCurrentQuery(afterDelete = false): void {
+    if (
+      this.appliedQuery &&
+      isCanonicalBookCatalogQuery(this.route.snapshot.queryParamMap, this.appliedQuery)
+    )
+      this.reloadRequested.next({ afterDelete });
+  }
+
+  private navigateQuery(query: BookCatalogQuery, replaceUrl = false): void {
+    if (this.appliedQuery && sameBookCatalogQuery(this.appliedQuery, query)) return;
+    void this.router.navigate(['/books'], {
+      queryParams: serializeBookCatalogQuery(query),
+      replaceUrl,
     });
   }
 }

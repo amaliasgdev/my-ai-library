@@ -30,6 +30,7 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-dis
 import { parseBookId } from '../../models/book-id';
 import { BookResponse } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
+import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
 
 type DetailState =
   | { status: 'loading' }
@@ -66,6 +67,10 @@ export class BookDetail {
   readonly deleteError = signal<string | null>(null);
   readonly statusLabels = READING_STATUS_LABELS;
   readonly displayDate = displayReadingDate;
+
+  catalogParams() {
+    return serializeBookCatalogQuery(parseBookCatalogQuery(this.route.snapshot.queryParamMap));
+  }
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -144,7 +149,12 @@ export class BookDetail {
       )
       .subscribe({
         next: () => {
-          if (generation === this.generation) void this.router.navigate(['/books']);
+          if (generation === this.generation) {
+            const queryParams = this.catalogParams();
+            if (Object.keys(queryParams).length)
+              void this.router.navigate(['/books'], { queryParams });
+            else void this.router.navigate(['/books']);
+          }
         },
         error: (error: unknown) => {
           if (generation === this.generation) this.deleteError.set(bookDeleteError(error));

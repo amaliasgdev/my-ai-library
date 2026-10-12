@@ -11,6 +11,10 @@ import { provideRouter } from '@angular/router';
 import { BookResponse, ReadingStatus } from '../../models/book.models';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
+import {
+  provideCatalogRoutingTesting,
+  setCatalogPageTesting,
+} from './books-catalog-routing.testing';
 import { BookCard } from '../../components/book-card/book-card';
 
 describe('BooksCatalog reading state', () => {
@@ -26,6 +30,7 @@ describe('BooksCatalog reading state', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        provideCatalogRoutingTesting(),
         {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
@@ -36,6 +41,7 @@ describe('BooksCatalog reading state', () => {
     fixture = TestBed.createComponent(BooksCatalog);
     element = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
+    setCatalogPageTesting(1, 50);
     listRequest().flush(page());
     fixture.detectChanges();
   });
@@ -180,6 +186,7 @@ describe('BooksCatalog reading state', () => {
     'should reload server order when modifying the active %s sort',
     async (field) => {
       fixture.componentInstance.onSortByChange(field);
+      setCatalogPageTesting(1, 50);
       listRequest().flush(page());
       await fixture.whenStable();
       if (field === 'readingStatus') await selectStatus();
@@ -287,7 +294,7 @@ describe('BooksCatalog reading state', () => {
       expect(await (await selects())[0].getValueText()).toBe('Por leer');
       expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
       expect(firstCard().querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
-        '/books/1/edit',
+        '/books/1/edit?page=1&size=50',
       );
       http.expectNone((req) => req.method === 'GET');
       await selectStatus();
@@ -316,10 +323,13 @@ describe('BooksCatalog reading state', () => {
   it('should retain active search, sort and size when reloading a confirmed rating change', async () => {
     fixture.componentInstance.searchForm.controls.title.setValue('Dune');
     fixture.componentInstance.submitSearch();
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page());
     fixture.componentInstance.onSortByChange('rating');
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page());
     fixture.componentInstance.onSortDirectionChange('DESC');
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page());
     await fixture.whenStable();
     fixture.componentInstance.searchForm.controls.title.setValue('Not submitted');
@@ -342,8 +352,10 @@ describe('BooksCatalog reading state', () => {
   it('should preserve search and sort during local replacement without a GET', async () => {
     fixture.componentInstance.searchForm.controls.author.setValue('Herbert');
     fixture.componentInstance.submitSearch();
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page());
     fixture.componentInstance.onSortByChange('author');
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page());
     await fixture.whenStable();
     await selectStatus();
@@ -391,11 +403,12 @@ describe('BooksCatalog reading state', () => {
     expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
     expect(
       element.querySelector('app-book-card a[aria-label^="Editar "]')?.getAttribute('href'),
-    ).toBe('/books/9/edit');
+    ).toBe('/books/9/edit?size=50&title=Other');
   });
 
   it('should cancel intermediate GETs when concurrent writes both require a reload', async () => {
     fixture.componentInstance.onSortByChange('rating');
+    setCatalogPageTesting(1, 50);
     listRequest().flush(page());
     await fixture.whenStable();
     fixture.componentInstance.updateRating({ id: 1, rating: 3 });
@@ -413,6 +426,7 @@ describe('BooksCatalog reading state', () => {
 
   it('should report a failed reload as a catalog load error, never repeat the successful write', async () => {
     fixture.componentInstance.onSortByChange('readingStatus');
+    setCatalogPageTesting(1, 50);
     listRequest().flush(page());
     await fixture.whenStable();
     await selectStatus();
@@ -439,8 +453,10 @@ describe('BooksCatalog reading state', () => {
   it('should reload search with its snapshot and unrelated sorting after clearing a rating', async () => {
     fixture.componentInstance.searchForm.controls.isbn.setValue('9780306406157');
     fixture.componentInstance.submitSearch();
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page([{ ...original(), rating: 3 }]));
     fixture.componentInstance.onSortByChange('createdAt');
+    setCatalogPageTesting(1, 50);
     searchRequest().flush(page([{ ...original(), rating: 3 }]));
     await fixture.whenStable();
     await selectRating('Sin valorar');

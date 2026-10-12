@@ -10,6 +10,10 @@ import { provideRouter } from '@angular/router';
 import { BookSearchRequest } from '../../models/book.models';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
+import {
+  provideCatalogRoutingTesting,
+  setCatalogPageTesting,
+} from './books-catalog-routing.testing';
 
 describe('BooksCatalog search', () => {
   let fixture: ComponentFixture<BooksCatalog>;
@@ -23,6 +27,7 @@ describe('BooksCatalog search', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        provideCatalogRoutingTesting(),
         {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
@@ -240,6 +245,7 @@ describe('BooksCatalog search', () => {
 
   it('should keep search when returning from an out-of-range page to page 0', () => {
     submit({ title: 'Dune' });
+    setCatalogPageTesting(2);
     searchRequest().flush(testBookPage({ page: 2, content: [], totalElements: 1, totalPages: 1 }));
     fixture.detectChanges();
     expect(element.textContent).toContain('No hay libros en esta página');
@@ -333,6 +339,7 @@ describe('BooksCatalog search', () => {
 
   it('should reload search then page - 1 with the same criteria after deleting its last page result', async () => {
     submit({ author: 'Herbert' });
+    setCatalogPageTesting(2);
     searchRequest().flush(testBookPage({ page: 2, totalElements: 41, totalPages: 3 }));
     fixture.detectChanges();
     const deletion = await confirmDelete();
@@ -369,6 +376,7 @@ describe('BooksCatalog search', () => {
 
   it('should retry the exact previous-page GET if the fallback after DELETE fails', async () => {
     submit({ title: 'Dune' });
+    setCatalogPageTesting(2);
     searchRequest().flush(testBookPage({ page: 2, totalElements: 41, totalPages: 3 }));
     fixture.detectChanges();
     const deletion = await confirmDelete();

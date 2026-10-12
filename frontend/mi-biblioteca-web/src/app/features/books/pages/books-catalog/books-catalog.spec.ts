@@ -12,6 +12,10 @@ import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
+import {
+  provideCatalogRoutingTesting,
+  setCatalogPageTesting,
+} from './books-catalog-routing.testing';
 
 describe('BooksCatalog', () => {
   let fixture: ComponentFixture<BooksCatalog>;
@@ -25,6 +29,7 @@ describe('BooksCatalog', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        provideCatalogRoutingTesting(),
         {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
@@ -140,6 +145,7 @@ describe('BooksCatalog', () => {
   });
 
   it('should stay on the current page when deleting one of several books', async () => {
+    setCatalogPageTesting(2);
     pendingRequest().flush(
       testBookPage({
         content: [testBook({ id: 41 }), testBook({ id: 42 })],
@@ -178,6 +184,7 @@ describe('BooksCatalog', () => {
   });
 
   it('should reload the current page then request exactly page - 1 when empty', async () => {
+    setCatalogPageTesting(2);
     pendingRequest().flush(testBookPage({ page: 2, totalElements: 41, totalPages: 3 }));
     fixture.detectChanges();
     await deleteFirstBook();
@@ -195,6 +202,7 @@ describe('BooksCatalog', () => {
   });
 
   it('should go back only one page, without computing the last valid page or looping', async () => {
+    setCatalogPageTesting(3);
     pendingRequest().flush(testBookPage({ page: 3, totalElements: 61, totalPages: 4 }));
     fixture.detectChanges();
     await deleteFirstBook();
@@ -218,6 +226,7 @@ describe('BooksCatalog', () => {
   ])(
     'should preserve cards and pagination with a safe inline DELETE error for %s',
     async (status, message) => {
+      setCatalogPageTesting(1);
       pendingRequest().flush(testBookPage({ page: 1, totalElements: 21, totalPages: 2 }));
       fixture.detectChanges();
       await deleteFirstBook();
@@ -356,6 +365,7 @@ describe('BooksCatalog', () => {
   });
 
   it('should show an empty out-of-range page with real totals and allow returning to page 0', () => {
+    setCatalogPageTesting(3);
     pendingRequest().flush(
       testBookPage({ content: [], page: 3, totalElements: 21, totalPages: 2 }),
     );

@@ -83,8 +83,8 @@ usan ese snapshot, aunque se editen después los campos. Las búsquedas nuevas v
 a página 0 conservando el tamaño y el orden aplicado. **Limpiar búsqueda** vacía campos y vuelve al listado en
 página 0, con el mismo tamaño y orden. Buscar/Limpiar búsqueda se bloquean durante DELETE, pero los
 campos siguen editables. Sin coincidencias se muestra «No se encontraron libros»;
-los errores de búsqueda son inline y permiten Reintentar. No se persiste la búsqueda
-en URL/localStorage ni al volver de alta/edición. No implementa filtros avanzados, detalle,
+los errores de búsqueda son inline y permiten Reintentar. El catálogo conserva su consulta
+en la URL y al volver desde detalle/edición, sin localStorage. No implementa filtros avanzados,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
@@ -97,8 +97,30 @@ El snapshot `currentSort` se conserva al paginar, cambiar tamaño, buscar, limpi
 reintentar y recargar después de DELETE, incluido el retroceso de una página vacía.
 Los dos selects se bloquean durante DELETE. No se ordena localmente ni se reubican
 estados o valoraciones nulas. No hay filtros: los endpoints actuales no admiten
-filtrar por estado, valoración, géneros ni año de publicación. El orden tampoco
-se persiste en URL/localStorage ni al volver de alta/edición.
+filtrar por estado, valoración, géneros ni año de publicación.
+
+### URLs del catálogo
+
+La URL es la fuente de verdad de página, tamaño, orden y búsqueda aplicada. Ejemplos:
+
+- `/books`: página 0, tamaño 20, título ASC, sin búsqueda.
+- `/books?page=2&sortBy=author&direction=DESC&title=dune`.
+- `/books?size=50&isbn=9780306406157`.
+
+Solo se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`.
+Los defaults se omiten. Parámetros inválidos/repetidos/desconocidos se normalizan
+sin alertas, reemplazando la URL antes de consultar. Un ISBN válido tiene prioridad
+sobre título/autor; textos demasiado largos se descartan, no se truncan.
+Buscar, ordenar y paginar crean historial normal; corregir la URL o retroceder
+automáticamente una página tras DELETE usa `replaceUrl`. Retry y recargas por
+escrituras no navegan y consultan la URL actual mediante la misma cadena cancelable.
+Los borradores sin Buscar se conservan al paginar/ordenar/reintentar.
+
+Los enlaces Ver detalle/Editar transportan esos mismos parámetros; Volver al
+catálogo, Cancelar y Guardar en edición los conservan. Back/Forward y recargar
+restauran el contexto sin estado global ni almacenamiento. Alta sigue volviendo
+al catálogo por defecto. Un DELETE desde detalle conserva contexto, pero no
+aplica el retroceso automático de página reservado al DELETE del catálogo.
 
 Cada tarjeta permite cambiar **Estado de lectura** (Por leer, Leyendo, Leído,
 Abandonado) y **Valoración** (Sin valorar, 1–5) con selects Material. El cambio

@@ -125,6 +125,7 @@
         <a
           mat-button
           [routerLink]="deleting() ? null : ['/books', current.id, 'edit']"
+          [queryParams]="catalogParams()"
           [disabled]="deleting()"
           >Editar</a
         >
@@ -138,7 +139,11 @@
       }
     }
   }
-  <a mat-button [routerLink]="deleting() ? null : ['/books']" [disabled]="deleting()"
+  <a
+    mat-button
+    [routerLink]="deleting() ? null : ['/books']"
+    [queryParams]="catalogParams()"
+    [disabled]="deleting()"
     >Volver al catálogo</a
   >
 </section>
