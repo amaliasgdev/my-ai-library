@@ -18,3 +18,37 @@ h1 {
   color: var(--mat-sys-on-error-container);
   border-radius: var(--app-panel-radius);
 }
+
+.cover-section {
+  padding: 1rem;
+  margin-block-end: 1.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--app-panel-radius);
+}
+
+.current-cover {
+  display: grid;
+  place-items: center;
+  width: min(100%, 12rem);
+  aspect-ratio: 3 / 4;
+  background: var(--mat-sys-surface-container);
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+label {
+  display: block;
+  margin-block-end: 0.5rem;
+}
+input[type='file'] {
+  max-width: 100%;
+}
+.cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}

@@ -21,6 +21,16 @@ export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
 
+  uploadCover(id: number, file: File): Observable<BookResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}/cover`, formData);
+  }
+
+  deleteCover(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiConfig.apiBaseUrl}/books/${id}/cover`);
+  }
+
   lookupByIsbn(isbn: string): Observable<BookLookupResponse> {
     const params = new HttpParams().set('isbn', isbn);
     return this.http.get<BookLookupResponse>(`${this.apiConfig.apiBaseUrl}/books/isbn-lookup`, {

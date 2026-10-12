@@ -13,6 +13,35 @@ describe('BookForm without HTTP or routing providers', () => {
     fixture.detectChanges();
   });
 
+  it('should synchronize only coverUrl without clearing other values or control states', () => {
+    component.form.patchValue({ title: 'Draft', description: 'Exact', pageCount: 100 });
+    component.form.controls.title.markAsDirty();
+    component.form.controls.title.markAsTouched();
+    component.genreInput.setValue('Pending');
+    component.synchronizeCoverUrl('https://images.example.test/new.png');
+    expect(component.form.controls.title.value).toBe('Draft');
+    expect(component.form.controls.title.dirty).toBe(true);
+    expect(component.form.controls.title.touched).toBe(true);
+    expect(component.genreInput.value).toBe('Pending');
+    component.synchronizeCoverUrl(null);
+    expect(component.form.controls.coverUrl.value).toBe('');
+    expect(component.form.controls.description.value).toBe('Exact');
+  });
+
+  it('should block only save during a synchronization error, while leaving cancel available', () => {
+    fixture.componentRef.setInput('saveDisabled', true);
+    fixture.detectChanges();
+    component.form.patchValue({ title: 'Valid', author: 'Author' });
+    const save = vi.fn();
+    const cancel = vi.fn();
+    component.save.subscribe(save);
+    component.cancelled.subscribe(cancel);
+    component.submit();
+    component.cancel();
+    expect(save).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it('should keep lookup disabled by default, including its states and errors', () => {
     fixture.componentRef.setInput('lookupLoading', true);
     fixture.componentRef.setInput('lookupError', 'Hidden lookup error');

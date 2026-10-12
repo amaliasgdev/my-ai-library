@@ -21,6 +21,47 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it('should POST the original File in exactly one multipart part without Content-Type', () => {
+    const file = new File(['bytes'], 'original.gif', { type: 'image/png' });
+    const next = vi.fn();
+    service.uploadCover(42, file).subscribe(next);
+    const request = http.expectOne('/api/books/42/cover');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toBeInstanceOf(FormData);
+    expect(Array.from((request.request.body as FormData).keys())).toEqual(['file']);
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBe(false);
+    const response = testBook({
+      id: 42,
+      coverUrl: 'http://localhost:8081/api/covers/42-12345678-1234-abcd-1234-123456789abc.png',
+    });
+    request.flush(response);
+    expect(next).toHaveBeenCalledExactlyOnceWith(response);
+  });
+
+  it('should DELETE cover without body and complete on 204', () => {
+    const complete = vi.fn();
+    service.deleteCover(42).subscribe({ complete });
+    const request = http.expectOne('/api/books/42/cover');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it.each(['upload', 'delete'])('should propagate %s cover failures', (action) => {
+    const error = vi.fn();
+    const response: Observable<BookResponse | void> =
+      action === 'upload'
+        ? service.uploadCover(42, new File(['a'], 'a.png', { type: 'image/png' }))
+        : service.deleteCover(42);
+    response.subscribe({ error });
+    http
+      .expectOne('/api/books/42/cover')
+      .flush({ detail: 'PRIVATE' }, { status: 500, statusText: 'Error' });
+    expect(error.mock.calls[0][0].status).toBe(500);
+  });
+
   it('should GET the independent lookup response with the ISBN unchanged', () => {
     const next = vi.fn();
     const isbn = ' 978-0132350884 ';
@@ -417,6 +458,16 @@ describe('BooksService with alternative API_CONFIG', () => {
     expect(clear.request.body).toBeNull();
     clear.flush(null, { status: 204, statusText: 'No Content' });
     const service = TestBed.inject(BooksService);
+    service.uploadCover(42, new File(['a'], 'a.png', { type: 'image/png' })).subscribe();
+    const upload = http.expectOne('/alternative-api/books/42/cover');
+    expect(upload.request.method).toBe('POST');
+    expect(upload.request.body.get('file').name).toBe('a.png');
+    upload.flush(testBook());
+    service.deleteCover(42).subscribe();
+    const coverDelete = http.expectOne('/alternative-api/books/42/cover');
+    expect(coverDelete.request.method).toBe('DELETE');
+    expect(coverDelete.request.body).toBeNull();
+    coverDelete.flush(null, { status: 204, statusText: 'No Content' });
     service.startReading(42, { date: '2026-10-12' }).subscribe();
     http.expectOne('/alternative-api/books/42/start-reading').flush(testBook());
     service.finishReading(42, { date: '2026-10-12' }).subscribe();

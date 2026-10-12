@@ -65,8 +65,8 @@ al catálogo. **Editar** en cada tarjeta abre el mismo formulario con los valore
 Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada recibida,
 incluidas las portadas gestionadas, se conserva exactamente si no se cambia; sustituirla
 o vaciarla reemplaza o elimina la referencia y el backend gestiona la limpieza.
-Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview
-ni upload de portada. **Eliminar** abre una confirmación Material con foco inicial en Cancelar;
+Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview local
+ni upload de portada durante el alta. **Eliminar** abre una confirmación Material con foco inicial en Cancelar;
 Escape y clic fuera cancelan. Solo confirmar ejecuta DELETE del libro: el backend limpia
 su portada gestionada. Durante la petición se bloquean Eliminar, el paginador y Editar
 del libro afectado, pero Añadir libro permanece disponible. El éxito recarga la página
@@ -139,6 +139,43 @@ El éxito lo cierra. Start/finish recarga si se ordena por estado; PUT fechas
 reemplaza la respuesta confirmada y DELETE fechas siempre recarga la consulta
 vigente. Se mantienen búsqueda, orden, página y tamaño. Las acciones de fechas
 comparten las guardas por libro y la exclusión global con DELETE de libro.
+
+## Portadas en edición
+
+`/books/:id/edit` tiene una sección **Portada** independiente del formulario.
+Muestra la imagen confirmada o «Sin portada», un selector JPEG/PNG (archivo no
+vacío, máximo 5 MiB) y su nombre. La extensión original no se valida. **Subir portada**
+envía multipart con campo `file`; no se fija Content-Type manualmente. Guarda
+inmediatamente y reemplaza una URL externa o gestionada. No hay preview local.
+
+**Eliminar portada** aparece solo si la referencia confirmada cumple la regla de
+portada gestionada. DELETE devuelve 204 y después se consulta el libro por GET.
+Si falla esa consulta, se bloquean escrituras y **Reintentar actualización** repite
+solo GET. Las referencias externas se pueden cambiar o vaciar en `coverUrl` y
+Guardar; el backend gestiona toda limpieza física y nunca borra recursos externos.
+
+La precarga inicial no se repite: las respuestas de portada sincronizan únicamente
+`coverUrl`, sustituyendo su borrador y preservando los demás cambios, géneros
+pendientes y dirty/touched/errores. PUT general, upload, delete y su recarga son
+excluyentes. Durante las operaciones se bloquean controles y Cancelar; no hay
+route guard. Un error de upload conserva archivo e imagen para reintento explícito.
+
+### Configuración pública de portadas
+
+`src/app/core/config/covers.config.ts` define `COVERS_CONFIG.publicBaseUrl`, cuyo
+default de desarrollo es `http://localhost:8081/api/covers`. Debe coincidir con
+`COVERS_PUBLIC_BASE_URL` del backend. Para otro despliegue, proveer el token en
+`app.config.ts`, por ejemplo:
+
+```ts
+{ provide: COVERS_CONFIG, useValue: { publicBaseUrl: 'https://images.example.test/library/covers' } }
+```
+
+La configuración contiene solo origen/ruta públicos, nunca el directorio físico.
+La clasificación valida origen completo, ruta y filename exactos con el ID del
+libro, UUID minúscula y jpg/png, sin credenciales/query/fragment. Es solo UX: no
+sustituye la autoridad backend. Si la configuración no coincide, Eliminar se oculta;
+upload y edición manual siguen disponibles. No se infiere el origen desde el proxy.
 
 ## UI y tema
 
