@@ -9,14 +9,17 @@ import { BookRequest } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
+import { LocationEditor } from '../../../locations/services/location-editor';
 
 @Component({
   selector: 'app-book-create',
+  providers: [LocationEditor],
   imports: [BookForm],
   templateUrl: './book-create.html',
   styleUrl: './book-create.scss',
 })
 export class BookCreate {
+  readonly locationEditor = inject(LocationEditor);
   private readonly service = inject(BooksService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -173,9 +176,17 @@ export class BookCreate {
             else if (error.status === 400) {
               message = 'Revisa los campos indicados';
               this.editor().applyFieldErrors(error.error);
+            } else if (error.status === 404 && error.error?.code === 'LOCATION_NOT_FOUND') {
+              message = 'La ubicación seleccionada ya no existe. Selecciona otra balda.';
+              this.editor().applyFieldErrors(error.error);
             } else if (error.status === 409) {
-              message = 'Ya existe un libro con ese ISBN';
-              this.editor().markIsbnConflict();
+              if (error.error?.code === 'LOCATION_IN_USE') {
+                message = 'La ubicación cambió. Actualiza la selección de balda.';
+                this.editor().applyFieldErrors(error.error);
+              } else {
+                message = 'Ya existe un libro con ese ISBN';
+                this.editor().markIsbnConflict();
+              }
             } else if (error.status >= 500 && error.status < 600)
               message = 'El servidor no pudo guardar el libro';
           }

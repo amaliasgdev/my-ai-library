@@ -29,6 +29,7 @@ import { COVERS_CONFIG } from '../../../../core/config/covers.config';
 import { isManagedCover } from '../../models/managed-cover';
 import { parseBookId } from '../../models/book-id';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
+import { LocationEditor } from '../../../locations/services/location-editor';
 
 type EditState =
   | { status: 'loading' }
@@ -46,11 +47,13 @@ function loadError(error: unknown): string {
 
 @Component({
   selector: 'app-book-edit',
+  providers: [LocationEditor],
   imports: [BookForm, MatButtonModule, MatProgressSpinnerModule],
   templateUrl: './book-edit.html',
   styleUrl: './book-edit.scss',
 })
 export class BookEdit {
+  readonly locationEditor = inject(LocationEditor);
   private readonly service = inject(BooksService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -293,10 +296,20 @@ export class BookEdit {
             else if (error.status === 400) {
               message = 'Revisa los campos indicados';
               this.editor()?.applyFieldErrors(error.error);
-            } else if (error.status === 404) message = 'El libro ya no existe';
-            else if (error.status === 409) {
-              message = 'Ya existe un libro con ese ISBN';
-              this.editor()?.markIsbnConflict();
+            } else if (error.status === 404) {
+              message =
+                error.error?.code === 'LOCATION_NOT_FOUND'
+                  ? 'La ubicación seleccionada ya no existe. Selecciona otra balda.'
+                  : 'El libro ya no existe';
+              this.editor()?.applyFieldErrors(error.error);
+            } else if (error.status === 409) {
+              if (error.error?.code === 'LOCATION_IN_USE') {
+                message = 'La ubicación cambió. Actualiza la selección de balda.';
+                this.editor()?.applyFieldErrors(error.error);
+              } else {
+                message = 'Ya existe un libro con ese ISBN';
+                this.editor()?.markIsbnConflict();
+              }
             } else if (error.status >= 500 && error.status < 600)
               message = 'El servidor no pudo guardar los cambios';
           }

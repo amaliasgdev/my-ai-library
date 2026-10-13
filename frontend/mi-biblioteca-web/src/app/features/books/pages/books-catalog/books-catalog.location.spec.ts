@@ -61,6 +61,62 @@ describe('physical location catalog navigation and presentation', () => {
     )!;
   }
 
+  it('applies ID drafts with page reset and preserves search/sort/size; Clear removes both ID and legacy filters', async () => {
+    const page = await loaded('/books?page=2&size=50&sortBy=author&title=Dune&room=Sal%C3%B3n');
+    page.filtersForm.patchValue({ roomId: 1, bookcaseId: 2, shelfId: 3 });
+    await stable();
+    http.expectNone((req) => req.method === 'GET');
+    page.applyFilters();
+    await stable();
+    const req = request();
+    expect(req.request.params.get('shelfId')).toBe('3');
+    expect(req.request.params.get('room')).toBe('Salón');
+    expect(req.request.params.get('page')).toBe('0');
+    req.flush(testBookPage());
+    expect(params()).toMatchObject({
+      roomId: '1',
+      bookcaseId: '2',
+      shelfId: '3',
+      title: 'Dune',
+      size: '50',
+      sortBy: 'author',
+    });
+    page.clearFilters();
+    await stable();
+    expect(params()).toEqual({ title: 'Dune', size: '50', sortBy: 'author' });
+    request().flush(testBookPage());
+  });
+  it('canonicalizes invalid/repeated IDs independently before GET and preserves syntactically valid nonexistent Shelf IDs', async () => {
+    await harness.navigateByUrl(
+      '/books?roomId=0&bookcaseId=1&bookcaseId=2&shelfId=000999999&room=Sal%C3%B3n',
+      BooksCatalog,
+    );
+    await stable();
+    expect(params()).toEqual({ shelfId: '999999', room: 'Salón' });
+    const req = request();
+    expect(req.request.params.get('shelfId')).toBe('999999');
+    req.flush(testBookPage({ content: [], totalElements: 0, totalPages: 0 }));
+    await stable();
+    expect(params()['shelfId']).toBe('999999');
+  });
+  it('Back/Forward restores applied stable IDs, not edited drafts', async () => {
+    const page = await loaded('/books?shelfId=3');
+    page.filtersForm.controls.shelfId.setValue(4);
+    page.applyFilters();
+    await stable();
+    request().flush(testBookPage());
+    TestBed.inject(Location).back();
+    await vi.waitFor(() => expect(params()).toEqual({ shelfId: '3' }));
+    const back = request();
+    expect(back.request.params.get('shelfId')).toBe('3');
+    back.flush(testBookPage());
+    TestBed.inject(Location).forward();
+    await vi.waitFor(() => expect(params()).toEqual({ shelfId: '4' }));
+    const forward = request();
+    expect(forward.request.params.get('shelfId')).toBe('4');
+    forward.flush(testBookPage());
+  });
+
   it('location draft causes no GET; Apply/Clear reset page preserving search, sort, size and existing filters as appropriate', async () => {
     const page = await loaded(
       '/books?page=2&size=50&sortBy=author&direction=DESC&title=Dune&genre=Terror',
@@ -181,7 +237,7 @@ describe('physical location catalog navigation and presentation', () => {
 
   it('detail/edit context carries filters, never preloads them into an unlocated book; PUT sends manual location and returns with context', async () => {
     const url =
-      '/books?page=2&size=50&sortBy=author&title=Dune&room=Sal%C3%B3n&bookcase=Billy&shelf=3';
+      '/books?page=2&size=50&sortBy=author&title=Dune&room=Sal%C3%B3n&bookcase=Billy&shelf=3&shelfId=42';
     await loaded(url);
     const context = params();
     const detailLink = harness.routeNativeElement!.querySelector<HTMLAnchorElement>(
@@ -252,7 +308,7 @@ describe('physical location catalog navigation and presentation', () => {
   });
 
   it('import links/return preserve physical filter context and start with no batch or requests', async () => {
-    await loaded('/books?page=2&room=Sal%C3%B3n&bookcase=Billy&shelf=3');
+    await loaded('/books?page=2&room=Sal%C3%B3n&bookcase=Billy&shelf=3&shelfId=42');
     const context = params();
     link('Importar ISBN').click();
     await stable();

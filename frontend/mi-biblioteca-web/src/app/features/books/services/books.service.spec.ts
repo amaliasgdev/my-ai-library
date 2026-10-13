@@ -21,6 +21,17 @@ describe('BooksService', () => {
 
   afterEach(() => http.verify());
 
+  it.each([42, null])('assigns or clears location independently with shelfId=%s', (shelfId) => {
+    const next = vi.fn();
+    service.updateLocation(1, shelfId).subscribe(next);
+    const request = http.expectOne('/api/books/1/location');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ shelfId });
+    const response = testBook({ shelfId });
+    request.flush(response);
+    expect(next).toHaveBeenCalledWith(response);
+  });
+
   it('should POST the original File in exactly one multipart part without Content-Type', () => {
     const file = new File(['bytes'], 'original.gif', { type: 'image/png' });
     const next = vi.fn();

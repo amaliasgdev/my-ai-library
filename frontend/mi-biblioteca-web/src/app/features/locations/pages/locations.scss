@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+mat-accordion {
+  display: block;
+  margin-block: 1rem;
+}
+mat-panel-title,
+strong {
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+}

@@ -133,6 +133,43 @@ describe('BookImport controlled HTTP workflow', () => {
     });
     request.flush(testBook());
   });
+
+  it('structured review preserves the confirmed Shelf when reopened, independent of other rows or catalog filters', () => {
+    analyze([A, B].join('\n'));
+    newBook(A);
+    newBook(B);
+    const request = testBookRequest({ isbn: A });
+    delete request.room;
+    delete request.bookcase;
+    delete request.shelf;
+    request.location = { kind: 'SHELF', shelfId: 42 };
+    page.review(page.rows()[0]);
+    result.next(request);
+    page.review(page.rows()[0]);
+    expect(open).toHaveBeenLastCalledWith(
+      BookImportReviewDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({ shelfId: 42, room: '', bookcase: '', shelf: '' }),
+      }),
+    );
+    result.next(undefined);
+    expect(page.rows()[1].draft?.shelfId ?? null).toBeNull();
+    page.importSelected();
+    const created = post();
+    expect(created.request.body).toEqual(request);
+    created.flush(testBook({ shelfId: 42 }));
+  });
+  it('missing Shelf at POST requires explicit review, never marks ISBN existing or retries automatically', () => {
+    analyze(A);
+    newBook(A);
+    confirm(0);
+    page.importSelected();
+    post().flush({ code: 'LOCATION_NOT_FOUND' }, { status: 404, statusText: 'Not Found' });
+    expect(page.rows()[0].creation).toBe('error');
+    expect(page.rows()[0].existence).toBe('new');
+    expect(page.rows()[0].message).toContain('ubicación');
+    http.expectNone((req) => req.method === 'POST');
+  });
   it('existence checks ignore catalog filters and existing ISBN never does lookup/POST', () => {
     analyze();
     const req = search();

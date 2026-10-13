@@ -6,6 +6,7 @@ describe('Book form mapping and request builder', () => {
     const value = bookFormValue(testBook());
     expect(value).toEqual({
       ...testBookRequest(),
+      shelfId: null,
       isbn: '',
       description: '',
       publisher: '',
@@ -15,7 +16,7 @@ describe('Book form mapping and request builder', () => {
       bookcase: '',
       shelf: '',
     });
-    expect(Object.keys(value)).toHaveLength(13);
+    expect(Object.keys(value)).toHaveLength(14);
     expect(value.publicationYear).toBeNull();
   });
 

@@ -69,6 +69,20 @@ describe('BookCreate ISBN lookup', () => {
     post.flush(testBook());
   });
 
+  it('loads hierarchy only on explicit selector request; creation sends Shelf ID and no legacy fields', () => {
+    editor.locationsRequested.emit();
+    const hierarchy = http.expectOne('/api/locations');
+    hierarchy.flush([]);
+    editor.selectLocation({ shelfId: 42, incomplete: false, clearLegacy: true });
+    editor.form.patchValue({ title: 'Book', author: 'Author' });
+    editor.submit();
+    const post = http.expectOne('/api/books');
+    expect(post.request.body.location).toEqual({ kind: 'SHELF', shelfId: 42 });
+    for (const field of ['room', 'bookcase', 'shelf'])
+      expect(Object.hasOwn(post.request.body, field)).toBe(false);
+    post.flush(testBook({ shelfId: 42 }));
+  });
+
   it.each(['', ' ', 'bad ISBN', '1'.repeat(21)])(
     'should not GET for empty or locally invalid ISBN %s',
     (isbn) => {
@@ -102,6 +116,7 @@ describe('BookCreate ISBN lookup', () => {
     request.flush(testBookLookup());
     fixture.detectChanges();
     expect(editor.form.getRawValue()).toEqual({
+      shelfId: null,
       ...testBookLookup(),
       description: '  My exact description\n',
       room: '',

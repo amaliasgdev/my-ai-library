@@ -7,6 +7,11 @@
     <p role="alert" class="error-panel">{{ generalError() }}</p>
   }
   <app-book-form
+    [locations]="locationEditor.rooms()"
+    [locationsLoading]="locationEditor.loading()"
+    [locationsError]="locationEditor.error()"
+    (locationsRequested)="locationEditor.load()"
+    (locationCreateRequested)="locationEditor.create($event)"
     [submitting]="submitting()"
     [lookupEnabled]="true"
     [scanEnabled]="true"

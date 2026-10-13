@@ -264,6 +264,7 @@ export class BookImport {
             room: request.room ?? '',
             bookcase: request.bookcase ?? '',
             shelf: request.shelf ?? '',
+            shelfId: request.location?.kind === 'SHELF' ? request.location.shelfId : null,
           },
           creation: 'ready',
           selected: true,
@@ -325,9 +326,12 @@ export class BookImport {
       error: (error: unknown) => {
         if (generation !== this.generation) return;
         const status = error instanceof HttpErrorResponse ? error.status : 0;
+        const locationError =
+          error instanceof HttpErrorResponse &&
+          ['LOCATION_NOT_FOUND', 'LOCATION_IN_USE'].includes(error.error?.code);
         this.update(
           row.id,
-          status === 409
+          status === 409 && !locationError
             ? {
                 creation: 'error',
                 existence: 'existing',
@@ -335,11 +339,13 @@ export class BookImport {
                 selected: false,
                 message: 'Conflicto: el ISBN ya existe; no se ha sobrescrito',
               }
-            : status === 400
+            : status === 400 || locationError
               ? {
                   creation: 'error',
                   selected: false,
-                  message: 'Datos rechazados; revisa y confirma de nuevo',
+                  message: locationError
+                    ? 'La ubicación ya no está disponible; revisa y confirma otra balda'
+                    : 'Datos rechazados; revisa y confirma de nuevo',
                 }
               : {
                   creation: 'uncertain',

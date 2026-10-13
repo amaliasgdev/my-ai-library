@@ -1,0 +1,107 @@
+<section aria-labelledby="locations-heading" [attr.aria-busy]="loading() || pending()">
+  <h1 id="locations-heading">Ubicaciones</h1>
+  <p>
+    Habitaciones, estanterías y baldas. Las ubicaciones textuales anteriores no se convierten
+    automáticamente ni se incluyen en estos conteos.
+  </p>
+  <button mat-flat-button [disabled]="loading() || pending()" (click)="edit('rooms')">
+    Nueva habitación
+  </button>
+  @if (loading()) {
+    <p role="status">Cargando ubicaciones…</p>
+  }
+  @if (error()) {
+    <p role="alert">{{ error() }}</p>
+    <button mat-button [disabled]="loading() || pending()" (click)="load()">Reintentar</button>
+  }
+  @if (!loading() && !error() && rooms().length === 0) {
+    <p>No hay ubicaciones estructuradas</p>
+  }
+  <mat-accordion multi>
+    @for (room of rooms(); track room.id) {
+      <mat-expansion-panel>
+        <mat-expansion-panel-header
+          ><mat-panel-title
+            >{{ room.name }} — {{ room.bookCount }} libros</mat-panel-title
+          ></mat-expansion-panel-header
+        >
+        <div class="actions">
+          <button mat-button [disabled]="pending()" (click)="edit('bookcases', undefined, room.id)">
+            Nueva estantería
+          </button>
+          <button mat-button [disabled]="pending()" (click)="edit('rooms', room)">
+            Renombrar habitación
+          </button>
+          <button
+            mat-button
+            [disabled]="pending() || !room.canDelete"
+            (click)="remove('rooms', room)"
+          >
+            Eliminar habitación
+          </button>
+        </div>
+        @if (!room.canDelete) {
+          <p class="hint">Contiene estanterías; no se puede eliminar.</p>
+        }
+        <mat-accordion multi>
+          @for (bookcase of room.bookcases; track bookcase.id) {
+            <mat-expansion-panel>
+              <mat-expansion-panel-header
+                ><mat-panel-title
+                  >{{ bookcase.name }} — {{ bookcase.bookCount }} libros</mat-panel-title
+                ></mat-expansion-panel-header
+              >
+              <div class="actions">
+                <button
+                  mat-button
+                  [disabled]="pending()"
+                  (click)="edit('shelves', undefined, bookcase.id)"
+                >
+                  Nueva balda
+                </button>
+                <button mat-button [disabled]="pending()" (click)="edit('bookcases', bookcase)">
+                  Renombrar estantería
+                </button>
+                <button
+                  mat-button
+                  [disabled]="pending() || !bookcase.canDelete"
+                  (click)="remove('bookcases', bookcase)"
+                >
+                  Eliminar estantería
+                </button>
+              </div>
+              @if (!bookcase.canDelete) {
+                <p class="hint">Contiene baldas; no se puede eliminar.</p>
+              }
+              <ul>
+                @for (shelf of bookcase.shelves; track shelf.id) {
+                  <li>
+                    <strong>Balda {{ shelf.name }} — {{ shelf.bookCount }} libros</strong>
+                    <div class="actions">
+                      <a mat-button routerLink="/books" [queryParams]="{ shelfId: shelf.id }"
+                        >Ver libros</a
+                      >
+                      <button mat-button [disabled]="pending()" (click)="edit('shelves', shelf)">
+                        Renombrar balda
+                      </button>
+                      <button
+                        mat-button
+                        [disabled]="pending() || !shelf.canDelete"
+                        (click)="remove('shelves', shelf)"
+                      >
+                        Eliminar balda
+                      </button>
+                    </div>
+                    @if (!shelf.canDelete) {
+                      <p class="hint">Contiene libros; no se puede eliminar.</p>
+                    }
+                  </li>
+                }
+              </ul>
+            </mat-expansion-panel>
+          }
+        </mat-accordion>
+      </mat-expansion-panel>
+    }
+  </mat-accordion>
+</section>

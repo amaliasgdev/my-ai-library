@@ -109,6 +109,7 @@ describe('BookEdit', () => {
     );
     const editor = component.editor()!;
     expect(editor.form.getRawValue()).toEqual({
+      shelfId: null,
       ...testBookRequest(),
       room: '',
       bookcase: '',

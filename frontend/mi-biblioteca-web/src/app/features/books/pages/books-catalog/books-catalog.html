@@ -103,6 +103,91 @@
     aria-describedby="filters-help"
   >
     <h2 id="filters-heading">Filtros del catálogo</h2>
+    <button
+      mat-button
+      type="button"
+      [disabled]="locationEditor.loading() || !!deletingId()"
+      (click)="locationEditor.load()"
+    >
+      Cargar ubicaciones estructuradas
+    </button>
+    @if (locationEditor.error()) {
+      <p role="alert">{{ locationEditor.error() }}</p>
+    }
+    <div class="filters-grid">
+      <mat-form-field appearance="outline"
+        ><mat-label>Habitación estructurada</mat-label>
+        <mat-select formControlName="roomId" (selectionChange)="filterRoomChanged()">
+          <mat-option [value]="null">Cualquiera</mat-option>
+          @if (
+            filtersForm.controls.roomId.value &&
+            !hasKnownLocation('room', filtersForm.controls.roomId.value)
+          ) {
+            <mat-option [value]="filtersForm.controls.roomId.value"
+              >Filtro de habitación conservado</mat-option
+            >
+          }
+          @for (room of locationEditor.rooms() ?? []; track room.id) {
+            <mat-option [value]="room.id">{{ room.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>Estantería estructurada</mat-label>
+        <mat-select formControlName="bookcaseId" (selectionChange)="filterBookcaseChanged()">
+          <mat-option [value]="null">Cualquiera</mat-option>
+          @if (
+            filtersForm.controls.bookcaseId.value &&
+            !hasKnownLocation('bookcase', filtersForm.controls.bookcaseId.value)
+          ) {
+            <mat-option [value]="filtersForm.controls.bookcaseId.value"
+              >Filtro de estantería conservado</mat-option
+            >
+          }
+          @for (room of locationEditor.rooms() ?? []; track room.id) {
+            @if (
+              !filtersForm.controls.roomId.value || room.id === filtersForm.controls.roomId.value
+            ) {
+              @for (bookcase of room.bookcases; track bookcase.id) {
+                <mat-option [value]="bookcase.id">{{ room.name }} · {{ bookcase.name }}</mat-option>
+              }
+            }
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>Balda estructurada</mat-label>
+        <mat-select formControlName="shelfId">
+          <mat-option [value]="null">Cualquiera</mat-option>
+          @if (
+            filtersForm.controls.shelfId.value &&
+            !hasKnownLocation('shelf', filtersForm.controls.shelfId.value)
+          ) {
+            <mat-option [value]="filtersForm.controls.shelfId.value"
+              >Filtro de balda conservado</mat-option
+            >
+          }
+          @for (room of locationEditor.rooms() ?? []; track room.id) {
+            @if (
+              !filtersForm.controls.roomId.value || room.id === filtersForm.controls.roomId.value
+            ) {
+              @for (bookcase of room.bookcases; track bookcase.id) {
+                @if (
+                  !filtersForm.controls.bookcaseId.value ||
+                  bookcase.id === filtersForm.controls.bookcaseId.value
+                ) {
+                  @for (shelf of bookcase.shelves; track shelf.id) {
+                    <mat-option [value]="shelf.id"
+                      >{{ room.name }} · {{ bookcase.name }} · {{ shelf.name }}</mat-option
+                    >
+                  }
+                }
+              }
+            }
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
     <p id="filters-help">
       Combina filtros con tu búsqueda. Los cambios se aplican al pulsar Aplicar filtros.
     </p>
