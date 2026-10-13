@@ -32,6 +32,8 @@ import {
   switchMap,
 } from 'rxjs';
 import { BookCard } from '../../components/book-card/book-card';
+import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
+import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
   BookDeleteDialog,
   BookDeleteDialogData,
@@ -131,6 +133,7 @@ export class BooksCatalog {
   private readonly router = inject(Router);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
+  private scanDialog: MatDialogRef<IsbnScanDialog, string> | null = null;
   private restoreFocusAfterReload = false;
   readonly currentSort = signal<BookCatalogSort>({ sortBy: 'title', direction: 'ASC' });
   protected readonly sortOptions: { value: BookCatalogSort['sortBy']; label: string }[] = [
@@ -263,6 +266,31 @@ export class BooksCatalog {
       });
     this.destroyRef.onDestroy(() => this.confirmation?.close(false));
     this.destroyRef.onDestroy(() => this.datesDialog?.close());
+    this.destroyRef.onDestroy(() => {
+      const ref = this.scanDialog;
+      this.scanDialog = null;
+      ref?.close();
+    });
+  }
+
+  openScanner(): void {
+    if (this.destroyRef.destroyed || this.scanDialog) return;
+    const ref = this.dialog.open<IsbnScanDialog, void, string>(IsbnScanDialog, {
+      width: '36rem',
+      maxWidth: '95vw',
+      autoFocus: 'button',
+      restoreFocus: true,
+    });
+    this.scanDialog = ref;
+    ref
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isbn) => {
+        if (this.scanDialog !== ref || this.destroyRef.destroyed) return;
+        this.scanDialog = null;
+        if (!isbn || !isValidBarcodeIsbn13(isbn)) return;
+        void this.router.navigate(['/books/new'], { queryParams: { isbn } });
+      });
   }
 
   onPageChange(event: PageEvent): void {

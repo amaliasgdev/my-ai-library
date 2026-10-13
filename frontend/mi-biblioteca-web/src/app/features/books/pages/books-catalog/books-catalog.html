@@ -1,6 +1,12 @@
 <section aria-labelledby="books-heading">
   <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
-  <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+  <div class="catalog-create-actions">
+    <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+    <button mat-button type="button" aria-describedby="catalog-scan-help" (click)="openScanner()">
+      Escanear ISBN
+    </button>
+  </div>
+  <p id="catalog-scan-help">Escanea para añadir un libro</p>
   <form
     class="search-form"
     [formGroup]="searchForm"
