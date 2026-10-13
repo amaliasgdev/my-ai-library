@@ -167,7 +167,9 @@ frontend/mi-biblioteca-web/
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
 - BookCreate/BookEdit own HTTP, submission state, safe general messages and navigation; no inheritance or generic form framework
 - ISBN lookup is available only at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; BookEdit exposes no lookup controls/states
-- Local ISBN barcode scanning is available only in BookCreate: BookForm's scanEnabled defaults false and scanRequested is UI-only; BookCreate opens IsbnScanDialog and owns the existing lookup, with no scanner in BookEdit
+- Local ISBN barcode scanning is available in BookCreate and through the catalog's Escanear ISBN add-book action; both reuse IsbnScanDialog, with no scanner in BookEdit. BookForm's scanEnabled defaults false and scanRequested is UI-only; BookCreate owns the existing lookup
+- Catalog scan success revalidates the unchanged barcode ISBN helper and navigates only to /books/new?isbn=...; cancel stays in the catalog, destruction closes the dialog and late results never navigate
+- BookCreate consumes its initial ISBN query seed once after BookForm is rendered: exactly one isbn value passing isValidBarcodeIsbn13, no repair/trim/permissive normalization. Invalid/empty/repeated values do not fill or request; accepted seeds share scanner application, execute one existing lookup and replace the URL with /books/new without cancel/reset/retrigger. Reloading the clean URL does not lookup; a fresh explicit seeded entry does
 - ZXing @zxing/browser 0.1.5 and @zxing/library 0.21.3 are pinned for Node 22; decoder modules load dynamically only during scanner use, without Angular wrapper, native second engine, CDN, OCR or AI
 - Scanner accepts EAN-13 only, exactly 13 ASCII digits with 978/979 prefix, valid checksum and no 9790 (ISMN); scanner-only isValidBarcodeIsbn13 does not tighten CRUD/search/manual lookup validation
 - Camera requests audio:false and facingMode ideal environment only after opening; video is muted/playsinline, one decoder session runs at 250ms intervals and stops after 60 seconds without ISBN; explicit retry/image/manual entry remain available
@@ -227,7 +229,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend filters, ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend filters, ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan or a valid initial consumable ISBN seed in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
