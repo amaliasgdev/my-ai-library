@@ -19,9 +19,16 @@ public record BookFilterRequest(
     String publisher,
     String room,
     String bookcase,
-    String shelf
+    String shelf,
+    Long roomId,
+    Long bookcaseId,
+    Long shelfId
 ) {
-    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null, null, null, null);
+    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null, null, null, null, null, null, null);
+
+    public BookFilterRequest(List<ReadingStatus> states, Integer ratingMin, Integer yearFrom, Integer yearTo, String genre, String language, String publisher, String room, String bookcase, String shelf) {
+        this(states, ratingMin, yearFrom, yearTo, genre, language, publisher, room, bookcase, shelf, null, null, null);
+    }
 
     public BookFilterRequest {
         readingStatus = readingStatus == null ? List.of() : List.copyOf(readingStatus);
@@ -38,6 +45,9 @@ public record BookFilterRequest(
         room = location("room", room, 100);
         bookcase = location("bookcase", bookcase, 100);
         shelf = location("shelf", shelf, 50);
+        for (var entry : java.util.Map.of("roomId", roomId == null ? 1L : roomId, "bookcaseId", bookcaseId == null ? 1L : bookcaseId, "shelfId", shelfId == null ? 1L : shelfId).entrySet()) {
+            if (entry.getValue() < 1 || entry.getValue() > 9007199254740991L) fail(entry.getKey(), "Must be a positive safe integer");
+        }
         language = text("language", language, 2);
         if (!new IsoLanguageValidator().isValid(language, null)) {
             fail("language", "Must be a recognized ISO 639-1 code");
@@ -54,7 +64,7 @@ public record BookFilterRequest(
         List<ReadingStatus> states = raw.stream().map(BookFilterRequest::state).toList();
         return new BookFilterRequest(states, integer(params, "ratingMin"), integer(params, "yearFrom"),
             integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"),
-            single(params, "room"), single(params, "bookcase"), single(params, "shelf"));
+            single(params, "room"), single(params, "bookcase"), single(params, "shelf"), id(params, "roomId"), id(params, "bookcaseId"), id(params, "shelfId"));
     }
 
     private static ReadingStatus state(String value) {
@@ -80,6 +90,14 @@ public record BookFilterRequest(
         } catch (NumberFormatException ex) {
             throw new InvalidBookFilterException(key, "Must be an integer");
         }
+    }
+
+    private static Long id(MultiValueMap<String, String> params, String key) {
+        String value = single(params, key);
+        if (value == null) return null;
+        if (!value.matches("[0-9]+")) fail(key, "Must be a positive safe integer");
+        try { return Long.valueOf(value); }
+        catch (NumberFormatException ex) { throw new InvalidBookFilterException(key, "Must be a positive safe integer"); }
     }
 
     private static void range(String key, Integer value, int max) {

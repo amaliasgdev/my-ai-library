@@ -83,6 +83,11 @@
         <p class="error-panel" role="alert">{{ generalError() }}</p>
       }
       <app-book-form
+        [locations]="locationEditor.rooms()"
+        [locationsLoading]="locationEditor.loading()"
+        [locationsError]="locationEditor.error()"
+        (locationsRequested)="locationEditor.load()"
+        (locationCreateRequested)="locationEditor.create($event)"
         [initialBook]="initialBook()"
         [submitting]="submitting() || coverPending()"
         [saveDisabled]="coverUnsynced()"

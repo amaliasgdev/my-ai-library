@@ -32,6 +32,7 @@ import {
   switchMap,
 } from 'rxjs';
 import { BookCard } from '../../components/book-card/book-card';
+import { LocationEditor } from '../../../locations/services/location-editor';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
 import { BookFilters, FILTER_STATES, sameBookFilters } from '../../models/book-filters';
@@ -122,11 +123,31 @@ function searchError(error: unknown): string {
     MatInputModule,
     MatSelectModule,
   ],
-  providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
+  providers: [LocationEditor, { provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
   styleUrl: './books-catalog.scss',
 })
 export class BooksCatalog {
+  readonly locationEditor = inject(LocationEditor);
+  hasKnownLocation(level: 'room' | 'bookcase' | 'shelf', id: number | null): boolean {
+    for (const room of this.locationEditor.rooms() ?? []) {
+      if (level === 'room' && room.id === id) return true;
+      for (const bookcase of room.bookcases) {
+        if (level === 'bookcase' && bookcase.id === id) return true;
+        if (level === 'shelf' && bookcase.shelves.some((shelf) => shelf.id === id)) return true;
+      }
+    }
+    return false;
+  }
+  filterRoomChanged(): void {
+    if (this.deletingId()) return;
+    this.filtersForm.controls.bookcaseId.setValue(null);
+    this.filtersForm.controls.shelfId.setValue(null);
+  }
+  filterBookcaseChanged(): void {
+    if (this.deletingId()) return;
+    this.filtersForm.controls.shelfId.setValue(null);
+  }
   private readonly booksService = inject(BooksService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);

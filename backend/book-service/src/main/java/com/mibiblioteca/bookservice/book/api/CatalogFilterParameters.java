@@ -24,6 +24,9 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
     @Parameter(name = "publisher", in = ParameterIn.QUERY, description = "Literal case-insensitive substring", schema = @Schema(type = "string", maxLength = 255)),
     @Parameter(name = "room", in = ParameterIn.QUERY, description = "Exact case-insensitive, accent-sensitive room; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 100)),
     @Parameter(name = "bookcase", in = ParameterIn.QUERY, description = "Exact case-insensitive bookcase; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 100)),
-    @Parameter(name = "shelf", in = ParameterIn.QUERY, description = "Exact case-insensitive textual shelf; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 50))
+    @Parameter(name = "shelf", in = ParameterIn.QUERY, description = "Exact case-insensitive effective shelf name (structured or legacy); single occurrence", schema = @Schema(type = "string", maxLength = 50)),
+    @Parameter(name = "roomId", in = ParameterIn.QUERY, description = "Structured room ID; nonexistent IDs match no books", schema = @Schema(type = "integer", minimum = "1", maximum = "9007199254740991")),
+    @Parameter(name = "bookcaseId", in = ParameterIn.QUERY, description = "Structured bookcase ID", schema = @Schema(type = "integer", minimum = "1", maximum = "9007199254740991")),
+    @Parameter(name = "shelfId", in = ParameterIn.QUERY, description = "Stable shelf ID", schema = @Schema(type = "integer", minimum = "1", maximum = "9007199254740991"))
 })
 public @interface CatalogFilterParameters {}

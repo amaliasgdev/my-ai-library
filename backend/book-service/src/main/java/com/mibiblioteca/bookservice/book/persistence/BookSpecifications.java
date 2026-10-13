@@ -30,6 +30,9 @@ public final class BookSpecifications {
         if (filters.room() != null) spec = spec.and(location("room", filters.room()));
         if (filters.bookcase() != null) spec = spec.and(location("bookcase", filters.bookcase()));
         if (filters.shelf() != null) spec = spec.and(location("shelf", filters.shelf()));
+        if (filters.shelfId() != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("assignedShelf").get("id"), filters.shelfId()));
+        if (filters.bookcaseId() != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("assignedShelf").get("bookcase").get("id"), filters.bookcaseId()));
+        if (filters.roomId() != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("assignedShelf").get("bookcase").get("room").get("id"), filters.roomId()));
         return spec;
     }
 
@@ -48,7 +51,17 @@ public final class BookSpecifications {
     }
 
     private static Specification<Book> location(String field, String value) {
-        return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), cb.lower(((HibernateCriteriaBuilder) cb).value(value)));
+        return (root, query, cb) -> {
+            var shelf = root.join("assignedShelf", jakarta.persistence.criteria.JoinType.LEFT);
+            var bookcase = shelf.join("bookcase", jakarta.persistence.criteria.JoinType.LEFT);
+            var room = bookcase.join("room", jakarta.persistence.criteria.JoinType.LEFT);
+            jakarta.persistence.criteria.Expression<String> structured = switch (field) {
+                case "room" -> room.get("name");
+                case "bookcase" -> bookcase.get("name");
+                default -> shelf.get("name");
+            };
+            return cb.equal(cb.lower(cb.coalesce(structured, root.get(field))), cb.lower(((HibernateCriteriaBuilder) cb).value(value)));
+        };
     }
 
     public static Specification<Book> genre(String genre) {

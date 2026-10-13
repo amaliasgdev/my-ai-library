@@ -1,6 +1,10 @@
 package com.mibiblioteca.bookservice.book.persistence;
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
+import com.mibiblioteca.bookservice.location.Shelf;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -21,6 +25,12 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "book")
 public class Book {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shelf_id")
+    private Shelf assignedShelf;
+
+    public Shelf getAssignedShelf() { return assignedShelf; }
+    public void setAssignedShelf(Shelf shelf) { this.assignedShelf = shelf; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

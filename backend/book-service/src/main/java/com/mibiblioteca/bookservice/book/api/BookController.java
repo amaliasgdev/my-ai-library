@@ -1,6 +1,7 @@
 package com.mibiblioteca.bookservice.book.api;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
+import com.mibiblioteca.bookservice.book.dto.UpdateBookLocationRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
@@ -133,6 +134,13 @@ public class BookController {
     })
     public BookResponse update(@PathVariable Long id, @Valid @RequestBody BookRequest request) {
         return bookService.update(id, request);
+    }
+
+    @PutMapping("/{id}/location")
+    @Operation(summary = "Assign a shelf or clear book location", description = "shelfId null clears structured and legacy location. An explicit shelf assignment clears V7 labels.")
+    @ApiResponse(responseCode = "400", ref = "BadRequest") @ApiResponse(responseCode = "404", ref = "NotFound") @ApiResponse(responseCode = "409", ref = "Conflict")
+    public BookResponse updateLocation(@PathVariable Long id, @Valid @RequestBody UpdateBookLocationRequest request) {
+        return bookService.updateLocation(id, request);
     }
 
     @PatchMapping("/{id}/reading-status")

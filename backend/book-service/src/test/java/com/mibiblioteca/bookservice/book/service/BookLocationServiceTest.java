@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BookLocationServiceTest {
     @Mock private CoverLifecycle covers;
     @Mock private BookRepository repository;
+    @Mock private com.mibiblioteca.bookservice.location.LocationService locations;
     @Spy private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
     @InjectMocks private BookService service;
 
@@ -38,5 +39,19 @@ class BookLocationServiceTest {
 
     private BookRequest request(String room, String bookcase, String shelf) {
         return new BookRequest("Book", "Author", null, null, null, null, null, null, null, List.of(), room, bookcase, shelf);
+    }
+
+    @Test void structuredAssignmentClearsLegacyAndResponseDerivesNamesFromTheRelation() {
+        var room = new com.mibiblioteca.bookservice.location.Room(); room.setName("Salón");
+        var bookcase = new com.mibiblioteca.bookservice.location.Bookcase(); bookcase.setName("Billy"); bookcase.setRoom(room);
+        var shelf = new com.mibiblioteca.bookservice.location.Shelf(); shelf.setName("Superior"); shelf.setBookcase(bookcase);
+        var book = new Book(); book.setRoom("Old"); book.setShelf("3");
+        when(repository.findById(1L)).thenReturn(Optional.of(book)); when(locations.shelf(42L)).thenReturn(shelf);
+        when(repository.saveAndFlush(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var response = service.updateLocation(1L, new com.mibiblioteca.bookservice.book.dto.UpdateBookLocationRequest(42L));
+        assertThat(book.getAssignedShelf()).isSameAs(shelf); assertThat(book.getRoom()).isNull(); assertThat(book.getShelf()).isNull();
+        assertThat(response.room()).isEqualTo("Salón"); assertThat(response.bookcase()).isEqualTo("Billy"); assertThat(response.shelf()).isEqualTo("Superior"); assertThat(response.locationPending()).isFalse();
+        service.updateLocation(1L, new com.mibiblioteca.bookservice.book.dto.UpdateBookLocationRequest(null));
+        assertThat(book.getAssignedShelf()).isNull(); assertThat(book.getRoom()).isNull();
     }
 }

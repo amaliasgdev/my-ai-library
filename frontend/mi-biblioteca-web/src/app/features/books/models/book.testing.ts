@@ -37,6 +37,10 @@ export function testBookRequest(overrides: Partial<BookRequest> = {}): BookReque
 // Offline fixtures for unit tests only; never used by the application.
 export function testBook(overrides: Partial<BookResponse> = {}): BookResponse {
   return {
+    roomId: null,
+    bookcaseId: null,
+    shelfId: null,
+    locationPending: Boolean(overrides.room || overrides.bookcase || overrides.shelf),
     id: 1,
     title: 'Libro de prueba',
     author: 'Autora de prueba',

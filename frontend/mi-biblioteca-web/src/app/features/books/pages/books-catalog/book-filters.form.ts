@@ -28,6 +28,21 @@ const yearRange: ValidatorFn = (control) => {
 export function createBookFiltersForm() {
   return new FormGroup(
     {
+      roomId: new FormControl<number | null>(null, [
+        integer,
+        Validators.min(1),
+        Validators.max(Number.MAX_SAFE_INTEGER),
+      ]),
+      bookcaseId: new FormControl<number | null>(null, [
+        integer,
+        Validators.min(1),
+        Validators.max(Number.MAX_SAFE_INTEGER),
+      ]),
+      shelfId: new FormControl<number | null>(null, [
+        integer,
+        Validators.min(1),
+        Validators.max(Number.MAX_SAFE_INTEGER),
+      ]),
       readingStatus: new FormControl<ReadingStatus[]>([], {
         nonNullable: true,
         validators: [states],
@@ -69,6 +84,9 @@ export function createBookFiltersForm() {
 
 export function bookFiltersFormValue(filters: BookFilters = {}) {
   return {
+    roomId: filters.roomId ?? null,
+    bookcaseId: filters.bookcaseId ?? null,
+    shelfId: filters.shelfId ?? null,
     readingStatus: filters.readingStatus ?? [],
     ratingMin: filters.ratingMin ?? null,
     yearFrom: filters.yearFrom ?? null,
@@ -87,7 +105,7 @@ export function filtersFromForm(form: ReturnType<typeof createBookFiltersForm>):
   const filters: BookFilters = {};
   const selected = FILTER_STATES.filter((state) => value.readingStatus.includes(state));
   if (selected.length) filters.readingStatus = selected;
-  for (const key of ['ratingMin', 'yearFrom', 'yearTo'] as const)
+  for (const key of ['ratingMin', 'yearFrom', 'yearTo', 'roomId', 'bookcaseId', 'shelfId'] as const)
     if (value[key] !== null) filters[key] = value[key];
   for (const key of ['genre', 'language', 'publisher', 'room', 'bookcase', 'shelf'] as const) {
     const text = value[key].trim();

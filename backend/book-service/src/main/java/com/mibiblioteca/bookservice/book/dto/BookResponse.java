@@ -26,9 +26,21 @@ public record BookResponse(
     @Schema(description = "Up to 10 distinct genres, each up to 50 characters; case and order preserved. Empty array when absent.", example = "[\"Fantasía\", \"Aventura\"]") List<String> genres,
     @Schema(description = "Optional physical room; textual label, not a stable location ID", nullable = true, example = "Salón") String room,
     @Schema(nullable = true, example = "Billy izquierda") String bookcase,
-    @Schema(description = "Optional textual shelf label", nullable = true, example = "Superior") String shelf
+    @Schema(description = "Optional textual shelf label", nullable = true, example = "Superior") String shelf,
+    Long roomId,
+    Long bookcaseId,
+    Long shelfId,
+    @Schema(description = "True only for a nonempty legacy textual location awaiting explicit reconciliation") boolean locationPending
 ) {
     public BookResponse {
         genres = genres == null ? List.of() : List.copyOf(genres);
+    }
+    public BookResponse(Long id, String title, String author, String isbn, String description, Instant createdAt, Instant updatedAt,
+                        ReadingStatus readingStatus, Integer rating, LocalDate startedOn, LocalDate finishedOn, String coverUrl,
+                        String publisher, Integer publicationYear, Integer pageCount, String language, List<String> genres,
+                        String room, String bookcase, String shelf) {
+        this(id, title, author, isbn, description, createdAt, updatedAt, readingStatus, rating, startedOn, finishedOn,
+            coverUrl, publisher, publicationYear, pageCount, language, genres, room, bookcase, shelf, null, null, null,
+            room != null || bookcase != null || shelf != null);
     }
 }

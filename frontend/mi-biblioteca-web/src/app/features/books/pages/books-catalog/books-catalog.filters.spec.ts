@@ -69,7 +69,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     const form = harness.routeNativeElement!.querySelector<HTMLFormElement>('.filters-form')!;
     expect(form.getAttribute('aria-labelledby')).toBe('filters-heading');
     expect(form.getAttribute('aria-describedby')).toBe('filters-help');
-    expect(form.querySelectorAll('mat-label')).toHaveLength(10);
+    expect(form.querySelectorAll('mat-label')).toHaveLength(13);
     expect(
       form.querySelector('mat-select[formControlName="readingStatus"]')?.hasAttribute('multiple'),
     ).toBe(true);

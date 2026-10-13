@@ -49,12 +49,20 @@ export interface BookRequest {
   pageCount: number | null;
   language: string | null;
   genres: string[];
-  room: string | null;
-  bookcase: string | null;
-  shelf: string | null;
+  room?: string | null;
+  bookcase?: string | null;
+  shelf?: string | null;
+  location?:
+    | { kind: 'SHELF'; shelfId: number }
+    | { kind: 'LEGACY'; room: string | null; bookcase: string | null; shelf: string | null }
+    | null;
 }
 
 export interface BookResponse {
+  roomId: number | null;
+  bookcaseId: number | null;
+  shelfId: number | null;
+  locationPending: boolean;
   id: number;
   title: string;
   author: string;

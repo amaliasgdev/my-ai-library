@@ -15,12 +15,20 @@ export interface BookFilters {
   room?: string;
   bookcase?: string;
   shelf?: string;
+  roomId?: number;
+  bookcaseId?: number;
+  shelfId?: number;
 }
 
 export const FILTER_STATES: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
 
 export function parseBookFilters(params: ParamMap): BookFilters {
   const result: BookFilters = {};
+  for (const key of ['roomId', 'bookcaseId', 'shelfId'] as const) {
+    const raw = params.getAll(key);
+    const value = raw.length === 1 && /^[0-9]+$/.test(raw[0]) ? Number(raw[0]) : NaN;
+    if (Number.isSafeInteger(value) && value > 0) result[key] = value;
+  }
   const rawStates = params.getAll('readingStatus');
   if (
     rawStates.length <= 4 &&
@@ -63,6 +71,11 @@ export function parseBookFilters(params: ParamMap): BookFilters {
 
 export function serializeBookFilters(filters: BookFilters = {}): Params {
   const result: Params = {};
+  for (const key of ['roomId', 'bookcaseId', 'shelfId'] as const) {
+    const value = filters[key];
+    if (value !== undefined && Number.isSafeInteger(value) && value > 0)
+      result[key] = String(value);
+  }
   const states = FILTER_STATES.filter((state) => filters.readingStatus?.includes(state));
   if (states.length) result['readingStatus'] = states;
   for (const key of ['ratingMin', 'yearFrom', 'yearTo'] as const) {

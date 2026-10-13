@@ -151,24 +151,48 @@
   </div>
   <section aria-labelledby="location-form-heading">
     <h2 id="location-form-heading">Ubicación</h2>
-    <div class="form-grid">
-      <mat-form-field>
-        <mat-label>Habitación</mat-label>
-        <input matInput formControlName="room" [readonly]="submitting()" />
-        <mat-error>{{ fieldError(form.controls.room) }}</mat-error>
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Estantería</mat-label>
-        <input matInput formControlName="bookcase" [readonly]="submitting()" />
-        <mat-error>{{ fieldError(form.controls.bookcase) }}</mat-error>
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Balda</mat-label>
-        <input matInput formControlName="shelf" [readonly]="submitting()" />
-        <mat-hint>Opcional; por ejemplo 3 o Superior</mat-hint>
-        <mat-error>{{ fieldError(form.controls.shelf) }}</mat-error>
-      </mat-form-field>
-    </div>
+    <app-location-selector
+      [rooms]="locations()"
+      [loading]="locationsLoading()"
+      [error]="locationsError()"
+      [shelfId]="form.controls.shelfId.value"
+      [summary]="[initialBook()?.room, initialBook()?.bookcase, initialBook()?.shelf].join(' · ')"
+      [legacy]="
+        !form.controls.shelfId.value &&
+        !!(form.controls.room.value || form.controls.bookcase.value || form.controls.shelf.value)
+      "
+      [disabled]="submitting()"
+      (loadRequested)="locationsRequested.emit()"
+      (createRequested)="locationCreateRequested.emit($event)"
+      (selected)="selectLocation($event)"
+    />
+    @if (locationIncomplete()) {
+      <p role="alert">Completa la selección hasta una balda o quita la ubicación.</p>
+    }
+    @if (form.controls.shelfId.hasError('server')) {
+      <p role="alert">La balda no está disponible. Selecciona otra ubicación.</p>
+    }
+    @if (!form.controls.shelfId.value) {
+      <p>Alternativa temporal: ubicación textual. No se convertirá automáticamente.</p>
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>Habitación</mat-label>
+          <input matInput formControlName="room" [readonly]="submitting()" />
+          <mat-error>{{ fieldError(form.controls.room) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Estantería</mat-label>
+          <input matInput formControlName="bookcase" [readonly]="submitting()" />
+          <mat-error>{{ fieldError(form.controls.bookcase) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Balda</mat-label>
+          <input matInput formControlName="shelf" [readonly]="submitting()" />
+          <mat-hint>Opcional; por ejemplo 3 o Superior</mat-hint>
+          <mat-error>{{ fieldError(form.controls.shelf) }}</mat-error>
+        </mat-form-field>
+      </div>
+    }
   </section>
   <p role="status" aria-live="polite">{{ submitting() ? submissionMessage() : '' }}</p>
   <div class="actions">

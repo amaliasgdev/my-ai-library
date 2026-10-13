@@ -7,6 +7,7 @@ import {
   OnChanges,
   output,
   SimpleChanges,
+  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -21,6 +22,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { LocationSelector } from '../../../locations/components/location-selector';
+import {
+  LocationCreation,
+  LocationSelection,
+  RoomNode,
+} from '../../../locations/models/location.models';
 import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
 import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
 import {
@@ -42,11 +49,18 @@ import {
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
+    LocationSelector,
   ],
   templateUrl: './book-form.html',
   styleUrl: './book-form.scss',
 })
 export class BookForm implements OnChanges {
+  readonly locations = input<RoomNode[] | null>(null);
+  readonly locationsLoading = input(false);
+  readonly locationsError = input<string | null>(null);
+  readonly locationsRequested = output<void>();
+  readonly locationCreateRequested = output<LocationCreation>();
+  readonly locationIncomplete = signal(false);
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly initialBook = input<BookResponse | null>(null);
@@ -72,6 +86,11 @@ export class BookForm implements OnChanges {
     validators: [notBlank, Validators.maxLength(50)],
   });
   readonly form = new FormGroup({
+    shelfId: new FormControl<number | null>(null, [
+      integer,
+      Validators.min(1),
+      Validators.max(Number.MAX_SAFE_INTEGER),
+    ]),
     title: new FormControl('', {
       nonNullable: true,
       validators: [notBlank, Validators.maxLength(255)],
@@ -183,6 +202,7 @@ export class BookForm implements OnChanges {
     this.form.controls.genres.clear();
     for (const genre of value.genres) this.form.controls.genres.push(this.genreControl(genre));
     this.form.reset(value);
+    this.locationIncomplete.set(false);
     this.genreInput.reset();
   }
 
@@ -225,11 +245,23 @@ export class BookForm implements OnChanges {
     const pending = this.genreInput.value.length > 0;
     const added = !pending || this.addGenre();
     this.form.markAllAsTouched();
-    if (!added || this.form.invalid) {
+    if (!added || this.form.invalid || this.locationIncomplete()) {
       this.focusInvalidField();
       return;
     }
     this.save.emit(buildBookRequest(this.form.getRawValue()));
+  }
+
+  selectLocation(selection: LocationSelection): void {
+    if (this.submitting()) return;
+    this.locationIncomplete.set(selection.incomplete);
+    this.form.controls.shelfId.setValue(selection.shelfId);
+    this.form.controls.shelfId.markAsDirty();
+    if (selection.clearLegacy)
+      for (const key of ['room', 'bookcase', 'shelf'] as const) {
+        this.form.controls[key].setValue('');
+        this.form.controls[key].markAsDirty();
+      }
   }
 
   cancel(): void {
@@ -265,7 +297,14 @@ export class BookForm implements OnChanges {
     if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return;
     for (const [field, message] of Object.entries(errors)) {
       if (typeof message !== 'string') continue;
-      if (Object.hasOwn(this.form.controls, field)) {
+      if (field === 'location' || field === 'location.shelfId') {
+        this.setServerError(this.form.controls.shelfId);
+      } else if (
+        field.startsWith('location.') &&
+        ['room', 'bookcase', 'shelf'].includes(field.slice(9))
+      ) {
+        this.setServerError(this.form.get(field.slice(9))!);
+      } else if (Object.hasOwn(this.form.controls, field)) {
         this.setServerError(this.form.get(field)!);
       } else {
         const match = /^genres\[(\d+)\]$/.exec(field);

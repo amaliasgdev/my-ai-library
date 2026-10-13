@@ -25,7 +25,7 @@ class BookLocationMigrationTest {
                 .locations("classpath:db/migration").target("6").load().migrate();
             jdbc.update("INSERT INTO " + schema + ".book(title,author) VALUES ('Existing V6','Author')");
             Flyway migrated = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema)
-                .locations("classpath:db/migration").load();
+                .locations("classpath:db/migration").target("7").load();
             assertThat(migrated.migrate().migrationsExecuted).isEqualTo(1); migrated.validate();
             var row = jdbc.queryForMap("SELECT title,room,bookcase,shelf FROM " + schema + ".book");
             assertThat(row.get("title")).isEqualTo("Existing V6");
@@ -35,13 +35,20 @@ class BookLocationMigrationTest {
                 assertThat(column.get("is_nullable")).isEqualTo("YES"); assertThat(column.get("column_default")).isNull();
                 assertThat(column.get("character_maximum_length")).isEqualTo(field.equals("shelf") ? 50 : 100);
             }
+            Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load().migrate();
             Configuration configuration = new Configuration().addAnnotatedClass(Book.class)
+                .addAnnotatedClass(com.mibiblioteca.bookservice.location.Room.class)
+                .addAnnotatedClass(com.mibiblioteca.bookservice.location.Bookcase.class)
+                .addAnnotatedClass(com.mibiblioteca.bookservice.location.Shelf.class)
                 .setProperty("hibernate.hbm2ddl.auto", "validate").setProperty("hibernate.default_schema", schema);
             configuration.setPhysicalNamingStrategy(new org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy());
             configuration.getProperties().put("hibernate.connection.datasource", dataSource);
             try (var factory = configuration.buildSessionFactory()) { assertThat(factory.isOpen()).isTrue(); }
         } finally {
             jdbc.execute("DROP TABLE IF EXISTS " + schema + ".book");
+            jdbc.execute("DROP TABLE IF EXISTS " + schema + ".shelf");
+            jdbc.execute("DROP TABLE IF EXISTS " + schema + ".bookcase");
+            jdbc.execute("DROP TABLE IF EXISTS " + schema + ".room");
             jdbc.execute("DROP TABLE IF EXISTS " + schema + ".flyway_schema_history");
             jdbc.execute("DROP SCHEMA " + schema);
         }

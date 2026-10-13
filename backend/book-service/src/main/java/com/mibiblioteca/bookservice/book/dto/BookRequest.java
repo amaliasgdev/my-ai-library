@@ -11,6 +11,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.mibiblioteca.bookservice.location.LocationException;
 import java.util.List;
 
 public record BookRequest(
@@ -40,11 +45,36 @@ public record BookRequest(
     @Size(max = 10) @DistinctGenres
     @Schema(description = "Genres are trimmed, preserving case and order. Duplicates ignoring case and surrounding spaces are rejected. Omission, null or [] clears genres on PUT.", example = "[\"Fantasía\", \"Aventura\"]", nullable = true)
     List<@NotBlank @Size(max = 50) String> genres,
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     @Size(max = 100) @LocationLabel
     @Schema(description = "Optional physical room; trimmed, blanks become null. Omission/null/blank clears it on PUT. Single-line label, preserving case and accents.", nullable = true, example = "Salón") String room,
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     @Size(max = 100) @LocationLabel
     @Schema(description = "Optional bookcase label; trimmed, blanks become null, including on PUT", nullable = true, example = "Billy izquierda") String bookcase,
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     @Size(max = 50) @LocationLabel
-    @Schema(description = "Optional shelf label, not an integer; trimmed, blanks become null, including on PUT", nullable = true, example = "Superior") String shelf
+    @Schema(description = "Optional shelf label, not an integer; trimmed, blanks become null, including on PUT", nullable = true, example = "Superior") String shelf,
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @Valid @Schema(description = "Explicit SHELF or LEGACY location; null clears it. Cannot coexist with top-level room/bookcase/shelf, even null.", nullable = true) BookLocationRequest location
 ) {
+    public BookRequest(String title, String author, String isbn, String description, String coverUrl, String publisher,
+                       Integer publicationYear, Integer pageCount, String language, List<String> genres, String room, String bookcase, String shelf) {
+        this(title, author, isbn, description, coverUrl, publisher, publicationYear, pageCount, language, genres, room, bookcase, shelf, null);
+    }
+
+    // JsonNode preserves explicit null vs omitted properties at this compatibility boundary.
+    @JsonCreator
+    public static BookRequest fromJson(
+        @JsonProperty("title") String title, @JsonProperty("author") String author,
+        @JsonProperty("isbn") String isbn, @JsonProperty("description") String description,
+        @JsonProperty("coverUrl") String coverUrl, @JsonProperty("publisher") String publisher,
+        @JsonProperty("publicationYear") Integer year, @JsonProperty("pageCount") Integer pages,
+        @JsonProperty("language") String language, @JsonProperty("genres") List<String> genres,
+        @JsonProperty("room") JsonNode room, @JsonProperty("bookcase") JsonNode bookcase,
+        @JsonProperty("shelf") JsonNode shelf, @JsonProperty("location") JsonNode location
+    ) {
+        if (location != null && (room != null || bookcase != null || shelf != null)) throw LocationException.invalid("location");
+        return new BookRequest(title, author, isbn, description, coverUrl, publisher, year, pages, language, genres,
+            BookLocationRequest.text(room), BookLocationRequest.text(bookcase), BookLocationRequest.text(shelf), BookLocationRequest.fromJson(location));
+    }
 }

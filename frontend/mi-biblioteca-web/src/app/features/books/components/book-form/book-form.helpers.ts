@@ -14,6 +14,7 @@ export interface BookFormValue {
   room: string;
   bookcase: string;
   shelf: string;
+  shelfId?: number | null;
 }
 
 export function bookFormValue(book: BookResponse): BookFormValue {
@@ -31,12 +32,13 @@ export function bookFormValue(book: BookResponse): BookFormValue {
     room: book.room ?? '',
     bookcase: book.bookcase ?? '',
     shelf: book.shelf ?? '',
+    shelfId: book.shelfId ?? null,
   };
 }
 
 export function buildBookRequest(value: BookFormValue): BookRequest {
   const optional = (text: string): string | null => (text.trim() ? text : null);
-  return {
+  const request: BookRequest = {
     title: value.title,
     author: value.author,
     isbn: optional(value.isbn),
@@ -51,4 +53,11 @@ export function buildBookRequest(value: BookFormValue): BookRequest {
     bookcase: optional(value.bookcase.trim()),
     shelf: optional(value.shelf.trim()),
   };
+  if (value.shelfId != null) {
+    delete request.room;
+    delete request.bookcase;
+    delete request.shelf;
+    request.location = { kind: 'SHELF', shelfId: value.shelfId };
+  }
+  return request;
 }

@@ -88,9 +88,72 @@ Metadata consultation uses backend/Open Library, so this flow is not offline.
 
 ## Catalog filters
 
+### Structured library shelves (V8)
+
+The reusable physical hierarchy is **Room → Bookcase → Shelf → Book**. A Book
+has a nullable `shelf_id` FK; it does not duplicate room/bookcase IDs in storage.
+V8 creates the three tables, scoped case-insensitive/accent-sensitive unique
+indexes and an index on `book(shelf_id)`. FKs never cascade. A CHECK prevents a
+structured assignment from coexisting with legacy labels.
+
+**No automatic reconciliation of V7 locations is performed.** Existing
+`book.room/bookcase/shelf` values remain untouched, including partial locations.
+No entities, parents or Shelf IDs are inferred from them. Structured book names
+are derived from the hierarchy; legacy names continue to come from V7 columns.
+`BookResponse` adds `roomId`, `bookcaseId`, `shelfId` and `locationPending` while
+retaining human-readable effective names.
+
+```text
+GET    /api/locations                  hierarchy/counts/canDelete/blockedReason
+POST   /api/rooms                      {name}
+PUT    /api/rooms/{id}                 {name}, rename only
+DELETE /api/rooms/{id}
+POST   /api/bookcases                  {roomId,name}
+PUT    /api/bookcases/{id}             {name}, no parent move
+DELETE /api/bookcases/{id}
+POST   /api/shelves                    {bookcaseId,name}
+PUT    /api/shelves/{id}               {name}, stable ID
+DELETE /api/shelves/{id}
+PUT    /api/books/{id}/location        {shelfId:42} or {shelfId:null}
+```
+
+Deleting a Shelf with books, Bookcase with shelves, or Room with bookcases returns
+409 `LOCATION_IN_USE`; no books are deleted. Scoped duplicate names return 409
+`LOCATION_NAME_CONFLICT`, safely including database races. `canDelete` is advisory.
+Counts contain only structured books, not homonymous legacy labels. Missing
+locations return 404, invalid input 400. Names preserve spelling/accents and use
+raw 100/100/50 limits, exterior trim and single-line control rejection.
+
+Book POST/PUT supports `location:{kind:"SHELF",shelfId:42}` or
+`location:{kind:"LEGACY",room:"Dormitorio",bookcase:null,shelf:null}`.
+`location:null` clears location. V7 top-level fields remain accepted when
+`location` is absent; full PUT omission still clears. Sending both forms is 400,
+even when one is explicit null. Assigning a Shelf explicitly clears the legacy
+columns; choosing LEGACY never resolves text to IDs.
+
+Catalog filters additionally accept `roomId`, `bookcaseId`, `shelfId`, each once
+as a positive safe integer. IDs and name filters combine with AND; nonexistent
+IDs yield empty results, incompatible combinations also yield empty results.
+Name filters work over effective structured names and unchanged legacy labels.
+Old text bookmarks remain searches by name; new Shelf ID links survive renames.
+
+Frontend `/locations` manages hierarchy with Material expansion panels/dialogs
+and links **Ver libros** to the existing catalog using `shelfId`. BookForm in
+create/edit/import review offers dependent Room/Bookcase/Shelf selection and
+explicit creation dialogs, while preserving/editing legacy text. Creating a
+location saves immediately and is not undone by cancelling a book. Incomplete
+structured selections cannot be saved. Import rows keep their own confirmed
+Shelf; lookup never supplies a location. There is no mass assignment.
+
+Reviewed reconciliation, column retirement, bulk moves and history are deferred.
+Future InventorySession would reference stable Shelf ID and own photos,
+observations and expected-books snapshots. Photos/OCR/AI/inventory are not
+implemented here. Deploy the compatible backend before enabling the new UI;
+do not keep old backend instances writing books with structured assignments.
+
 ### Optional physical location
 
-Books have optional text fields **room** (100 characters), **bookcase** (100)
+Legacy books have optional text fields **room** (100 characters), **bookcase** (100)
 and **shelf** (50). Partial locations are allowed; shelf is a label such as `3`,
 `Superior` or `Abajo`, never an integer. V7 adds only three nullable columns to
 `book`, with no defaults, indexes, FK or new tables. Existing books remain unlocated.
