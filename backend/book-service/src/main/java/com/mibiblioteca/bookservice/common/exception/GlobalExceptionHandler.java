@@ -27,6 +27,14 @@ import org.springframework.validation.method.ParameterValidationResult;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(InvalidBookFilterException.class)
+    public ProblemDetail handleBookFilter(InvalidBookFilterException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid catalog filter");
+        problem.setTitle("Validation error");
+        problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
+        return problem;
+    }
+
     @ExceptionHandler(CoverException.class)
     public ProblemDetail handleCover(CoverException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
@@ -142,6 +150,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request parameter has an invalid value");
         problemDetail.setTitle("Invalid request parameter");
+        problemDetail.setProperty("errors", Map.of(ex.getName(), "Invalid value"));
         return problemDetail;
     }
 

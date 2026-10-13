@@ -92,3 +92,19 @@ mat-paginator {
   margin-block-start: 1.5rem;
   background: transparent;
 }
+:host .filters-form {
+  margin-block: 1.5rem;
+}
+
+.filters-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1.5rem 1rem;
+}
+
+.filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}

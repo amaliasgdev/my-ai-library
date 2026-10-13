@@ -4,6 +4,8 @@ import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
+import com.mibiblioteca.bookservice.book.dto.BookFilterRequest;
+import com.mibiblioteca.bookservice.book.persistence.BookSpecifications;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
 import com.mibiblioteca.bookservice.book.dto.ReadingDateRequest;
@@ -61,8 +63,13 @@ public class BookService {
 
     @Transactional(readOnly = true)
     public BookPageResponse findAll(int page, int size, String sortBy, Sort.Direction direction) {
+        return findAll(page, size, sortBy, direction, BookFilterRequest.EMPTY);
+    }
+
+    @Transactional(readOnly = true)
+    public BookPageResponse findAll(int page, int size, String sortBy, Sort.Direction direction, BookFilterRequest filters) {
         Sort sort = createSort(sortBy, direction);
-        Page<Book> books = bookRepository.findAll(PageRequest.of(page, size, sort));
+        Page<Book> books = bookRepository.findAll(BookSpecifications.filters(filters), PageRequest.of(page, size, sort));
 
         return toPageResponse(books);
     }
@@ -75,6 +82,11 @@ public class BookService {
 
     @Transactional(readOnly = true)
     public BookPageResponse search(BookSearchRequest request, int page, int size, String sortBy, Sort.Direction direction) {
+        return search(request, page, size, sortBy, direction, BookFilterRequest.EMPTY);
+    }
+
+    @Transactional(readOnly = true)
+    public BookPageResponse search(BookSearchRequest request, int page, int size, String sortBy, Sort.Direction direction, BookFilterRequest filters) {
         String title = normalizeText(request.title());
         String author = normalizeText(request.author());
         String isbn = normalizeIsbn(request.isbn());
@@ -88,16 +100,8 @@ public class BookService {
         }
 
         PageRequest pageable = PageRequest.of(page, size, createSort(sortBy, direction));
-        Page<Book> books;
-        if (isbn != null) {
-            books = bookRepository.findByIsbn(isbn, pageable);
-        } else if (title != null && author != null) {
-            books = bookRepository.findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase(title, author, pageable);
-        } else if (title != null) {
-            books = bookRepository.findByTitleContainingIgnoreCase(title, pageable);
-        } else {
-            books = bookRepository.findByAuthorContainingIgnoreCase(author, pageable);
-        }
+        Page<Book> books = bookRepository.findAll(BookSpecifications.search(title, author, isbn)
+            .and(BookSpecifications.filters(filters)), pageable);
 
         return toPageResponse(books);
     }

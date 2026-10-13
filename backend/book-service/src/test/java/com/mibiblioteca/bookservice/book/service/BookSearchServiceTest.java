@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
+import com.mibiblioteca.bookservice.book.dto.BookFilterRequest;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
@@ -29,9 +30,18 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class BookSearchServiceTest {
+    @Test void filtersDoNotReplaceRequiredSearchCriteriaOrRelaxIsbnExclusivity() {
+        var filters = new BookFilterRequest(List.of(), 4, null, null, null, null, null);
+        assertThatThrownBy(() -> bookService.search(new BookSearchRequest(null, null, null), 0, 20, "title", Sort.Direction.ASC, filters))
+            .isInstanceOf(InvalidSearchCriteriaException.class);
+        assertThatThrownBy(() -> bookService.search(new BookSearchRequest("title", null, "9780306406157"), 0, 20, "title", Sort.Direction.ASC, filters))
+            .isInstanceOf(InvalidSearchCriteriaException.class);
+        verifyNoInteractions(bookRepository);
+    }
     @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();
@@ -60,11 +70,12 @@ class BookSearchServiceTest {
     void shouldSearchByNormalizedIsbn() {
         BookSearchRequest request = new BookSearchRequest(null, null, "978-0-13-235088-4");
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("title").and(Sort.by("id")));
-        when(bookRepository.findByIsbn("9780132350884", pageable)).thenReturn(Page.empty(pageable));
+        when(bookRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty(pageable));
 
         bookService.search(request, 0, 20, "title", Sort.Direction.ASC);
 
-        verify(bookRepository).findByIsbn("9780132350884", pageable);
+        verify(bookRepository).findAll(any(Specification.class), eq(pageable));
+        verify(isbnNormalizer).normalize("978-0-13-235088-4");
     }
 
     @ParameterizedTest
@@ -81,23 +92,19 @@ class BookSearchServiceTest {
         switch (filter) {
             case "title" -> {
                 request = new BookSearchRequest(" clean ", "  ", null);
-                when(bookRepository.findByTitleContainingIgnoreCase("clean", pageable)).thenReturn(books);
             }
             case "author" -> {
                 request = new BookSearchRequest("  ", " martin ", null);
-                when(bookRepository.findByAuthorContainingIgnoreCase("martin", pageable)).thenReturn(books);
             }
             case "combined" -> {
                 request = new BookSearchRequest(" clean ", " martin ", null);
-                when(bookRepository.findByTitleContainingIgnoreCaseAndAuthorContainingIgnoreCase("clean", "martin", pageable))
-                    .thenReturn(books);
             }
             default -> {
                 request = new BookSearchRequest(null, null, "978-0-13-235088-4");
-                when(bookRepository.findByIsbn("9780132350884", pageable)).thenReturn(books);
             }
         }
 
+        when(bookRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(books);
         var response = bookService.search(request, 1, 2, "title", direction);
 
         assertThat(response.content()).hasSize(1);
@@ -117,11 +124,11 @@ class BookSearchServiceTest {
             sort = sort.and(Sort.by("id"));
         }
         PageRequest pageable = PageRequest.of(0, 20, sort);
-        when(bookRepository.findByTitleContainingIgnoreCase("clean", pageable)).thenReturn(Page.empty(pageable));
+        when(bookRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty(pageable));
 
         bookService.search(new BookSearchRequest("clean", null, null), 0, 20, sortBy, Sort.Direction.DESC);
 
-        verify(bookRepository).findByTitleContainingIgnoreCase("clean", pageable);
+        verify(bookRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @ParameterizedTest
@@ -138,7 +145,7 @@ class BookSearchServiceTest {
     @Test
     void shouldReturnEmptyPageWithoutResults() {
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("title").and(Sort.by("id")));
-        when(bookRepository.findByTitleContainingIgnoreCase("missing", pageable)).thenReturn(Page.empty(pageable));
+        when(bookRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty(pageable));
 
         var response = bookService.search(new BookSearchRequest("missing", null, null), 0, 20, "title", Sort.Direction.ASC);
 
@@ -151,7 +158,7 @@ class BookSearchServiceTest {
 
     @Test
     void shouldReturnEmptyOutOfRangePageWithRealTotals() {
-        when(bookRepository.findByIsbn(eq("9780132350884"), any()))
+        when(bookRepository.findAll(any(Specification.class), any(PageRequest.class)))
             .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 1));
 
         var response = bookService.search(new BookSearchRequest(null, null, "9780132350884"), 1, 20, "title", Sort.Direction.ASC);
@@ -165,11 +172,12 @@ class BookSearchServiceTest {
     @Test
     void shouldNormalizeIsbnSpacesAndLowercaseX() {
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("title").and(Sort.by("id")));
-        when(bookRepository.findByIsbn("080442957X", pageable)).thenReturn(Page.empty(pageable));
+        when(bookRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty(pageable));
 
         bookService.search(new BookSearchRequest(null, null, "0 8044 2957 x"), 0, 20, "title", Sort.Direction.ASC);
 
-        verify(bookRepository).findByIsbn("080442957X", pageable);
+        verify(bookRepository).findAll(any(Specification.class), eq(pageable));
+        verify(isbnNormalizer).normalize("0 8044 2957 x");
     }
 
     @Test

@@ -94,6 +94,80 @@
   @if (deleteError()) {
     <p class="error-panel" role="alert">{{ deleteError() }}</p>
   }
+  <form
+    class="filters-form"
+    [formGroup]="filtersForm"
+    (ngSubmit)="applyFilters()"
+    aria-labelledby="filters-heading"
+    aria-describedby="filters-help"
+  >
+    <h2 id="filters-heading">Filtros del catálogo</h2>
+    <p id="filters-help">
+      Combina filtros con tu búsqueda. Los cambios se aplican al pulsar Aplicar filtros.
+    </p>
+    <div class="filters-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Estado de lectura</mat-label>
+        <mat-select formControlName="readingStatus" multiple>
+          @for (status of filterStates; track status) {
+            <mat-option [value]="status">{{ filterStateLabels[status] }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Sin selección: todos</mat-hint>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Valoración mínima</mat-label>
+        <mat-select formControlName="ratingMin">
+          <mat-option [value]="null">Cualquiera</mat-option>
+          @for (rating of [1, 2, 3, 4, 5]; track rating) {
+            <mat-option [value]="rating">{{ rating }} estrellas</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Año desde</mat-label>
+        <input matInput type="number" min="1" max="2100" step="1" formControlName="yearFrom" />
+        <mat-error>Introduce un año entero entre 1 y 2100</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Año hasta</mat-label>
+        <input matInput type="number" min="1" max="2100" step="1" formControlName="yearTo" />
+        <mat-error>Introduce un año entero entre 1 y 2100</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Género</mat-label>
+        <input matInput formControlName="genre" />
+        <mat-hint>Coincidencia exacta, sin distinguir mayúsculas</mat-hint>
+        <mat-error>Máximo 50 caracteres</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Idioma</mat-label>
+        <input matInput formControlName="language" />
+        <mat-hint>Código ISO de dos letras, por ejemplo es</mat-hint>
+        <mat-error>Introduce un código de idioma reconocido de dos letras</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Editorial</mat-label>
+        <input matInput formControlName="publisher" />
+        <mat-hint>Coincidencia parcial, sin distinguir mayúsculas</mat-hint>
+        <mat-error>Máximo 255 caracteres</mat-error>
+      </mat-form-field>
+    </div>
+    @if (
+      filtersForm.hasError('yearRange') &&
+      (filtersForm.controls.yearFrom.touched || filtersForm.controls.yearTo.touched)
+    ) {
+      <p role="alert">El año hasta no puede ser anterior al año desde</p>
+    }
+    <div class="filters-actions">
+      <button mat-flat-button type="submit" [disabled]="deletingId() !== null">
+        Aplicar filtros
+      </button>
+      <button mat-button type="button" (click)="clearFilters()" [disabled]="deletingId() !== null">
+        Limpiar filtros
+      </button>
+    </div>
+  </form>
   <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
   <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
     @let current = state();

@@ -139,13 +139,17 @@ frontend/mi-biblioteca-web/
 - BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest), deleteBook(id), updateReadingStatus(id, status), updateRating(id, rating), deleteRating(id), startReading(id, ReadingDateRequest), finishReading(id, ReadingDateRequest), updateReadingDates(id, UpdateReadingDatesRequest) and deleteReadingDates(id); list/search UI defaults to title ASC with server-side sorting
 - BookCatalogSort/currentSort exposes only title, author, createdAt, readingStatus and rating with ASC/DESC; separate Material selects apply changes immediately, reset page to 0 and retain pageSize/currentSearch; selecting the same value does not reload
 - BookCatalogQuery in models/book-catalog-query.ts represents URL-applied page/size/sortBy/direction/search using existing types; URL is the sole source of navigable catalog state, with no default HTTP trigger before reading queryParamMap
-- Only page/size/sortBy/direction/title/author/isbn are supported; page is digit-only 0..2147483647, size is 10/20/50/100, sortBy is title/author/createdAt/readingStatus/rating and direction is exactly ASC/DESC; invalid or repeated parameters fall back independently, unknown parameters are removed
+- Catalog URL supports page/size/sortBy/direction/title/author/isbn and readingStatus/ratingMin/yearFrom/yearTo/genre/language/publisher; page is digit-only 0..2147483647, size is 10/20/50/100, sortBy is title/author/createdAt/readingStatus/rating and direction is exactly ASC/DESC. Only readingStatus may repeat; unknown parameters are removed
 - Defaults page=0/size=20/sortBy=title/direction=ASC/search=null are omitted from deterministic serialization; pure parse/serialize/canonical comparison helpers compare keys/values independent of order, and noncanonical URLs replace history before any GET
 - URL search trims text, discards blank/overlong values without truncation, uses the existing CRUD ISBN syntax without checksum, gives valid ISBN priority over title/author and retains valid title/author if ISBN is invalid; invalid URLs produce no validation alerts
 - User search/sort/page/size actions only navigate normally when the applied state changes; accepted canonical URL updates signals and drives one switchMap GET chain with internal retry/write-reload events, removing stale cards and canceling previous GET
 - Search inputs synchronize initially or when URL-applied search changes, never on page/sort/retry/write reload; drafts stay independent from currentSearch and do not navigate or request until explicit valid submit
 - New searches and Limpiar búsqueda preserve currentSort; page-size changes preserve sorting/search and reset page to 0; no frontend sorting, custom status order or null-rating rearrangement
-- Backend list/search has no readingStatus, rating, genres or publicationYear filters; do not create currentFilters or unsupported filtering controls
+- Backend list/search share BookSpecifications and JpaSpecificationExecutor; BookFilterRequest validates raw query cardinality before repository access. Filters combine with AND, states with IN. Genre uses bound Hibernate book_genre_matches via EXISTS/unnest over varchar[], proven on PostgreSQL 16 for paging/count without duplicate rows; no migration/index/dependency changes
+- Filter params: readingStatus exact enum, at most 4 occurrences, deduplicated, no CSV; ratingMin integer 1..5; yearFrom/yearTo integers 1..2100 with from <= to; genre trimmed nonblank <=50; language trimmed recognized ISO 639-1 lowercase; publisher trimmed nonblank <=255, literal case-insensitive substring (%/underscore escaped). Scalars may occur once, present empty values return 400 ProblemDetail errors with public names; null ratings/years do not satisfy active bounds
+- BooksCatalog has a separate typed Reactive Material filter form and currentFilters URL snapshot. Apply/Clear reset page 0 preserving search/sort/size; search/Clear search retain filters. Draft edits never request/navigate, and drafts survive page/sort/retry/write reload. DELETE blocks Apply/Clear with UI/code guards
+- URL filters omit defaults/empty values, trim text, lowercase language and deduplicate states in fixed enum order. Invalid/repeated scalar filters are discarded independently, invalid/overlong state groups are discarded entirely, inverted year ranges discard both bounds; canonical replaceUrl occurs before GET, without validation alerts. Detail/edit context uses the same helpers and preserves filters
+- BooksService getBooks(options, filters?) and searchBooks(criteria, options, filters?) share filter HTTP serialization, repeating state parameters and omitting empty/undefined values. State/start/finish confirmations reload current query when a state filter is active; rating confirmations reload when ratingMin is active, in addition to existing sort-dependent reloads; never locally filter/reorder or repeat successful writes
 - BooksCatalog has an inline typed Reactive search form for title/author/isbn; only Buscar or native form submit starts a search, never keystrokes
 - currentSearch is the URL-applied search snapshot (null means normal list), independent from edited inputs; one GET chain selects getBooks() or searchBooks(), preserving criteria for pagination, retry and DELETE reload
 - Search requires at least one nonblank criterion; title/author can combine, ISBN is exclusive; limits are 255/255/20 and ISBN uses the shared CRUD syntax pattern without checksum or ISBN lookup
@@ -231,7 +235,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend filters, ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan or a valid initial consumable ISBN seed in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No additional filters (reading dates/pageCount/cover/timestamps), ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan or a valid initial consumable ISBN seed in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -631,7 +635,7 @@ Verified:
 - Frontend creation at /books/new and editing at /books/:id/edit are implemented with shared BookForm, BookRequest, createBook(), getBook(), updateBook() and Material controls
 - Frontend deletion is implemented through deleteBook(), BookCard actions and BookDeleteDialog confirmation, with backend reload and one-page fallback when empty
 - Frontend submitted search by title/author or exclusive ISBN is implemented with searchBooks(), currentSearch snapshot, server pagination and search-preserving DELETE reload
-- Frontend server-side sorting UI is implemented for title/author/createdAt/readingStatus/rating with currentSort and ASC/DESC; search, pagination, retry and DELETE preserve the applied sorting; no filters
+- Frontend server-side sorting UI is implemented for title/author/createdAt/readingStatus/rating with currentSort and ASC/DESC; search, filters, pagination, retry and DELETE preserve the applied sorting
 - Frontend readingStatus and rating editing is implemented in BookCard with PATCH status, PUT rating and DELETE rating; confirmed response replacement or current-query reload preserves server sorting
 - Frontend reading dates are implemented with local-today start/finish actions and a dedicated Material dialog for PUT/DELETE dates; status changes only as confirmed by the quick-action backend response
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
@@ -666,7 +670,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
-Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search, server-side sorting, readingStatus/rating editing and reading dates are completed. Filters and other frontend interactions are not implemented.
+Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search, server-side sorting, readingStatus/rating editing, reading dates and URL-backed server filters for readingStatus/ratingMin/yearFrom/yearTo/genre/language/publisher are completed. No further filters are implemented.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
@@ -734,7 +738,7 @@ Search rules:
 - GET /api/books/search returns BookPageResponse, not a JSON array
 - no results returns an empty page with totalElements=0 and totalPages=0
 - out-of-range pages return 200 with empty content and real pagination totals
-- BookSearchRequest contains only title, author and isbn; pagination uses separate request parameters
+- BookSearchRequest contains only title, author and isbn; BookFilterRequest contains optional catalog filters and pagination uses separate request parameters. Both list/search compose a single Specification query; search still requires a search criterion and ISBN remains exclusive with title/author, but may combine with catalog filters
 - ISBN searches validate pagination and sorting just like other searches
 ```
 
@@ -880,7 +884,7 @@ Metadata rules:
 - POST omitted scalar metadata becomes null; PUT replaces metadata and omitted/null scalar fields remove previous values
 - PUT omitted/null/[] genres removes all previous genres
 - metadata appears in BookResponse for CRUD, paginated list and paginated search
-- new metadata fields are not search filters or allowed sortBy values; no dedicated metadata endpoints
+- publisher/publicationYear/language/genres have optional catalog filters through BookFilterRequest; pageCount is not a filter. Metadata fields remain outside the sort whitelist, with no dedicated metadata endpoints
 - invalid metadata returns the existing 400 ProblemDetail with field errors, including genres and genres[index]
 - V6 CHECKs enforce year/page ranges, lowercase two-letter language format, genre count and absence of null array elements
 - no new indexes, external integrations or dependencies are required
