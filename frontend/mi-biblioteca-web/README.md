@@ -128,6 +128,50 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 
 ## Estructura y alcance
 
+### Jerarquía física de ubicaciones
+
+La ruta lazy **`/locations`**, accesible desde navegación principal, gestiona
+Habitación → Estantería → Balda con Material expansion panels, nombres humanos,
+conteos de libros estructurados y diálogos explícitos de creación/renombrado/borrado.
+**Ver libros** abre `/books?shelfId=...`, no una segunda pantalla de catálogo.
+El borrado se bloquea en uso (409), nunca elimina libros por cascade. Renombrar
+preserva IDs y no cambia padres. Los errores se muestran inline, sin SQL.
+
+V8 añade Shelf ID nullable a Book sin duplicar los padres en almacenamiento.
+`BookResponse` conserva nombres efectivos y añade roomId/bookcaseId/shelfId y
+`locationPending`. **NO hay conciliación automática de datos V7**: ubicación
+textual anterior y parcial se conserva hasta una sustitución explícita.
+
+BookForm sigue sin HTTP/routing. El selector reutilizable carga las opciones al
+pulsar **Elegir balda**, mediante coordinación local de Create/Edit/ImportReview.
+Room limpia Bookcase/Shelf y Bookcase limpia Shelf; una selección parcial bloquea
+Guardar. Puede conservar/editar textos legacy, reemplazarlos o quitar ubicación.
+Nueva habitación/estantería/balda abre un diálogo: persiste inmediatamente,
+aunque luego se cancele el libro. No hay creación implícita ni autocomplete.
+
+El builder manda `location:{kind:'SHELF',shelfId}` para ubicación estructurada,
+sin room/bookcase/shelf de escritura. El contrato V7 sigue disponible para textos;
+el backend también admite location LEGACY explícito y location:null. Nunca se
+envían ambas representaciones. La presentación de detalle/tarjetas sigue usando
+nombres, nunca IDs. Lookup/scanner no asignan ni limpian ubicación.
+
+Filtros `roomId`, `bookcaseId`, `shelfId` prefieren identidad estable; los antiguos
+`room/bookcase/shelf` siguen buscando nombres efectivos estructurados o legacy.
+IDs y nombres combinan con AND. IDs inexistentes válidos se conservan y producen
+cero resultados, no un catálogo ampliado. Se mantienen Apply/Clear, búsqueda,
+sorting/size, reload, Back/Forward y contexto detalle/edit/import. No se convierte
+un bookmark textual a ID por coincidencia de nombres.
+
+La revisión de importación permite elegir Shelf por fila y conserva la selección
+confirmada al reabrir; no copia entre filas/filtros y no tiene Aplicar a todos.
+Crear ubicaciones sí escribe; Confirmar datos continúa sin crear el libro.
+Una ubicación eliminada antes del POST requiere revisión explícita y no se trata
+como ISBN duplicado. No se añade retry automático.
+
+Conciliación revisada, movimientos masivos, fotos/OCR/IA, InventorySession,
+historial y archivado quedan fuera. Una futura sesión de inventario referenciaría
+Shelf ID estable y sería propietaria de fotos/observaciones y snapshots históricos.
+
 - `src/app/core/config/api.config.ts`: token `API_CONFIG` y `apiBaseUrl: '/api'`.
 - `src/app/layout/app-shell/`: shell semántico, navegación Material y router-outlet.
 - `src/app/features/books/pages/books-catalog/`: catálogo paginado standalone, formulario de búsqueda local y validadores específicos.
