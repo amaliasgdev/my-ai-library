@@ -18,7 +18,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200/`: `/` redirects to `/books`, a lazy-loaded, read-only
+Open `http://localhost:4200/`: `/` redirects to `/books`, a lazy-loaded,
 paginated book catalog. Angular Material is the **only UI library**, with SCSS/CSS Grid and
 Flexbox for responsive layout. PrimeNG, Tailwind and Bootstrap are not installed.
 Use **Añadir libro** to open `/books/new`, create a book and return to the catalog.
@@ -30,7 +30,8 @@ repeating or canceling the lookup. Reloading the clean URL does not lookup again
 opening a fresh seeded URL does. Nothing is saved until the user presses **Guardar**.
 Each card has **Editar**, opening `/books/{id}/edit` with the current book values.
 Saving replaces all bibliographic fields and returns to the catalog; Cancelar returns without saving.
-There is no frontend deletion, search, fake book data, SSR or PWA yet.
+The catalog supports detail, deletion, submitted search, sorting and filters.
+There is no fake runtime book data, SSR or PWA.
 
 ```powershell
 npm run lint
@@ -49,6 +50,43 @@ mock HTTP and do not require the backend.
 The proxy is not part of the production bundle; production routing is a future
 deployment responsibility. A Material light theme is active; dark theme styles
 are prepared under `html.app-dark`, without a theme selector.
+
+## Catalog filters
+
+Both existing endpoints accept the same optional filters, preserving pagination,
+sorting and the `BookPageResponse` contract:
+
+```text
+GET /api/books?readingStatus=READ&readingStatus=READING&ratingMin=4&yearFrom=2020&genre=Terror
+GET /api/books/search?author=King&ratingMin=4&language=es&publisher=Press
+```
+
+Filters combine with AND; repeated reading states combine with OR. `/search`
+still requires title, author or ISBN; ISBN remains exclusive with title/author,
+but can combine with filters. List and search share JPA Specifications.
+
+| Parameter | Contract |
+| --- | --- |
+| `readingStatus` | Exact enum, at most 4 occurrences, deduplicated; no CSV |
+| `ratingMin` | Integer 1–5, inclusive; unrated books do not match |
+| `yearFrom`, `yearTo` | Inclusive publication-year bounds, 1–2100, from <= to; unknown years do not match |
+| `genre` | Trimmed nonblank <=50, exact case-insensitive array element |
+| `language` | Recognized two-letter ISO 639-1 code, case-insensitive |
+| `publisher` | Trimmed nonblank <=255, literal case-insensitive substring |
+
+Repeated scalar parameters, blank supplied filters and invalid values return
+400 ProblemDetail with public field names in `errors`. `%` and `_` are literals,
+not user-controlled SQL wildcards. Genre uses a Hibernate FunctionContributor
+rendering bound `EXISTS/unnest` on PostgreSQL `varchar[]`, tested for paging and
+count on PostgreSQL 16. No migrations, indexes or dependencies were added.
+
+The Material filter panel applies explicitly: editing does not request data.
+**Aplicar filtros** and **Limpiar filtros** reset page 0 while preserving search,
+size and sorting; searching/clearing search preserves filters. Applied state
+lives in the canonical URL, surviving reload, Back/Forward and detail/edit return.
+Invalid URL filters are discarded silently before the single GET, unlike invalid
+form submissions. Confirmed inline writes reload when active filters depend on
+the changed status/rating; they are never repeated or filtered locally.
 
 ## Managed book covers
 

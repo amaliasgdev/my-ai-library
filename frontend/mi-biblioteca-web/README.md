@@ -126,7 +126,7 @@ a página 0 conservando el tamaño y el orden aplicado. **Limpiar búsqueda** va
 página 0, con el mismo tamaño y orden. Buscar/Limpiar búsqueda se bloquean durante DELETE, pero los
 campos siguen editables. Sin coincidencias se muestra «No se encontraron libros»;
 los errores de búsqueda son inline y permiten Reintentar. El catálogo conserva su consulta
-en la URL y al volver desde detalle/edición, sin localStorage. No implementa filtros avanzados,
+en la URL y al volver desde detalle/edición, sin localStorage. No implementa filtros adicionales por fechas/páginas/portada,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
@@ -138,25 +138,48 @@ el tamaño y la búsqueda ya enviada; los inputs editados sin Buscar no se aplic
 El snapshot `currentSort` se conserva al paginar, cambiar tamaño, buscar, limpiar,
 reintentar y recargar después de DELETE, incluido el retroceso de una página vacía.
 Los dos selects se bloquean durante DELETE. No se ordena localmente ni se reubican
-estados o valoraciones nulas. No hay filtros: los endpoints actuales no admiten
-filtrar por estado, valoración, géneros ni año de publicación.
+estados o valoraciones nulas. Búsqueda, filtros y ordenación se combinan en backend.
+
+**Filtros del catálogo** es un formulario Material separado de búsqueda y alta:
+estado múltiple, valoración mínima, año desde/hasta, género, idioma y editorial.
+Editar no navega ni hace GET. **Aplicar filtros** valida y pone página 0 conservando
+búsqueda/orden/tamaño; **Limpiar filtros** borra filtros y borradores, conservando
+esos mismos valores. Buscar/Limpiar búsqueda conserva filtros. Sin cambio efectivo
+no hay otro GET. Durante DELETE, Aplicar/Limpiar quedan bloqueados.
+
+Valoración es inclusiva (1–5), años inclusivos (1–2100, desde <= hasta); valores
+desconocidos no cumplen esos límites. Género coincide exactamente con un elemento
+del array sin distinguir mayúsculas (máximo 50), idioma usa código ISO de dos letras
+y editorial coincide parcialmente sin distinguir mayúsculas (máximo 255).
+Los textos se recortan exteriormente y `%`/`_` no son comodines SQL.
 
 ### URLs del catálogo
 
-La URL es la fuente de verdad de página, tamaño, orden y búsqueda aplicada. Ejemplos:
+La URL es la fuente de verdad de página, tamaño, orden, búsqueda y filtros aplicados. Ejemplos:
 
 - `/books`: página 0, tamaño 20, título ASC, sin búsqueda.
 - `/books?page=2&sortBy=author&direction=DESC&title=dune`.
 - `/books?size=50&isbn=9780306406157`.
+- `/books?readingStatus=READING&readingStatus=READ&ratingMin=4&genre=Terror`.
 
-Solo se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`.
-Los defaults se omiten. Parámetros inválidos/repetidos/desconocidos se normalizan
+Se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`,
+`readingStatus`, `ratingMin`, `yearFrom`, `yearTo`, `genre`, `language`, `publisher`.
+Solo `readingStatus` puede repetirse (máximo cuatro ocurrencias, sin CSV); se
+deduplica y serializa en orden TO_READ/READING/READ/ABANDONED. Idioma se convierte
+a minúsculas, textos se recortan y vacíos/defaults se omiten. Un escalar inválido
+o repetido se descarta; si un estado es inválido se descarta todo el grupo; un rango
+invertido descarta ambos años. Parámetros desconocidos se eliminan y se normaliza
 sin alertas, reemplazando la URL antes de consultar. Un ISBN válido tiene prioridad
 sobre título/autor; textos demasiado largos se descartan, no se truncan.
 Buscar, ordenar y paginar crean historial normal; corregir la URL o retroceder
 automáticamente una página tras DELETE usa `replaceUrl`. Retry y recargas por
 escrituras no navegan y consultan la URL actual mediante la misma cadena cancelable.
-Los borradores sin Buscar se conservan al paginar/ordenar/reintentar.
+Los borradores de búsqueda y filtros se conservan al paginar/ordenar/reintentar/recargar.
+Solo un cambio URL de sus criterios sincroniza el formulario correspondiente.
+BooksService envía filtros a listado y búsqueda con un serializador HTTP común;
+ambos endpoints públicos siguen separados. Confirmaciones de estado/start/finish
+recargan si hay filtro de estado; valoración recarga si hay ratingMin, además de
+las recargas por orden dependiente existentes. No se filtran tarjetas localmente.
 
 Los enlaces Ver detalle/Editar transportan esos mismos parámetros; Volver al
 catálogo, Cancelar y Guardar en edición los conservan. Back/Forward y recargar
