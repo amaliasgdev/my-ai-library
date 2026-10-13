@@ -167,8 +167,20 @@ frontend/mi-biblioteca-web/
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
 - BookCreate/BookEdit own HTTP, submission state, safe general messages and navigation; no inheritance or generic form framework
 - ISBN lookup is available only at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; BookEdit exposes no lookup controls/states
+- Local ISBN barcode scanning is available only in BookCreate: BookForm's scanEnabled defaults false and scanRequested is UI-only; BookCreate opens IsbnScanDialog and owns the existing lookup, with no scanner in BookEdit
+- ZXing @zxing/browser 0.1.5 and @zxing/library 0.21.3 are pinned for Node 22; decoder modules load dynamically only during scanner use, without Angular wrapper, native second engine, CDN, OCR or AI
+- Scanner accepts EAN-13 only, exactly 13 ASCII digits with 978/979 prefix, valid checksum and no 9790 (ISMN); scanner-only isValidBarcodeIsbn13 does not tighten CRUD/search/manual lookup validation
+- Camera requests audio:false and facingMode ideal environment only after opening; video is muted/playsinline, one decoder session runs at 250ms intervals and stops after 60 seconds without ISBN; explicit retry/image/manual entry remain available
+- Camera requires HTTPS or localhost; http://a-LAN-IP:4200 is not guaranteed to support getUserMedia, with no TLS/proxy/CORS changes
+- IsbnBarcodeReader owns idempotent cleanup of frame/deadline timers, all tracks, video.srcObject, temporary image URLs and callback generation; closing/cancel/Escape/backdrop/destroy/navigation/timeout release resources, and late getUserMedia streams are stopped without attachment
+- Hidden tabs stop requesting/scanning camera sessions and require explicit restart; no automatic resume, torch, zoom or advanced camera selection
+- Local images accept nonempty JPEG/PNG <=10 MiB and <=20000000 decoded pixels; stop camera first, decode one image without upload/base64/preview/crop, revoke object URLs on every outcome and discard file references
+- First valid detection stops the session and closes the dialog once; invalid products/checksums/formats never modify the form and camera continues with one nonblocking warning instead of per-frame announcements
+- Opening scanner cancels prior ISBN lookup without auto-resume on cancel; accepted ISBN updates the control dirty while preserving touched, shows detected ISBN, then calls the same BookCreate.lookup/BooksService.lookupByIsbn/BookForm.applyLookup path
+- Detected ISBN survives lookup errors and clears on manual ISBN edits; lookup preserves all existing empty-field/draft/description/genres/cover semantics and only explicit Guardar creates a book
+- Barcode recognition is local, with no frames/images sent to backend or persisted; subsequent metadata lookup sends ISBN to backend/Open Library, so the complete flow is not offline
 - BooksService.lookupByIsbn(isbn) uses GET /api/books/isbn-lookup with HttpParams and the raw typed ISBN; independent BookLookupResponse has isbn/title/author/publisher/publicationYear/pageCount/language/genres/coverUrl, never description
-- Lookup is consultative: no persistence, book creation or local duplicate checks; strict checksum/normalization remains backend-only, with local empty/pattern/length guards only
+- Lookup is consultative: no persistence, book creation or local duplicate checks; manual lookup uses local empty/pattern/length guards only and backend checksum/normalization; the scanner independently validates detected ISBN-13 without changing the manual contract
 - Lookup fills only currently empty text fields and null numeric fields, always replaces ISBN with the backend normalized value, never touches description, and preserves edits made during the GET; null proposals never erase values
 - Lookup genres apply only with no existing chips and no pending genre text, using existing validators without merge; coverUrl copies exactly into an empty field, without image requests/preview/upload
 - BookCreate owns idle/loading/success/error and one cancelable GET subscription; ISBN edits cancel and return idle without automatic requests, guarded snapshots prevent stale application, and normalized programmatic ISBN updates preserve success
@@ -215,7 +227,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No frontend filters, ISBN lookup in editing, automatic lookup, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend filters, ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -622,6 +634,7 @@ Verified:
 - Frontend managed cover upload/delete is implemented in BookEdit with configured UX ownership classification and partial coverUrl synchronization, without upload in creation
 - Frontend book detail at /books/:id is implemented with complete read-only data, shared ID/display helpers, explicit GET retry, Editar/catalog navigation and existing-dialog book deletion
 - Frontend catalog URL query persistence is implemented with canonical page/size/sort/search, safe normalization, Back/Forward and detail/edit context; retry and successful-write reloads share one cancelable GET chain
+- Frontend local ISBN barcode scanning in BookCreate is implemented with a Material dialog, camera/local JPEG/PNG, scanner-only ISBN-13 validation and automatic reuse of the existing consultative lookup; no scanner in editing or image upload
 
 ---
 
