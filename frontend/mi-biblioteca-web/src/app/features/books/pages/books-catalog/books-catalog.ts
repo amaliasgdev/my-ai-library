@@ -32,6 +32,11 @@ import {
   switchMap,
 } from 'rxjs';
 import { BookCard } from '../../components/book-card/book-card';
+import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
+import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
+import { BookFilters, FILTER_STATES, sameBookFilters } from '../../models/book-filters';
+import { bookFiltersFormValue, createBookFiltersForm, filtersFromForm } from './book-filters.form';
+import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
   BookDeleteDialog,
   BookDeleteDialogData,
@@ -131,6 +136,8 @@ export class BooksCatalog {
   private readonly router = inject(Router);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
+  private scanDialog: MatDialogRef<IsbnScanDialog, string> | null = null;
+  private isbnImportDialog: MatDialogRef<BookIsbnImportDialog, string> | null = null;
   private restoreFocusAfterReload = false;
   readonly currentSort = signal<BookCatalogSort>({ sortBy: 'title', direction: 'ASC' });
   protected readonly sortOptions: { value: BookCatalogSort['sortBy']; label: string }[] = [
@@ -149,9 +156,19 @@ export class BooksCatalog {
       size: this.pageSize(),
       ...this.currentSort(),
       search: this.currentSearch(),
+      filters: this.currentFilters(),
     }),
   );
   readonly currentSearch = signal<BookSearchRequest | null>(null);
+  readonly currentFilters = signal<BookFilters>({});
+  readonly filtersForm = createBookFiltersForm();
+  protected readonly filterStates = FILTER_STATES;
+  protected readonly filterStateLabels = {
+    TO_READ: 'Por leer',
+    READING: 'Leyendo',
+    READ: 'Leído',
+    ABANDONED: 'Abandonado',
+  };
   readonly searchForm = new FormGroup(
     {
       title: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
@@ -177,7 +194,7 @@ export class BooksCatalog {
     if (state.status === 'loading') return 'Cargando libros…';
     if (state.status === 'error') return '';
     if (state.response.totalElements === 0)
-      return this.currentSearch()
+      return this.currentSearch() || Object.keys(this.currentFilters()).length > 0
         ? 'No se encontraron libros'
         : 'Tu biblioteca todavía no tiene libros';
     if (state.response.content.length === 0) return 'No hay libros en esta página';
@@ -211,7 +228,11 @@ export class BooksCatalog {
               isbn: query.search?.isbn ?? '',
             });
           }
+          if (!this.appliedQuery || !sameBookFilters(this.appliedQuery.filters, query.filters)) {
+            this.filtersForm.reset(bookFiltersFormValue(query.filters));
+          }
           this.appliedQuery = query;
+          this.currentFilters.set(query.filters ?? {});
           this.currentSearch.set(query.search);
           this.currentSort.set({ sortBy: query.sortBy, direction: query.direction });
           this.pageIndex.set(query.page);
@@ -263,6 +284,57 @@ export class BooksCatalog {
       });
     this.destroyRef.onDestroy(() => this.confirmation?.close(false));
     this.destroyRef.onDestroy(() => this.datesDialog?.close());
+    this.destroyRef.onDestroy(() => {
+      const ref = this.scanDialog;
+      const manualRef = this.isbnImportDialog;
+      this.scanDialog = null;
+      this.isbnImportDialog = null;
+      ref?.close();
+      manualRef?.close();
+    });
+  }
+
+  openScanner(): void {
+    if (this.destroyRef.destroyed || this.scanDialog || this.isbnImportDialog) return;
+    const ref = this.dialog.open<IsbnScanDialog, void, string>(IsbnScanDialog, {
+      width: '36rem',
+      maxWidth: '95vw',
+      autoFocus: 'button',
+      restoreFocus: true,
+    });
+    this.scanDialog = ref;
+    ref
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isbn) => {
+        if (this.scanDialog !== ref || this.destroyRef.destroyed) return;
+        this.scanDialog = null;
+        if (isbn) this.navigateToIsbnCreation(isbn);
+      });
+  }
+
+  openIsbnImport(): void {
+    if (this.destroyRef.destroyed || this.scanDialog || this.isbnImportDialog) return;
+    const ref = this.dialog.open<BookIsbnImportDialog, void, string>(BookIsbnImportDialog, {
+      width: '28rem',
+      maxWidth: '95vw',
+      autoFocus: 'input',
+      restoreFocus: true,
+    });
+    this.isbnImportDialog = ref;
+    ref
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isbn) => {
+        if (this.isbnImportDialog !== ref || this.destroyRef.destroyed) return;
+        this.isbnImportDialog = null;
+        if (isbn) this.navigateToIsbnCreation(isbn);
+      });
+  }
+
+  private navigateToIsbnCreation(isbn: string): void {
+    if (this.destroyRef.destroyed || !isValidBarcodeIsbn13(isbn)) return;
+    void this.router.navigate(['/books/new'], { queryParams: { isbn } });
   }
 
   onPageChange(event: PageEvent): void {
@@ -305,6 +377,29 @@ export class BooksCatalog {
     if (this.deletingId() !== null) return;
     this.searchForm.reset();
     if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, search: null, page: 0 });
+  }
+
+  applyFilters(): void {
+    if (this.deletingId() !== null) return;
+    if (this.filtersForm.invalid) {
+      this.filtersForm.markAllAsTouched();
+      this.element.nativeElement
+        .querySelector<HTMLElement>('.filters-form .ng-invalid[formControlName]')
+        ?.focus();
+      return;
+    }
+    if (this.appliedQuery)
+      this.navigateQuery({
+        ...this.appliedQuery,
+        filters: filtersFromForm(this.filtersForm),
+        page: 0,
+      });
+  }
+
+  clearFilters(): void {
+    if (this.deletingId() !== null) return;
+    this.filtersForm.reset(bookFiltersFormValue());
+    if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, filters: {}, page: 0 });
   }
 
   onSortByChange(sortBy: BookCatalogSort['sortBy']): void {
@@ -504,8 +599,11 @@ export class BooksCatalog {
             ((action === 'readingStatus' ||
               action === 'startReading' ||
               action === 'finishReading') &&
-              this.currentSort().sortBy === 'readingStatus') ||
-            (action === 'rating' && this.currentSort().sortBy === 'rating');
+              (this.currentSort().sortBy === 'readingStatus' ||
+                !!this.currentFilters().readingStatus?.length)) ||
+            (action === 'rating' &&
+              (this.currentSort().sortBy === 'rating' ||
+                this.currentFilters().ratingMin !== undefined));
           if (
             !book ||
             affectsOrder ||
@@ -562,8 +660,8 @@ export class BooksCatalog {
       direction: query.direction,
     };
     const request = query.search
-      ? this.booksService.searchBooks(query.search, options)
-      : this.booksService.getBooks(options);
+      ? this.booksService.searchBooks(query.search, options, query.filters)
+      : this.booksService.getBooks(options, query.filters);
     return request.pipe(
       map((response) => {
         // HTTP generic types do not validate the actual JSON response.

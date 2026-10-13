@@ -3,6 +3,7 @@ package com.mibiblioteca.bookservice.book.dto;
 import com.mibiblioteca.bookservice.book.validation.DistinctGenres;
 import com.mibiblioteca.bookservice.book.validation.HttpUrl;
 import com.mibiblioteca.bookservice.book.validation.IsoLanguage;
+import com.mibiblioteca.bookservice.book.validation.LocationLabel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -38,6 +39,12 @@ public record BookRequest(
     String language,
     @Size(max = 10) @DistinctGenres
     @Schema(description = "Genres are trimmed, preserving case and order. Duplicates ignoring case and surrounding spaces are rejected. Omission, null or [] clears genres on PUT.", example = "[\"Fantasía\", \"Aventura\"]", nullable = true)
-    List<@NotBlank @Size(max = 50) String> genres
+    List<@NotBlank @Size(max = 50) String> genres,
+    @Size(max = 100) @LocationLabel
+    @Schema(description = "Optional physical room; trimmed, blanks become null. Omission/null/blank clears it on PUT. Single-line label, preserving case and accents.", nullable = true, example = "Salón") String room,
+    @Size(max = 100) @LocationLabel
+    @Schema(description = "Optional bookcase label; trimmed, blanks become null, including on PUT", nullable = true, example = "Billy izquierda") String bookcase,
+    @Size(max = 50) @LocationLabel
+    @Schema(description = "Optional shelf label, not an integer; trimmed, blanks become null, including on PUT", nullable = true, example = "Superior") String shelf
 ) {
 }

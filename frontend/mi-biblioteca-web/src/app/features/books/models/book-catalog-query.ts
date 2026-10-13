@@ -1,11 +1,18 @@
 import { ParamMap, Params } from '@angular/router';
 import { BookCatalogSort, BookSearchRequest } from './book.models';
 import { CRUD_ISBN_PATTERN } from './isbn-pattern';
+import {
+  BookFilters,
+  parseBookFilters,
+  sameBookFilters,
+  serializeBookFilters,
+} from './book-filters';
 
 export interface BookCatalogQuery extends BookCatalogSort {
   page: number;
   size: number;
   search: BookSearchRequest | null;
+  filters?: BookFilters;
 }
 
 export function parseBookCatalogQuery(params: ParamMap): BookCatalogQuery {
@@ -35,12 +42,14 @@ export function parseBookCatalogQuery(params: ParamMap): BookCatalogQuery {
     if (title) search.title = title;
     if (author) search.author = author;
   }
+  const filters = parseBookFilters(params);
   return {
     page: Number.isInteger(page) && page <= 2_147_483_647 ? page : 0,
     size,
     sortBy,
     direction,
     search: Object.keys(search).length ? search : null,
+    ...(Object.keys(filters).length ? { filters } : {}),
   };
 }
 
@@ -53,16 +62,21 @@ export function serializeBookCatalogQuery(query: BookCatalogQuery): Params {
   if (query.search?.title) params['title'] = query.search.title;
   if (query.search?.author) params['author'] = query.search.author;
   if (query.search?.isbn) params['isbn'] = query.search.isbn;
-  return params;
+  return { ...params, ...serializeBookFilters(query.filters) };
 }
 
 export function isCanonicalBookCatalogQuery(params: ParamMap, query: BookCatalogQuery): boolean {
   const canonical = serializeBookCatalogQuery(query);
   return (
     params.keys.length === Object.keys(canonical).length &&
-    params.keys.every(
-      (key) => params.getAll(key).length === 1 && params.get(key) === canonical[key],
-    )
+    params.keys.every((key) => {
+      const expected = Array.isArray(canonical[key]) ? canonical[key] : [canonical[key]];
+      const actual = params.getAll(key);
+      return (
+        actual.length === expected.length &&
+        actual.every((value, index) => value === expected[index])
+      );
+    })
   );
 }
 
@@ -72,7 +86,8 @@ export function sameBookCatalogQuery(a: BookCatalogQuery, b: BookCatalogQuery): 
     a.size === b.size &&
     a.sortBy === b.sortBy &&
     a.direction === b.direction &&
-    sameBookSearch(a.search, b.search)
+    sameBookSearch(a.search, b.search) &&
+    sameBookFilters(a.filters, b.filters)
   );
 }
 

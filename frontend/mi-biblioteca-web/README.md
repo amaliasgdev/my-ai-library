@@ -20,6 +20,89 @@ Abrir `http://localhost:4200/`. Para instalaciones reproducibles posteriores, us
 `npm ci`. No hace falta instalar Angular CLI globalmente; los scripts utilizan la
 versión local. No usar `--force` ni `--legacy-peer-deps` para resolver conflictos.
 
+## Escanear ISBN en alta
+
+### Importación múltiple
+
+**Importar ISBN** abre la página lazy `/books/import` (antes de rutas dinámicas),
+no un diálogo grande. Secciones: pegar, consultar, revisar, importar seleccionados
+y resumen. El contexto canónico del catálogo se conserva al volver, pero el lote
+solo vive en memoria local: recargar o salir pierde trabajo pendiente.
+
+Admite hasta **25 ISBN-13 válidos únicos**, **100 entradas detectadas** antes de
+deduplicar y **10.000 caracteres**. Se separa primero por líneas/CRLF/coma/`;`;
+espacios separan únicamente tokens completos inequívocos. Un ISBN con espacios o
+guiones internos usa `normalizeManualIsbnImport()` sin cambios. Texto ambiguo se
+muestra y requiere separadores claros, sin extracción/reparación, ISBN-10,
+Unicode digits ni tabs. Duplicados canónicos conservan primera posición y contador.
+Superar un límite bloquea todas las consultas, sin truncar silenciosamente.
+
+Cada fila distingue existencia, metadatos y creación. La comprobación exacta local
+`searchBooks({isbn}, {page:0,size:1})` nunca lleva filtros del catálogo. Existentes
+no consultan Open Library; errores de existencia no se consideran nuevos. Máximo
+**2 pipelines** concurrentes por lote, con progreso, cancelación, cola y guardas
+de generación. Reintentar consulta es explícito, sin retries automáticos.
+
+Los metadatos no hacen una fila Lista: **BookImportReviewDialog** reutiliza BookForm
+con borrador inicial real, ISBN readonly, scanner/lookup deshabilitados y botón
+**Confirmar datos**, que devuelve un BookRequest válido sin guardar. Permite
+completar metadatos parciales o no encontrados; Cancelar descarta esa revisión.
+Los inputs nuevos de BookForm conservan sus defaults en alta/edición normales.
+
+Solo filas confirmadas/nuevas se seleccionan. **Importar seleccionados** congela
+selección y llama `createBook()` con concurrencia **1**, sin transacción global.
+201 guarda ID y nunca se repite; 409 marca Conflicto sin sobrescribir; 400 requiere
+revisar y confirmar otra vez. Network/timeout/5xx son Resultado incierto y NO
+provocan retry automático: **Comprobar antes de reintentar** usa búsqueda exacta;
+si existe bloquea POST y ofrece detalle, si no existe permite seleccionar/reintentar
+explícitamente, advirtiendo que la petición anterior podría terminar más tarde.
+Detener espera la petición activa y deja de iniciar filas. El resumen conserva
+éxitos/errores individuales; no deshace éxitos previos.
+
+No se añade endpoint batch, store global, storage, dependencias ni cambios al
+scanner/cámara. La consulta de metadatos envía ISBN al backend/Open Library; no
+es offline. Cancelar Angular no asegura detener trabajo externo ni revierte commits.
+
+En el catálogo, **Introducir ISBN**, junto a **Añadir libro** y **Escanear ISBN**,
+abre un diálogo para iniciar el alta, no buscar libros guardados. Acepta solo
+ISBN-13 válido; puedes escribir espacios ASCII y guiones `-`, que se eliminan
+antes de comprobar prefijo/checksum (sin ISBN-10, Unicode ni correcciones).
+**Continuar** o Enter devuelve el ISBN canónico y navega a `/books/new?isbn=...`,
+reutilizando el consumo único y lookup de BookCreate. Si es inválido, muestra un
+error y permanece abierto. Cancelar/Escape/backdrop dejan el catálogo intacto.
+No se ejecuta lookup en el diálogo ni se guarda nada automáticamente: revisa los
+campos en alta y pulsa **Guardar**. Scanner y entrada manual no se superponen.
+
+En `/books/new`, **Escanear ISBN** abre un diálogo con cámara o **Seleccionar imagen**.
+Solo acepta códigos EAN-13 de ISBN con checksum válido (978/979, excluyendo 9790).
+El primer ISBN válido detiene la cámara, rellena el campo y ejecuta el mismo lookup
+que **Buscar por ISBN**, completando únicamente campos vacíos. Revisa los datos:
+solo **Guardar** crea el libro. Cancelar el scanner no modifica el formulario.
+
+En el catálogo, **Escanear ISBN**, junto a **Añadir libro**, sirve para añadir un
+libro, no para buscarlo en la biblioteca. Reutiliza el mismo diálogo; cancelar
+permanece en catálogo. Un ISBN válido navega a `/books/new?isbn=978...`.
+BookCreate consume esa semilla una sola vez con el formulario disponible, aplica
+el ISBN y ejecuta el lookup existente. Después reemplaza la URL por `/books/new`,
+sin repetir/cancelar la consulta ni resetear el formulario. También funciona al
+abrir directamente una URL con un único ISBN-13 válido; parámetros vacíos,
+inválidos o repetidos no se reparan y no lanzan lookup.
+Recargar la URL ya limpia no repite lookup ni restaura borradores; abrir de nuevo
+una URL con ISBN como nueva entrada sí consulta. El error conserva ISBN editable.
+Nunca hay persistencia automática: revisa los metadatos y pulsa **Guardar**.
+
+El reconocimiento usa ZXing local (`@zxing/browser` 0.1.5 y `@zxing/library` 0.21.3),
+cargado bajo demanda. Vídeo, frames e imágenes no se envían ni se guardan.
+El lookup posterior sí envía el ISBN al backend y consulta Open Library.
+JPEG/PNG: hasta 10 MiB y 20 millones de píxeles, sin preview ni subida.
+
+La cámara requiere **HTTPS o localhost**: `http://IP_DEL_PC:4200` desde un móvil
+no garantiza acceso. Si no hay cámara o permiso, siguen funcionando imagen,
+ISBN manual y Buscar por ISBN. La cámara se detiene al cerrar, ocultar pestaña
+o tras 60 segundos sin resultado; reanudar requiere una acción explícita.
+No hay scanner en edición, OCR, IA, QR ni creación automática.
+Los tests mockean cámara y decoder y no usan servicios externos ni cámara real.
+
 ## Comandos
 
 | Comando                | Función                                                 |
@@ -62,7 +145,7 @@ La pantalla muestra el catálogo real con tarjetas y paginación del servidor, o
 inicialmente por título ASC. **Añadir libro** abre un formulario con título y autor obligatorios,
 metadatos opcionales, géneros y URL externa de portada. Guardar crea el libro y vuelve
 al catálogo. **Editar** en cada tarjeta abre el mismo formulario con los valores actuales;
-Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada recibida,
+Guardar reemplaza los 13 campos del BookRequest, incluida ubicación, mediante PUT. La URL de portada recibida,
 incluidas las portadas gestionadas, se conserva exactamente si no se cambia; sustituirla
 o vaciarla reemplaza o elimina la referencia y el backend gestiona la limpieza.
 Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview local
@@ -84,7 +167,7 @@ a página 0 conservando el tamaño y el orden aplicado. **Limpiar búsqueda** va
 página 0, con el mismo tamaño y orden. Buscar/Limpiar búsqueda se bloquean durante DELETE, pero los
 campos siguen editables. Sin coincidencias se muestra «No se encontraron libros»;
 los errores de búsqueda son inline y permiten Reintentar. El catálogo conserva su consulta
-en la URL y al volver desde detalle/edición, sin localStorage. No implementa filtros avanzados,
+en la URL y al volver desde detalle/edición, sin localStorage. No implementa filtros adicionales por fechas/páginas/portada,
 libros ficticios, autenticación ni estado global. Tampoco hay
 SSR, PWA o Docker frontend. Crear otras carpetas compartidas solo cuando existan
 necesidades reales.
@@ -96,25 +179,50 @@ el tamaño y la búsqueda ya enviada; los inputs editados sin Buscar no se aplic
 El snapshot `currentSort` se conserva al paginar, cambiar tamaño, buscar, limpiar,
 reintentar y recargar después de DELETE, incluido el retroceso de una página vacía.
 Los dos selects se bloquean durante DELETE. No se ordena localmente ni se reubican
-estados o valoraciones nulas. No hay filtros: los endpoints actuales no admiten
-filtrar por estado, valoración, géneros ni año de publicación.
+estados o valoraciones nulas. Búsqueda, filtros y ordenación se combinan en backend.
+
+**Filtros del catálogo** es un formulario Material separado de búsqueda y alta:
+estado múltiple, valoración mínima, año desde/hasta, género, idioma, editorial,
+habitación, estantería y balda.
+Editar no navega ni hace GET. **Aplicar filtros** valida y pone página 0 conservando
+búsqueda/orden/tamaño; **Limpiar filtros** borra filtros y borradores, conservando
+esos mismos valores. Buscar/Limpiar búsqueda conserva filtros. Sin cambio efectivo
+no hay otro GET. Durante DELETE, Aplicar/Limpiar quedan bloqueados.
+
+Valoración es inclusiva (1–5), años inclusivos (1–2100, desde <= hasta); valores
+desconocidos no cumplen esos límites. Género coincide exactamente con un elemento
+del array sin distinguir mayúsculas (máximo 50), idioma usa código ISO de dos letras
+y editorial coincide parcialmente sin distinguir mayúsculas (máximo 255).
+Los textos se recortan exteriormente y `%`/`_` no son comodines SQL.
 
 ### URLs del catálogo
 
-La URL es la fuente de verdad de página, tamaño, orden y búsqueda aplicada. Ejemplos:
+La URL es la fuente de verdad de página, tamaño, orden, búsqueda y filtros aplicados. Ejemplos:
 
 - `/books`: página 0, tamaño 20, título ASC, sin búsqueda.
 - `/books?page=2&sortBy=author&direction=DESC&title=dune`.
 - `/books?size=50&isbn=9780306406157`.
+- `/books?readingStatus=READING&readingStatus=READ&ratingMin=4&genre=Terror`.
 
-Solo se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`.
-Los defaults se omiten. Parámetros inválidos/repetidos/desconocidos se normalizan
+Se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`,
+`readingStatus`, `ratingMin`, `yearFrom`, `yearTo`, `genre`, `language`, `publisher`,
+`room`, `bookcase`, `shelf`.
+Solo `readingStatus` puede repetirse (máximo cuatro ocurrencias, sin CSV); se
+deduplica y serializa en orden TO_READ/READING/READ/ABANDONED. Idioma se convierte
+a minúsculas, textos se recortan y vacíos/defaults se omiten. Un escalar inválido
+o repetido se descarta; si un estado es inválido se descarta todo el grupo; un rango
+invertido descarta ambos años. Parámetros desconocidos se eliminan y se normaliza
 sin alertas, reemplazando la URL antes de consultar. Un ISBN válido tiene prioridad
 sobre título/autor; textos demasiado largos se descartan, no se truncan.
 Buscar, ordenar y paginar crean historial normal; corregir la URL o retroceder
 automáticamente una página tras DELETE usa `replaceUrl`. Retry y recargas por
 escrituras no navegan y consultan la URL actual mediante la misma cadena cancelable.
-Los borradores sin Buscar se conservan al paginar/ordenar/reintentar.
+Los borradores de búsqueda y filtros se conservan al paginar/ordenar/reintentar/recargar.
+Solo un cambio URL de sus criterios sincroniza el formulario correspondiente.
+BooksService envía filtros a listado y búsqueda con un serializador HTTP común;
+ambos endpoints públicos siguen separados. Confirmaciones de estado/start/finish
+recargan si hay filtro de estado; valoración recarga si hay ratingMin, además de
+las recargas por orden dependiente existentes. No se filtran tarjetas localmente.
 
 Los enlaces Ver detalle/Editar transportan esos mismos parámetros; Volver al
 catálogo, Cancelar y Guardar en edición los conservan. Back/Forward y recargar
@@ -163,6 +271,43 @@ vigente. Se mantienen búsqueda, orden, página y tamaño. Las acciones de fecha
 comparten las guardas por libro y la exclusión global con DELETE de libro.
 
 ## Detalle del libro
+
+### Ubicación física opcional
+
+BookForm incluye **Ubicación** (Habitación, Estantería y Balda) en alta, edición y
+revisión de importación. Todos son opcionales, independientes y textuales: balda
+acepta `3`, `Superior` o `Abajo`. Límites raw: **100/100/50** caracteres, sin
+truncado; se rechazan controles Unicode (NUL/tab/CR/LF/DEL/C1) y separadores de
+línea/párrafo incluso en extremos. El builder recorta espacios exteriores y
+convierte vacíos a null, conservando capitalización, tildes, puntuación y espacios
+interiores. GET devuelve null cuando no hay valor; PUT reemplaza los tres y
+omitir/enviar null/vacío elimina ubicación. Se mantienen errores seguros por control.
+
+Detalle muestra una sección **Ubicación** con etiquetas explícitas solo si existe
+algún componente, omitiendo los ausentes. Las tarjetas muestran una línea compacta
+con ajuste en móvil: `Ubicación: Salón · Billy izquierda · Balda 3`. No hay
+placeholders, “Sin ubicación” ni dependencia de tooltip.
+
+Importación comienza con ubicación vacía en cada fila; solo la revisión manual
+la asigna, la confirmación la incluye en BookRequest y reabrir conserva la ubicación.
+No se copia entre filas ni desde filtros. El lookup ISBN no propone ni modifica
+estos campos; no se cambia el contrato Open Library.
+
+El panel de filtros agrega Habitación/Estantería/Balda sin GET al escribir.
+Aplicar/Limpiar conserva búsqueda/orden/tamaño y resetea página 0. Los parámetros
+`room`, `bookcase`, `shelf` coinciden exactamente sin distinguir mayúsculas, pero
+sí tildes (`Salón` = `salón`, distinto de `Salon`), y `%`/`_` son literales.
+URL: trim, capitalización conservada, vacíos omitidos y valores repetidos,
+overlong raw o con controles descartados individualmente sin alertas, con
+canonicalización antes de GET. Los helpers conservan contexto en detalle,
+edición, importación, vuelta, reload y Back/Forward; no se añade sorting por ubicación.
+
+`(room, bookcase, shelf)` es criterio textual, **no identidad estable de balda**.
+Para fotos, inventario persistente o reasignaciones masivas, la evolución prevista
+es Room -> Bookcase -> Shelf con Shelf ID estable y FK nullable desde Book.
+No se crean entidades ni esa migración ahora. Autocompletado autoritativo queda
+para una feature posterior: sin sugerencias de una página, cargar todo el catálogo
+ni nuevos endpoints de distintos.
 
 **Ver detalle** en cada tarjeta abre `/books/:id`, con portada, datos bibliográficos,
 géneros, estado/valoración, fechas de lectura, descripción y metadatos de creación

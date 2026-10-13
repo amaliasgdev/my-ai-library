@@ -4,6 +4,8 @@ import com.mibiblioteca.bookservice.book.dto.BookRequest;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
+import com.mibiblioteca.bookservice.book.dto.BookFilterRequest;
+import org.springframework.util.MultiValueMap;
 import com.mibiblioteca.bookservice.book.dto.UpdateReadingStatusRequest;
 import com.mibiblioteca.bookservice.book.dto.UpdateRatingRequest;
 import com.mibiblioteca.bookservice.book.dto.ReadingDateRequest;
@@ -68,7 +70,9 @@ public class BookController {
         ),
         @ApiResponse(responseCode = "400", ref = "BadRequest")
     })
+    @CatalogFilterParameters
     public BookPageResponse findAll(
+        @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> parameters,
         @Parameter(description = "Zero-based page number", example = "0")
         @RequestParam(defaultValue = "0") @Min(0) int page,
         @Parameter(description = "Page size from 1 to 100", example = "20")
@@ -78,11 +82,13 @@ public class BookController {
         @Parameter(description = "Sort direction", example = "ASC", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"ASC", "DESC"}))
         @RequestParam(defaultValue = "ASC") Sort.Direction direction
     ) {
-        return bookService.findAll(page, size, sortBy, direction);
+        BookFilterRequest filters = BookFilterRequest.fromQuery(parameters);
+        return filters.equals(BookFilterRequest.EMPTY) ? bookService.findAll(page, size, sortBy, direction)
+            : bookService.findAll(page, size, sortBy, direction, filters);
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search books", description = "Searches title and author partially without case sensitivity, combined with AND. ISBN is matched exactly after normalization and cannot be combined with title or author. At least one filter is required. Results use BookPageResponse, including empty pages. Defaults: page=0, size=20, sortBy=title, direction=ASC. Sorting uses id ASC as a tie-breaker unless sortBy=id.")
+    @Operation(summary = "Search books", description = "Searches title and author literally and partially without case sensitivity, combined with AND. ISBN is matched exactly after normalization and cannot be combined with title or author. At least one search criterion is required; catalog filters are optional and combine with AND, including with ISBN. Results use BookPageResponse, including empty pages. Defaults: page=0, size=20, sortBy=title, direction=ASC. Sorting uses id ASC as a tie-breaker unless sortBy=id.")
     @ApiResponses({
         @ApiResponse(
             responseCode = "200",
@@ -93,7 +99,9 @@ public class BookController {
         ),
         @ApiResponse(responseCode = "400", ref = "BadRequest")
     })
+    @CatalogFilterParameters
     public BookPageResponse search(
+        @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> parameters,
         @Valid @ParameterObject BookSearchRequest request,
         @Parameter(description = "Zero-based page number", example = "0")
         @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -104,7 +112,9 @@ public class BookController {
         @Parameter(description = "Sort direction", example = "ASC", schema = @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"ASC", "DESC"}))
         @RequestParam(defaultValue = "ASC") Sort.Direction direction
     ) {
-        return bookService.search(request, page, size, sortBy, direction);
+        BookFilterRequest filters = BookFilterRequest.fromQuery(parameters);
+        return filters.equals(BookFilterRequest.EMPTY) ? bookService.search(request, page, size, sortBy, direction)
+            : bookService.search(request, page, size, sortBy, direction, filters);
     }
 
     @GetMapping("/{id}")

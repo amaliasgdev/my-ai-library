@@ -54,6 +54,24 @@ describe('BookForm without HTTP or routing providers', () => {
     expect(fixture.nativeElement.querySelector('.isbn-lookup')).toBeNull();
   });
 
+  it('keeps scanner disabled by default and emits only an optional UI action', () => {
+    fixture.componentRef.setInput('lookupEnabled', true);
+    fixture.detectChanges();
+    expect(component.scanEnabled()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('Escanear ISBN');
+    fixture.componentRef.setInput('scanEnabled', true);
+    fixture.detectChanges();
+    const requested = vi.fn();
+    component.scanRequested.subscribe(requested);
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    const button = buttons.find((button) => button.textContent?.trim() === 'Escanear ISBN')!;
+    button.click();
+    expect(requested).toHaveBeenCalledOnce();
+    fixture.componentRef.setInput('submitting', true);
+    fixture.detectChanges();
+    expect(button.disabled).toBe(true);
+  });
+
   it('should emit lookup intent without HTTP providers and ignore POST-specific server errors', () => {
     fixture.componentRef.setInput('lookupEnabled', true);
     component.form.controls.isbn.setValue('978-0132350884');

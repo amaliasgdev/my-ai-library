@@ -66,8 +66,8 @@ class OpenApiDocumentationTest {
         Map<String, JsonNode> listParameters = parametersByName(paths.path("/api/books").path("get"));
         Map<String, JsonNode> searchParameters = parametersByName(paths.path("/api/books/search").path("get"));
 
-        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction");
-        for (String name : new String[] {"page", "size", "sortBy", "direction"}) {
+        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher", "room", "bookcase", "shelf");
+        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher", "room", "bookcase", "shelf"}) {
             assertThat(searchParameters.get(name).path("schema")).isEqualTo(listParameters.get(name).path("schema"));
             assertThat(searchParameters.get(name).path("in").asText()).isEqualTo("query");
             assertThat(searchParameters.get(name).path("required").asBoolean()).isFalse();
@@ -116,6 +116,27 @@ class OpenApiDocumentationTest {
             .andExpect(redirectedUrl("/swagger-ui/index.html"));
 
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+    }
+
+    @Test void shouldDocumentNullableTextualLocationAndExactFiltersWithoutNewRoutes() throws Exception {
+        JsonNode document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (String field : new String[]{"room", "bookcase", "shelf"}) {
+            for (String name : new String[]{"BookRequest", "BookResponse"}) {
+                JsonNode schema = document.path("components").path("schemas").path(name);
+                JsonNode property = schema.path("properties").path(field);
+                assertThat(property.path("type").toString()).contains("string");
+                assertThat(property.path("nullable").asBoolean() || property.path("type").toString().contains("null")).isTrue();
+                assertThat(schema.path("required").toString()).doesNotContain("\"" + field + "\"");
+            }
+            assertThat(document.path("components").path("schemas").path("BookRequest").path("properties").path(field).path("maxLength").asInt()).isEqualTo(field.equals("shelf") ? 50 : 100);
+            for (String path : new String[]{"/api/books", "/api/books/search"}) {
+                JsonNode parameter = parametersByName(document.path("paths").path(path).path("get")).get(field);
+                assertThat(parameter.path("description").asText()).contains("Exact case-insensitive");
+                assertThat(parameter.path("schema").path("maxLength").asInt()).isEqualTo(field.equals("shelf") ? 50 : 100);
+            }
+        }
+        assertThat(document.path("paths").has("/api/books/{id}/location")).isFalse();
+        assertThat(document.path("components").path("schemas").path("BookLookupResponse").path("properties").has("room")).isFalse();
     }
 
     @Test
