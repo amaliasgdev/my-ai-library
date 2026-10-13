@@ -5,8 +5,17 @@
     <button mat-button type="button" aria-describedby="catalog-scan-help" (click)="openScanner()">
       Escanear ISBN
     </button>
+    <button
+      mat-button
+      type="button"
+      aria-describedby="catalog-import-help"
+      (click)="openIsbnImport()"
+    >
+      Introducir ISBN
+    </button>
   </div>
   <p id="catalog-scan-help">Escanea para añadir un libro</p>
+  <p id="catalog-import-help">Introduce un ISBN para añadir un libro</p>
   <form
     class="search-form"
     [formGroup]="searchForm"

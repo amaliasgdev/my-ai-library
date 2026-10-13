@@ -22,6 +22,16 @@ versión local. No usar `--force` ni `--legacy-peer-deps` para resolver conflict
 
 ## Escanear ISBN en alta
 
+En el catálogo, **Introducir ISBN**, junto a **Añadir libro** y **Escanear ISBN**,
+abre un diálogo para iniciar el alta, no buscar libros guardados. Acepta solo
+ISBN-13 válido; puedes escribir espacios ASCII y guiones `-`, que se eliminan
+antes de comprobar prefijo/checksum (sin ISBN-10, Unicode ni correcciones).
+**Continuar** o Enter devuelve el ISBN canónico y navega a `/books/new?isbn=...`,
+reutilizando el consumo único y lookup de BookCreate. Si es inválido, muestra un
+error y permanece abierto. Cancelar/Escape/backdrop dejan el catálogo intacto.
+No se ejecuta lookup en el diálogo ni se guarda nada automáticamente: revisa los
+campos en alta y pulsa **Guardar**. Scanner y entrada manual no se superponen.
+
 En `/books/new`, **Escanear ISBN** abre un diálogo con cámara o **Seleccionar imagen**.
 Solo acepta códigos EAN-13 de ISBN con checksum válido (978/979, excluyendo 9790).
 El primer ISBN válido detiene la cámara, rellena el campo y ejecuta el mismo lookup

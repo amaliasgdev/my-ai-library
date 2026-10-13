@@ -5,6 +5,7 @@ import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
+import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
 import { testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
 import { provideCatalogRoutingTesting } from './books-catalog-routing.testing';
@@ -44,11 +45,78 @@ describe('Catalog scan-to-create action', () => {
     fixture.destroy();
     http.verify();
   });
-  function button(): HTMLButtonElement {
+  function button(text = 'Escanear ISBN'): HTMLButtonElement {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
-      (item) => item.textContent?.trim() === 'Escanear ISBN',
+      (item) => item.textContent?.trim() === text,
     )!;
   }
+  it('manual action is accessible, outside search and described as an add action', () => {
+    const action = button('Introducir ISBN');
+    expect(action.type).toBe('button');
+    expect(action.closest('form')).toBeNull();
+    expect(action.hasAttribute('mat-button')).toBe(true);
+    expect(action.getAttribute('aria-describedby')).toBe('catalog-import-help');
+    expect(fixture.nativeElement.querySelector('#catalog-import-help').textContent).toBe(
+      'Introduce un ISBN para añadir un libro',
+    );
+  });
+  it('opens one manual dialog with initial input focus', () => {
+    button('Introducir ISBN').click();
+    button('Introducir ISBN').click();
+    expect(open).toHaveBeenCalledExactlyOnceWith(
+      BookIsbnImportDialog,
+      expect.objectContaining({ autoFocus: 'input', restoreFocus: true }),
+    );
+  });
+  it.each(['Introducir ISBN', 'Escanear ISBN'])(
+    'does not overlay the other dialog while %s is open',
+    (first) => {
+      button(first).click();
+      button(first === 'Escanear ISBN' ? 'Introducir ISBN' : 'Escanear ISBN').click();
+      expect(open).toHaveBeenCalledOnce();
+    },
+  );
+  it('manual cancellation stays in catalog and permits the scanner', () => {
+    button('Introducir ISBN').click();
+    result.next(undefined);
+    expect(navigate).not.toHaveBeenCalled();
+    button().click();
+    expect(open).toHaveBeenCalledTimes(2);
+    http.expectNone((request) => request.url.includes('isbn-lookup') || request.method === 'POST');
+  });
+  it.each(['Introducir ISBN', 'Escanear ISBN'])(
+    '%s navigates once through the same canonical route boundary',
+    (text) => {
+      fixture.componentInstance.searchForm.controls.author.setValue('Unsubmitted search');
+      button(text).click();
+      result.next('9780306406157');
+      result.next('9780306406157');
+      expect(navigate).toHaveBeenCalledExactlyOnceWith(['/books/new'], {
+        queryParams: { isbn: '9780306406157' },
+      });
+      http.expectNone(
+        (request) => request.url.includes('isbn-lookup') || request.method === 'POST',
+      );
+    },
+  );
+  it.each(['9780306406158', '978-0306406157', ' 9780306406157', ''])(
+    'revalidates manual dialog result %j without normalizing at navigation boundary',
+    (isbn) => {
+      button('Introducir ISBN').click();
+      result.next(isbn);
+      expect(navigate).not.toHaveBeenCalled();
+    },
+  );
+  it('destroy closes manual dialog and ignores late results and further opens', () => {
+    button('Introducir ISBN').click();
+    fixture.destroy();
+    expect(close).toHaveBeenCalledOnce();
+    result.next('9780306406157');
+    fixture.componentInstance.openIsbnImport();
+    fixture.componentInstance.openScanner();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledOnce();
+  });
   it('exposes an accessible Material button outside search with an add-book explanation', () => {
     const action = button();
     expect(action).toBeDefined();

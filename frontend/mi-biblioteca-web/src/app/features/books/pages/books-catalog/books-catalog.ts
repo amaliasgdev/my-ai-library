@@ -33,6 +33,7 @@ import {
 } from 'rxjs';
 import { BookCard } from '../../components/book-card/book-card';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
+import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
   BookDeleteDialog,
@@ -134,6 +135,7 @@ export class BooksCatalog {
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
   private scanDialog: MatDialogRef<IsbnScanDialog, string> | null = null;
+  private isbnImportDialog: MatDialogRef<BookIsbnImportDialog, string> | null = null;
   private restoreFocusAfterReload = false;
   readonly currentSort = signal<BookCatalogSort>({ sortBy: 'title', direction: 'ASC' });
   protected readonly sortOptions: { value: BookCatalogSort['sortBy']; label: string }[] = [
@@ -268,13 +270,16 @@ export class BooksCatalog {
     this.destroyRef.onDestroy(() => this.datesDialog?.close());
     this.destroyRef.onDestroy(() => {
       const ref = this.scanDialog;
+      const manualRef = this.isbnImportDialog;
       this.scanDialog = null;
+      this.isbnImportDialog = null;
       ref?.close();
+      manualRef?.close();
     });
   }
 
   openScanner(): void {
-    if (this.destroyRef.destroyed || this.scanDialog) return;
+    if (this.destroyRef.destroyed || this.scanDialog || this.isbnImportDialog) return;
     const ref = this.dialog.open<IsbnScanDialog, void, string>(IsbnScanDialog, {
       width: '36rem',
       maxWidth: '95vw',
@@ -288,9 +293,32 @@ export class BooksCatalog {
       .subscribe((isbn) => {
         if (this.scanDialog !== ref || this.destroyRef.destroyed) return;
         this.scanDialog = null;
-        if (!isbn || !isValidBarcodeIsbn13(isbn)) return;
-        void this.router.navigate(['/books/new'], { queryParams: { isbn } });
+        if (isbn) this.navigateToIsbnCreation(isbn);
       });
+  }
+
+  openIsbnImport(): void {
+    if (this.destroyRef.destroyed || this.scanDialog || this.isbnImportDialog) return;
+    const ref = this.dialog.open<BookIsbnImportDialog, void, string>(BookIsbnImportDialog, {
+      width: '28rem',
+      maxWidth: '95vw',
+      autoFocus: 'input',
+      restoreFocus: true,
+    });
+    this.isbnImportDialog = ref;
+    ref
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isbn) => {
+        if (this.isbnImportDialog !== ref || this.destroyRef.destroyed) return;
+        this.isbnImportDialog = null;
+        if (isbn) this.navigateToIsbnCreation(isbn);
+      });
+  }
+
+  private navigateToIsbnCreation(isbn: string): void {
+    if (this.destroyRef.destroyed || !isValidBarcodeIsbn13(isbn)) return;
+    void this.router.navigate(['/books/new'], { queryParams: { isbn } });
   }
 
   onPageChange(event: PageEvent): void {
