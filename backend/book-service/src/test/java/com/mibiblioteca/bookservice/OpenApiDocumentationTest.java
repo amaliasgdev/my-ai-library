@@ -66,8 +66,8 @@ class OpenApiDocumentationTest {
         Map<String, JsonNode> listParameters = parametersByName(paths.path("/api/books").path("get"));
         Map<String, JsonNode> searchParameters = parametersByName(paths.path("/api/books/search").path("get"));
 
-        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction");
-        for (String name : new String[] {"page", "size", "sortBy", "direction"}) {
+        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher");
+        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher"}) {
             assertThat(searchParameters.get(name).path("schema")).isEqualTo(listParameters.get(name).path("schema"));
             assertThat(searchParameters.get(name).path("in").asText()).isEqualTo("query");
             assertThat(searchParameters.get(name).path("required").asBoolean()).isFalse();

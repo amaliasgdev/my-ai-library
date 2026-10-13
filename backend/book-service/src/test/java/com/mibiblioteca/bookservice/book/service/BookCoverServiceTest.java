@@ -79,8 +79,7 @@ class BookCoverServiceTest {
         Book book = bookWithCover();
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
         PageImpl<Book> page = new PageImpl<>(List.of(book), PageRequest.of(0, 20), 1);
-        when(bookRepository.findAll(any(PageRequest.class))).thenReturn(page);
-        when(bookRepository.findByTitleContainingIgnoreCase(any(), any())).thenReturn(page);
+        when(bookRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class))).thenReturn(page);
 
         assertThat(bookService.findById(1L).coverUrl()).isEqualTo(book.getCoverUrl());
         assertThat(bookService.findAll(0, 20, "title", Sort.Direction.ASC).content().getFirst().coverUrl())
