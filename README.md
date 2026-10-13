@@ -5,6 +5,13 @@
 Location: [`frontend/mi-biblioteca-web`](frontend/mi-biblioteca-web/README.md).
 Requires Node **22.22.3+ within Node 22** and npm **10+**.
 
+The catalog's **Introducir ISBN** action opens a Material dialog for manual
+ISBN-13 entry. ASCII spaces and hyphens are allowed and removed before strict
+checksum validation; ISBN-10 and other characters are rejected. Continue/Enter
+starts creation via `/books/new?isbn=...`, reusing BookCreate's existing one-time
+lookup and URL cleanup. Cancel stays in the catalog. Nothing is persisted until
+the user reviews the form and presses **Guardar**.
+
 ```powershell
 cd frontend/mi-biblioteca-web
 npm install
