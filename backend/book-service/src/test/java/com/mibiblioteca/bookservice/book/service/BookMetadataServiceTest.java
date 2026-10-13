@@ -85,6 +85,6 @@ class BookMetadataServiceTest {
     }
 
     private BookRequest request(String publisher, Integer year, Integer pages, String language, List<String> genres) {
-        return new BookRequest("Book", "Author", null, null, null, publisher, year, pages, language, genres);
+        return new BookRequest("Book", "Author", null, null, null, publisher, year, pages, language, genres, null, null, null);
     }
 }

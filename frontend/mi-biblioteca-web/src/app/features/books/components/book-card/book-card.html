@@ -18,6 +18,9 @@
     <mat-card-subtitle>{{ book().author }}</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content>
+    @if (location()) {
+      <p class="location">Ubicación: {{ location() }}</p>
+    }
     <p class="reading-status">{{ statusLabels[book().readingStatus] }}</p>
     @if (book().rating !== null) {
       <p class="rating">Valoración: {{ book().rating }} de 5</p>

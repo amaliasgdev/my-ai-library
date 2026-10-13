@@ -27,6 +27,9 @@ public final class BookSpecifications {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("language")), filters.language()));
         }
         if (filters.publisher() != null) spec = spec.and(contains("publisher", filters.publisher()));
+        if (filters.room() != null) spec = spec.and(location("room", filters.room()));
+        if (filters.bookcase() != null) spec = spec.and(location("bookcase", filters.bookcase()));
+        if (filters.shelf() != null) spec = spec.and(location("shelf", filters.shelf()));
         return spec;
     }
 
@@ -42,6 +45,10 @@ public final class BookSpecifications {
         String escaped = value.toLowerCase(Locale.ROOT)
             .replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
         return (root, query, cb) -> cb.like(cb.lower(root.get(field)), "%" + escaped + "%", '\\');
+    }
+
+    private static Specification<Book> location(String field, String value) {
+        return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), cb.lower(((HibernateCriteriaBuilder) cb).value(value)));
     }
 
     public static Specification<Book> genre(String genre) {

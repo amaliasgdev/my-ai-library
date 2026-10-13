@@ -1,4 +1,4 @@
-import { Component, input, OnChanges, output, signal } from '@angular/core';
+import { Component, computed, input, OnChanges, output, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { Params, RouterLink } from '@angular/router';
@@ -15,6 +15,12 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-dis
 })
 export class BookCard implements OnChanges {
   readonly book = input.required<BookResponse>();
+  protected readonly location = computed(() => {
+    const book = this.book();
+    return [book.room, book.bookcase, book.shelf ? 'Balda ' + book.shelf : null]
+      .filter(Boolean)
+      .join(' · ');
+  });
   readonly catalogParams = input<Params>({});
   readonly deleting = input(false);
   readonly deleteDisabled = input(false);

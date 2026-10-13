@@ -43,7 +43,7 @@ class BookCoverServiceTest {
     void shouldCreateBookWithOptionalCover(String coverUrl) {
         when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = bookService.create(new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl, null, null, null, null, null));
+        var response = bookService.create(new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl, null, null, null, null, null, null, null, null));
 
         ArgumentCaptor<Book> saved = ArgumentCaptor.forClass(Book.class);
         verify(bookRepository).save(saved.capture());
@@ -64,7 +64,7 @@ class BookCoverServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
         when(bookRepository.save(book)).thenReturn(book);
 
-        var response = bookService.update(1L, new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl, null, null, null, null, null));
+        var response = bookService.update(1L, new BookRequest("Clean Code", "Robert C. Martin", null, null, coverUrl, null, null, null, null, null, null, null, null));
 
         assertThat(book.getCoverUrl()).isEqualTo(coverUrl);
         assertThat(response.coverUrl()).isEqualTo(coverUrl);

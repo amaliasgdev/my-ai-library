@@ -37,6 +37,9 @@ describe('BookImport controlled HTTP workflow', () => {
                 ratingMin: '4',
                 genre: 'Terror',
                 sortBy: 'author',
+                room: 'Filtro Salón',
+                bookcase: 'Filtro Billy',
+                shelf: 'Filtro 3',
               }),
             },
           },
@@ -98,12 +101,44 @@ describe('BookImport controlled HTTP workflow', () => {
     expect(root.querySelector('a')?.getAttribute('href')).toContain('genre=Terror');
     http.expectNone((req) => req.method === 'GET');
   });
+
+  it('each row starts without location, confirmed location survives reopening and is sent in its POST only', () => {
+    analyze([A, B].join('\n'));
+    newBook(A);
+    newBook(B);
+    expect(page.rows()[0].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
+    expect(page.rows()[1].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
+    page.review(page.rows()[0]);
+    result.next(testBookRequest({ isbn: A, room: 'Salón', bookcase: 'Billy', shelf: 'Superior' }));
+    page.review(page.rows()[0]);
+    expect(open).toHaveBeenLastCalledWith(
+      BookImportReviewDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({ room: 'Salón', bookcase: 'Billy', shelf: 'Superior' }),
+      }),
+    );
+    result.next(undefined);
+    expect(page.rows()[0].request).toMatchObject({
+      room: 'Salón',
+      bookcase: 'Billy',
+      shelf: 'Superior',
+    });
+    expect(page.rows()[1].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
+    page.importSelected();
+    const request = post();
+    expect(request.request.body).toMatchObject({
+      room: 'Salón',
+      bookcase: 'Billy',
+      shelf: 'Superior',
+    });
+    request.flush(testBook());
+  });
   it('existence checks ignore catalog filters and existing ISBN never does lookup/POST', () => {
     analyze();
     const req = search();
     expect(req.request.params.get('page')).toBe('0');
     expect(req.request.params.get('size')).toBe('1');
-    for (const key of ['title', 'genre', 'readingStatus', 'ratingMin'])
+    for (const key of ['title', 'genre', 'readingStatus', 'ratingMin', 'room', 'bookcase', 'shelf'])
       expect(req.request.params.has(key)).toBe(false);
     req.flush(testBookPage({ content: [testBook({ id: 7 })], totalElements: 1 }));
     expect(page.rows()[0].existence).toBe('existing');

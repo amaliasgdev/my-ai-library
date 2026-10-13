@@ -2,6 +2,7 @@ import { FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms'
 import { BookFilters, FILTER_STATES } from '../../models/book-filters';
 import { ReadingStatus } from '../../models/book.models';
 import { isIsoLanguage } from '../../models/iso-language';
+import { locationLabel } from '../../components/book-form/book-form.validators';
 
 const integer: ValidatorFn = (control) =>
   control.value === null || Number.isInteger(control.value) ? null : { integer: true };
@@ -49,6 +50,18 @@ export function createBookFiltersForm() {
       genre: new FormControl('', { nonNullable: true, validators: [trimmedText(50)] }),
       language: new FormControl('', { nonNullable: true, validators: [language] }),
       publisher: new FormControl('', { nonNullable: true, validators: [trimmedText(255)] }),
+      room: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(100), locationLabel],
+      }),
+      bookcase: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(100), locationLabel],
+      }),
+      shelf: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.maxLength(50), locationLabel],
+      }),
     },
     { validators: [yearRange] },
   );
@@ -63,6 +76,9 @@ export function bookFiltersFormValue(filters: BookFilters = {}) {
     genre: filters.genre ?? '',
     language: filters.language ?? '',
     publisher: filters.publisher ?? '',
+    room: filters.room ?? '',
+    bookcase: filters.bookcase ?? '',
+    shelf: filters.shelf ?? '',
   };
 }
 
@@ -73,7 +89,7 @@ export function filtersFromForm(form: ReturnType<typeof createBookFiltersForm>):
   if (selected.length) filters.readingStatus = selected;
   for (const key of ['ratingMin', 'yearFrom', 'yearTo'] as const)
     if (value[key] !== null) filters[key] = value[key];
-  for (const key of ['genre', 'language', 'publisher'] as const) {
+  for (const key of ['genre', 'language', 'publisher', 'room', 'bookcase', 'shelf'] as const) {
     const text = value[key].trim();
     if (text) filters[key] = key === 'language' ? text.toLowerCase() : text;
   }

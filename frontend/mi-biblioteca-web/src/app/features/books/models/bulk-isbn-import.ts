@@ -81,6 +81,9 @@ export function importDraft(isbn: string, proposal?: BookLookupResponse): BookFo
     language: proposal?.language ?? '',
     genres: [...(proposal?.genres ?? [])],
     coverUrl: proposal?.coverUrl ?? '',
+    room: '',
+    bookcase: '',
+    shelf: '',
   };
 }
 

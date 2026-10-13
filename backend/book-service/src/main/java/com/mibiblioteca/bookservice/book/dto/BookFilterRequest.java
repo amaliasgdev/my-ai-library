@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.book.dto;
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.validation.IsoLanguageValidator;
+import com.mibiblioteca.bookservice.book.validation.LocationLabelValidator;
 import com.mibiblioteca.bookservice.common.exception.InvalidBookFilterException;
 import java.util.List;
 import java.util.Locale;
@@ -15,9 +16,12 @@ public record BookFilterRequest(
     Integer yearTo,
     String genre,
     String language,
-    String publisher
+    String publisher,
+    String room,
+    String bookcase,
+    String shelf
 ) {
-    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null);
+    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null, null, null, null);
 
     public BookFilterRequest {
         readingStatus = readingStatus == null ? List.of() : List.copyOf(readingStatus);
@@ -31,6 +35,9 @@ public record BookFilterRequest(
         }
         genre = text("genre", genre, 50);
         publisher = text("publisher", publisher, 255);
+        room = location("room", room, 100);
+        bookcase = location("bookcase", bookcase, 100);
+        shelf = location("shelf", shelf, 50);
         language = text("language", language, 2);
         if (!new IsoLanguageValidator().isValid(language, null)) {
             fail("language", "Must be a recognized ISO 639-1 code");
@@ -46,7 +53,8 @@ public record BookFilterRequest(
         if (raw.size() > 4) fail("readingStatus", "At most four occurrences are allowed");
         List<ReadingStatus> states = raw.stream().map(BookFilterRequest::state).toList();
         return new BookFilterRequest(states, integer(params, "ratingMin"), integer(params, "yearFrom"),
-            integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"));
+            integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"),
+            single(params, "room"), single(params, "bookcase"), single(params, "shelf"));
     }
 
     private static ReadingStatus state(String value) {
@@ -88,5 +96,15 @@ public record BookFilterRequest(
     }
     private static void fail(String key, String message) {
         throw new InvalidBookFilterException(key, message);
+    }
+
+    private static String location(String key, String value, int max) {
+        if (value == null) return null;
+        if (value.length() > max || !new LocationLabelValidator().isValid(value, null)) {
+            fail(key, "Must be a single-line label of at most " + max + " characters without controls");
+        }
+        String trimmed = value.replaceAll("^[\\p{Zs}\\uFEFF]+|[\\p{Zs}\\uFEFF]+$", "");
+        if (trimmed.isEmpty()) fail(key, "Must be nonblank");
+        return trimmed;
     }
 }

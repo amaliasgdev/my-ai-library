@@ -21,6 +21,9 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
     @Parameter(name = "yearTo", in = ParameterIn.QUERY, schema = @Schema(type = "integer", minimum = "1", maximum = "2100")),
     @Parameter(name = "genre", in = ParameterIn.QUERY, description = "Exact case-insensitive array element", schema = @Schema(type = "string", maxLength = 50)),
     @Parameter(name = "language", in = ParameterIn.QUERY, description = "ISO 639-1 code", schema = @Schema(type = "string", minLength = 2, maxLength = 2)),
-    @Parameter(name = "publisher", in = ParameterIn.QUERY, description = "Literal case-insensitive substring", schema = @Schema(type = "string", maxLength = 255))
+    @Parameter(name = "publisher", in = ParameterIn.QUERY, description = "Literal case-insensitive substring", schema = @Schema(type = "string", maxLength = 255)),
+    @Parameter(name = "room", in = ParameterIn.QUERY, description = "Exact case-insensitive, accent-sensitive room; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 100)),
+    @Parameter(name = "bookcase", in = ParameterIn.QUERY, description = "Exact case-insensitive bookcase; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 100)),
+    @Parameter(name = "shelf", in = ParameterIn.QUERY, description = "Exact case-insensitive textual shelf; single nonblank occurrence, trimmed, no controls", schema = @Schema(type = "string", maxLength = 50))
 })
 public @interface CatalogFilterParameters {}

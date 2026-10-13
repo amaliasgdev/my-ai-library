@@ -64,12 +64,12 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     ).find((item) => item.textContent?.trim() === label)!;
   }
 
-  it('renders an accessible separate filter form with seven controls and native submit', async () => {
+  it('renders an accessible separate filter form with ten controls and native submit', async () => {
     await loaded();
     const form = harness.routeNativeElement!.querySelector<HTMLFormElement>('.filters-form')!;
     expect(form.getAttribute('aria-labelledby')).toBe('filters-heading');
     expect(form.getAttribute('aria-describedby')).toBe('filters-help');
-    expect(form.querySelectorAll('mat-label')).toHaveLength(7);
+    expect(form.querySelectorAll('mat-label')).toHaveLength(10);
     expect(
       form.querySelector('mat-select[formControlName="readingStatus"]')?.hasAttribute('multiple'),
     ).toBe(true);
