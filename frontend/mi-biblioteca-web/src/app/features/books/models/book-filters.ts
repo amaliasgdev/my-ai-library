@@ -2,6 +2,7 @@ import { HttpParams } from '@angular/common/http';
 import { ParamMap, Params } from '@angular/router';
 import { ReadingStatus } from './book.models';
 import { isIsoLanguage } from './iso-language';
+import { isLocationLabel, LOCATION_LIMITS } from './book-location';
 
 export interface BookFilters {
   readingStatus?: ReadingStatus[];
@@ -11,6 +12,9 @@ export interface BookFilters {
   genre?: string;
   language?: string;
   publisher?: string;
+  room?: string;
+  bookcase?: string;
+  shelf?: string;
 }
 
 export const FILTER_STATES: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
@@ -47,6 +51,13 @@ export function parseBookFilters(params: ParamMap): BookFilters {
       if (isIsoLanguage(value)) result.language = value.toLowerCase();
     } else result[key] = value;
   }
+  for (const key of ['room', 'bookcase', 'shelf'] as const) {
+    const raw = params.getAll(key);
+    if (raw.length !== 1 || raw[0].length > LOCATION_LIMITS[key] || !isLocationLabel(raw[0]))
+      continue;
+    const value = raw[0].trim();
+    if (value) result[key] = value;
+  }
   return result;
 }
 
@@ -60,6 +71,12 @@ export function serializeBookFilters(filters: BookFilters = {}): Params {
   for (const key of ['genre', 'language', 'publisher'] as const) {
     const value = filters[key]?.trim();
     if (value) result[key] = key === 'language' ? value.toLowerCase() : value;
+  }
+  for (const key of ['room', 'bookcase', 'shelf'] as const) {
+    const raw = filters[key];
+    if (raw === undefined || raw.length > LOCATION_LIMITS[key] || !isLocationLabel(raw)) continue;
+    const value = raw.trim();
+    if (value) result[key] = value;
   }
   return result;
 }

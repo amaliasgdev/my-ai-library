@@ -29,15 +29,15 @@ class BookFilterSpecificationTest {
     }
     static Stream<Arguments> individual() {
         return Stream.of(
-            Arguments.of(new BookFilterRequest(List.of(ReadingStatus.READ, ReadingStatus.READING), null, null, null, null, null, null), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), 4, null, null, null, null, null), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), null, 2020, null, null, null, null), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, 2020, null, null, null), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, null, "TERROR", null, null), 1L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, "ES", null), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "pReSs"), 2L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "%"), 1L),
-            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "_"), 1L),
+            Arguments.of(new BookFilterRequest(List.of(ReadingStatus.READ, ReadingStatus.READING), null, null, null, null, null, null, null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), 4, null, null, null, null, null, null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), null, 2020, null, null, null, null, null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, 2020, null, null, null, null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, null, "TERROR", null, null, null, null, null), 1L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, "ES", null, null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "pReSs", null, null, null), 2L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "%", null, null, null), 1L),
+            Arguments.of(new BookFilterRequest(List.of(), null, null, null, null, null, "_", null, null, null), 1L),
             Arguments.of(BookFilterRequest.EMPTY, 4L)
         );
     }
@@ -46,7 +46,7 @@ class BookFilterSpecificationTest {
         assertThat(repository.count(BookSpecifications.filters(filter))).isEqualTo(total);
     }
     @Test void filtersAndSearchCombineWithAndIncludingIsbn() {
-        var filter = new BookFilterRequest(List.of(ReadingStatus.READ, ReadingStatus.READING), 4, 2020, 2020, "terror", "ES", "%_");
+        var filter = new BookFilterRequest(List.of(ReadingStatus.READ, ReadingStatus.READING), 4, 2020, 2020, "terror", "ES", "%_", null, null, null);
         var spec = BookSpecifications.filters(filter);
         assertThat(repository.count(spec)).isEqualTo(1);
         assertThat(repository.count(spec.and(BookSpecifications.search("a", "author", null)))).isEqualTo(1);
@@ -54,7 +54,7 @@ class BookFilterSpecificationTest {
         assertThat(repository.count(spec.and(BookSpecifications.search(null, null, "missing")))).isZero();
     }
     @Test void pagesCountAndStableSortDoNotLoseMatches() {
-        var spec = BookSpecifications.filters(new BookFilterRequest(List.of(), 4, null, null, null, null, null));
+        var spec = BookSpecifications.filters(new BookFilterRequest(List.of(), 4, null, null, null, null, null, null, null, null));
         var sort = Sort.by(Sort.Order.desc("title"), Sort.Order.asc("id"));
         var first = repository.findAll(spec, PageRequest.of(0, 1, sort));
         var second = repository.findAll(spec, PageRequest.of(1, 1, sort));

@@ -47,7 +47,7 @@ describe('BookImportReviewDialog without HTTP or routing', () => {
       author: 'Robert C. Martin',
       description: null,
     });
-    expect(Object.keys(close.mock.calls[0][0])).toHaveLength(10);
+    expect(Object.keys(close.mock.calls[0][0])).toHaveLength(13);
     fixture.destroy();
   });
   it('partial/no metadata requires manual title/author before confirmation', () => {
@@ -78,5 +78,22 @@ describe('BookImportReviewDialog without HTTP or routing', () => {
     form.form.controls.isbn.setValue('9788411014090');
     form.submit();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('location starts empty, can be confirmed manually without HTTP and is not provider metadata', () => {
+    const { form, close } = create();
+    expect(form.form.getRawValue()).toMatchObject({ room: '', bookcase: '', shelf: '' });
+    form.form.patchValue({ room: ' Salón ', bookcase: ' Billy ', shelf: ' Superior ' });
+    form.submit();
+    expect(close).toHaveBeenCalledWith(
+      expect.objectContaining({ room: 'Salón', bookcase: 'Billy', shelf: 'Superior' }),
+    );
+  });
+  it('cancel discards location edits without changing the original draft', () => {
+    const { form, draft, close } = create();
+    form.form.patchValue({ room: 'Salón', bookcase: 'Billy', shelf: '3' });
+    form.cancel();
+    expect(close).toHaveBeenCalledWith();
+    expect(draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
   });
 });

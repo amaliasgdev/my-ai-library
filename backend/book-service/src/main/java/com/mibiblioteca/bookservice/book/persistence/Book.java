@@ -57,6 +57,15 @@ public class Book {
     @Column(nullable = false, columnDefinition = "VARCHAR(50)[]")
     private List<String> genres = new ArrayList<>();
 
+    @Column(length = 100)
+    private String room;
+
+    @Column(length = 100)
+    private String bookcase;
+
+    @Column(length = 50)
+    private String shelf;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "reading_status", nullable = false, length = 20)
     private ReadingStatus readingStatus = ReadingStatus.TO_READ;
@@ -167,6 +176,13 @@ public class Book {
     public ReadingStatus getReadingStatus() {
         return readingStatus;
     }
+
+    public String getRoom() { return room; }
+    public void setRoom(String room) { this.room = room; }
+    public String getBookcase() { return bookcase; }
+    public void setBookcase(String bookcase) { this.bookcase = bookcase; }
+    public String getShelf() { return shelf; }
+    public void setShelf(String shelf) { this.shelf = shelf; }
 
     public void setReadingStatus(ReadingStatus readingStatus) {
         this.readingStatus = readingStatus;

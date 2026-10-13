@@ -35,7 +35,7 @@ import org.springframework.data.jpa.domain.Specification;
 @ExtendWith(MockitoExtension.class)
 class BookSearchServiceTest {
     @Test void filtersDoNotReplaceRequiredSearchCriteriaOrRelaxIsbnExclusivity() {
-        var filters = new BookFilterRequest(List.of(), 4, null, null, null, null, null);
+        var filters = new BookFilterRequest(List.of(), 4, null, null, null, null, null, null, null, null);
         assertThatThrownBy(() -> bookService.search(new BookSearchRequest(null, null, null), 0, 20, "title", Sort.Direction.ASC, filters))
             .isInstanceOf(InvalidSearchCriteriaException.class);
         assertThatThrownBy(() -> bookService.search(new BookSearchRequest("title", null, "9780306406157"), 0, 20, "title", Sort.Direction.ASC, filters))

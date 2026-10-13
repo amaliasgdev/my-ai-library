@@ -153,6 +153,24 @@
         <mat-hint>Coincidencia parcial, sin distinguir mayúsculas</mat-hint>
         <mat-error>Máximo 255 caracteres</mat-error>
       </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Habitación</mat-label>
+        <input matInput formControlName="room" />
+        <mat-hint>Coincidencia exacta, sin distinguir mayúsculas; distingue tildes</mat-hint>
+        <mat-error>Máximo 100 caracteres, una sola línea sin controles</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Estantería</mat-label>
+        <input matInput formControlName="bookcase" />
+        <mat-hint>Coincidencia exacta, sin distinguir mayúsculas</mat-hint>
+        <mat-error>Máximo 100 caracteres, una sola línea sin controles</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Balda</mat-label>
+        <input matInput formControlName="shelf" />
+        <mat-hint>Etiqueta textual, por ejemplo 3 o Superior; coincidencia exacta</mat-hint>
+        <mat-error>Máximo 50 caracteres, una sola línea sin controles</mat-error>
+      </mat-form-field>
     </div>
     @if (
       filtersForm.hasError('yearRange') &&

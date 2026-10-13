@@ -149,6 +149,27 @@
       }
     </div>
   </div>
+  <section aria-labelledby="location-form-heading">
+    <h2 id="location-form-heading">Ubicación</h2>
+    <div class="form-grid">
+      <mat-form-field>
+        <mat-label>Habitación</mat-label>
+        <input matInput formControlName="room" [readonly]="submitting()" />
+        <mat-error>{{ fieldError(form.controls.room) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Estantería</mat-label>
+        <input matInput formControlName="bookcase" [readonly]="submitting()" />
+        <mat-error>{{ fieldError(form.controls.bookcase) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Balda</mat-label>
+        <input matInput formControlName="shelf" [readonly]="submitting()" />
+        <mat-hint>Opcional; por ejemplo 3 o Superior</mat-hint>
+        <mat-error>{{ fieldError(form.controls.shelf) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
   <p role="status" aria-live="polite">{{ submitting() ? submissionMessage() : '' }}</p>
   <div class="actions">
     <button mat-flat-button type="submit" [disabled]="submitting() || saveDisabled()">

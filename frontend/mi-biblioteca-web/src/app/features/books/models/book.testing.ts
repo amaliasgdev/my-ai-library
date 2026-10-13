@@ -27,6 +27,9 @@ export function testBookRequest(overrides: Partial<BookRequest> = {}): BookReque
     pageCount: null,
     language: null,
     genres: [],
+    room: null,
+    bookcase: null,
+    shelf: null,
     ...overrides,
   };
 }
@@ -45,6 +48,9 @@ export function testBook(overrides: Partial<BookResponse> = {}): BookResponse {
     pageCount: null,
     language: null,
     genres: [],
+    room: null,
+    bookcase: null,
+    shelf: null,
     createdAt: '2026-10-01T12:00:00Z',
     updatedAt: '2026-10-01T12:00:00Z',
     readingStatus: 'TO_READ',

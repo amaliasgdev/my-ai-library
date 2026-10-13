@@ -88,6 +88,46 @@ Metadata consultation uses backend/Open Library, so this flow is not offline.
 
 ## Catalog filters
 
+### Optional physical location
+
+Books have optional text fields **room** (100 characters), **bookcase** (100)
+and **shelf** (50). Partial locations are allowed; shelf is a label such as `3`,
+`Superior` or `Abajo`, never an integer. V7 adds only three nullable columns to
+`book`, with no defaults, indexes, FK or new tables. Existing books remain unlocated.
+
+POST omission/null/blank stores null; PUT replaces all three fields, so omission,
+null or blank clears an old location. Responses include all three nullable fields.
+Raw input over the maximum is rejected before trimming, not truncated. Unicode
+control characters and line/paragraph separators are rejected; exterior spaces
+are trimmed, preserving case, accents, punctuation and internal spacing.
+
+BookForm's **Ubicación** section is available in creation, editing and bulk import
+review. Import location starts empty and is entered manually for each row; ISBN
+lookup/Open Library never fills or clears it. Detail displays explicit labels only
+for present components; cards show compact wrapping text only when location exists.
+
+The filter panel includes **Habitación**, **Estantería** and **Balda**, applied
+explicitly. Both list and search support:
+
+```text
+GET /api/books?room=Salón&bookcase=Billy%20izquierda&shelf=3
+GET /api/books/search?title=Dune&room=Salón
+```
+
+Location filters use AND and exact case-insensitive, accent-sensitive equality:
+`Salón` matches `salón`, not `Salon`; `%`/`_` are literal and null does not match.
+Each scalar may occur once, must be nonblank, within its raw limit and without
+controls. Invalid HTTP parameters return 400; invalid URL values are discarded
+individually before the GET, retaining valid filters and canonical navigation
+context through detail/edit/import, reload and Back/Forward. Sorting is unchanged.
+
+**The tuple (room, bookcase, shelf) is a textual criterion, not a stable shelf
+identity.** Shelf photos, persistent inventory and mass reassignment will require
+a separately approved evolution toward **Room -> Bookcase -> Shelf**, with stable
+Shelf ID and nullable Book FK. That model is not implemented now. Authoritative
+autocomplete is also deferred: no page-local guesses, full-catalog loading or new
+distinct-value endpoints.
+
 Both existing endpoints accept the same optional filters, preserving pagination,
 sorting and the `BookPageResponse` contract:
 
@@ -108,12 +148,15 @@ but can combine with filters. List and search share JPA Specifications.
 | `genre` | Trimmed nonblank <=50, exact case-insensitive array element |
 | `language` | Recognized two-letter ISO 639-1 code, case-insensitive |
 | `publisher` | Trimmed nonblank <=255, literal case-insensitive substring |
+| `room`, `bookcase` | Single nonblank text <=100 raw characters, trimmed, no controls, exact case-insensitive/accent-sensitive |
+| `shelf` | Single nonblank text <=50 raw characters; same exact matching, never numeric |
 
 Repeated scalar parameters, blank supplied filters and invalid values return
 400 ProblemDetail with public field names in `errors`. `%` and `_` are literals,
 not user-controlled SQL wildcards. Genre uses a Hibernate FunctionContributor
 rendering bound `EXISTS/unnest` on PostgreSQL `varchar[]`, tested for paging and
-count on PostgreSQL 16. No migrations, indexes or dependencies were added.
+count on PostgreSQL 16. Genre filtering adds no schema changes; physical location
+uses V7. No filter indexes or dependencies were added.
 
 The Material filter panel applies explicitly: editing does not request data.
 **Aplicar filtros** and **Limpiar filtros** reset page 0 while preserving search,

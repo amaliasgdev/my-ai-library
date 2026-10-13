@@ -56,6 +56,7 @@ public class BookService {
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
         applyMetadata(book, request);
+        applyLocation(book, request);
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -120,6 +121,7 @@ public class BookService {
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
         applyMetadata(book, request);
+        applyLocation(book, request);
 
         Book saved = bookRepository.save(book);
         covers.afterCommit(id, previousCover, saved.getCoverUrl());
@@ -285,7 +287,23 @@ public class BookService {
             book.getPublicationYear(),
             book.getPageCount(),
             book.getLanguage(),
-            book.getGenres()
+            book.getGenres(),
+            book.getRoom(),
+            book.getBookcase(),
+            book.getShelf()
         );
+    }
+
+    private void applyLocation(Book book, BookRequest request) {
+        book.setRoom(normalizeLocation(request.room()));
+        book.setBookcase(normalizeLocation(request.bookcase()));
+        book.setShelf(normalizeLocation(request.shelf()));
+    }
+
+    private String normalizeLocation(String value) {
+        if (value == null) return null;
+        // Unicode space separators + BOM match frontend trim for valid single-line labels.
+        String trimmed = value.replaceAll("^[\\p{Zs}\\uFEFF]+|[\\p{Zs}\\uFEFF]+$", "");
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -29,6 +29,7 @@ import {
   httpCoverUrl,
   integer,
   isoLanguage,
+  locationLabel,
   notBlank,
   optionalText,
 } from './book-form.validators';
@@ -104,6 +105,18 @@ export class BookForm implements OnChanges {
       validators: [Validators.maxLength(2048), httpCoverUrl],
     }),
     genres: new FormArray<FormControl<string>>([], genreList),
+    room: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(100), locationLabel],
+    }),
+    bookcase: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(100), locationLabel],
+    }),
+    shelf: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.maxLength(50), locationLabel],
+    }),
   });
 
   constructor() {
@@ -233,6 +246,8 @@ export class BookForm implements OnChanges {
     if (errors['max']) return `El valor máximo es ${errors['max'].max}`;
     if (errors['pattern']) return 'Introduce un ISBN con formato válido';
     if (errors['language']) return 'Introduce un código de idioma reconocido de dos letras';
+    if (errors['locationLabel'])
+      return 'Introduce una etiqueta de una sola línea, sin caracteres de control';
     if (errors['coverUrl'])
       return 'Introduce una URL HTTP/HTTPS válida, sin espacios ni credenciales';
     if (errors['duplicate']) return 'Este género ya está añadido';
