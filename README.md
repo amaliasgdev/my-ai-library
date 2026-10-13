@@ -15,6 +15,12 @@ Open `http://localhost:4200/`: `/` redirects to `/books`, a lazy-loaded, read-on
 paginated book catalog. Angular Material is the **only UI library**, with SCSS/CSS Grid and
 Flexbox for responsive layout. PrimeNG, Tailwind and Bootstrap are not installed.
 Use **Añadir libro** to open `/books/new`, create a book and return to the catalog.
+The catalog's **Escanear ISBN** add-book action reuses the existing local ZXing
+dialog (camera or image). Cancel stays in the catalog; a valid barcode navigates
+to `/books/new?isbn=...`. BookCreate consumes a single valid ISBN seed once,
+runs the existing metadata lookup and replaces the URL with `/books/new` without
+repeating or canceling the lookup. Reloading the clean URL does not lookup again;
+opening a fresh seeded URL does. Nothing is saved until the user presses **Guardar**.
 Each card has **Editar**, opening `/books/{id}/edit` with the current book values.
 Saving replaces all bibliographic fields and returns to the catalog; Cancelar returns without saving.
 There is no frontend deletion, search, fake book data, SSR or PWA yet.

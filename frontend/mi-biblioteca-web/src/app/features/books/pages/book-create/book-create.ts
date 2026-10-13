@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { finalize, Subscription } from 'rxjs';
 import { BookForm } from '../../components/book-form/book-form';
@@ -19,6 +19,7 @@ import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 export class BookCreate {
   private readonly service = inject(BooksService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private scanRef: MatDialogRef<IsbnScanDialog, string> | null = null;
@@ -31,6 +32,14 @@ export class BookCreate {
   private lookupSubscription: Subscription | null = null;
 
   constructor() {
+    // Entry seed only: URL cleanup and control edits never trigger this initialization again.
+    afterNextRender(() => {
+      if (this.destroyRef.destroyed) return;
+      const values = this.route.snapshot.queryParamMap.getAll('isbn');
+      if (values.length !== 1 || !isValidBarcodeIsbn13(values[0])) return;
+      this.applyScannedIsbn(values[0]);
+      void this.router.navigate(['/books/new'], { replaceUrl: true });
+    });
     this.destroyRef.onDestroy(() => {
       this.closeScanner();
       this.cancelLookup();
@@ -59,13 +68,17 @@ export class BookCreate {
         if (this.scanRef !== ref) return;
         this.scanRef = null;
         if (this.submitting() || !isbn || !isValidBarcodeIsbn13(isbn)) return;
-        this.cancelLookup();
-        const control = this.editor().form.controls.isbn;
-        control.setValue(isbn);
-        control.markAsDirty();
-        this.detectedIsbn.set(isbn);
-        this.lookup(isbn);
+        this.applyScannedIsbn(isbn);
       });
+  }
+
+  private applyScannedIsbn(isbn: string): void {
+    this.cancelLookup();
+    const control = this.editor().form.controls.isbn;
+    control.setValue(isbn);
+    control.markAsDirty();
+    this.detectedIsbn.set(isbn);
+    this.lookup(isbn);
   }
 
   private closeScanner(): void {

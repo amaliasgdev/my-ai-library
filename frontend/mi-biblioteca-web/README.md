@@ -28,6 +28,18 @@ El primer ISBN válido detiene la cámara, rellena el campo y ejecuta el mismo l
 que **Buscar por ISBN**, completando únicamente campos vacíos. Revisa los datos:
 solo **Guardar** crea el libro. Cancelar el scanner no modifica el formulario.
 
+En el catálogo, **Escanear ISBN**, junto a **Añadir libro**, sirve para añadir un
+libro, no para buscarlo en la biblioteca. Reutiliza el mismo diálogo; cancelar
+permanece en catálogo. Un ISBN válido navega a `/books/new?isbn=978...`.
+BookCreate consume esa semilla una sola vez con el formulario disponible, aplica
+el ISBN y ejecuta el lookup existente. Después reemplaza la URL por `/books/new`,
+sin repetir/cancelar la consulta ni resetear el formulario. También funciona al
+abrir directamente una URL con un único ISBN-13 válido; parámetros vacíos,
+inválidos o repetidos no se reparan y no lanzan lookup.
+Recargar la URL ya limpia no repite lookup ni restaura borradores; abrir de nuevo
+una URL con ISBN como nueva entrada sí consulta. El error conserva ISBN editable.
+Nunca hay persistencia automática: revisa los metadatos y pulsa **Guardar**.
+
 El reconocimiento usa ZXing local (`@zxing/browser` 0.1.5 y `@zxing/library` 0.21.3),
 cargado bajo demanda. Vídeo, frames e imágenes no se envían ni se guardan.
 El lookup posterior sí envía el ISBN al backend y consulta Open Library.
