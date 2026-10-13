@@ -20,6 +20,26 @@ Abrir `http://localhost:4200/`. Para instalaciones reproducibles posteriores, us
 `npm ci`. No hace falta instalar Angular CLI globalmente; los scripts utilizan la
 versión local. No usar `--force` ni `--legacy-peer-deps` para resolver conflictos.
 
+## Escanear ISBN en alta
+
+En `/books/new`, **Escanear ISBN** abre un diálogo con cámara o **Seleccionar imagen**.
+Solo acepta códigos EAN-13 de ISBN con checksum válido (978/979, excluyendo 9790).
+El primer ISBN válido detiene la cámara, rellena el campo y ejecuta el mismo lookup
+que **Buscar por ISBN**, completando únicamente campos vacíos. Revisa los datos:
+solo **Guardar** crea el libro. Cancelar el scanner no modifica el formulario.
+
+El reconocimiento usa ZXing local (`@zxing/browser` 0.1.5 y `@zxing/library` 0.21.3),
+cargado bajo demanda. Vídeo, frames e imágenes no se envían ni se guardan.
+El lookup posterior sí envía el ISBN al backend y consulta Open Library.
+JPEG/PNG: hasta 10 MiB y 20 millones de píxeles, sin preview ni subida.
+
+La cámara requiere **HTTPS o localhost**: `http://IP_DEL_PC:4200` desde un móvil
+no garantiza acceso. Si no hay cámara o permiso, siguen funcionando imagen,
+ISBN manual y Buscar por ISBN. La cámara se detiene al cerrar, ocultar pestaña
+o tras 60 segundos sin resultado; reanudar requiere una acción explícita.
+No hay scanner en edición, OCR, IA, QR ni creación automática.
+Los tests mockean cámara y decoder y no usan servicios externos ni cámara real.
+
 ## Comandos
 
 | Comando                | Función                                                 |

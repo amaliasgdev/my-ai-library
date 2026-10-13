@@ -56,6 +56,8 @@ export class BookForm implements OnChanges {
   readonly submitAttempted = output<void>();
   readonly cancelled = output<void>();
   readonly lookupEnabled = input(false);
+  readonly scanEnabled = input(false);
+  readonly scanRequested = output<void>();
   readonly lookupLoading = input(false);
   readonly lookupSuccess = input(false);
   readonly lookupError = input<string | null>(null);

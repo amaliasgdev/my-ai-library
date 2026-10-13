@@ -26,6 +26,11 @@
         >
           Buscar por ISBN
         </button>
+        @if (scanEnabled()) {
+          <button mat-button type="button" [disabled]="submitting()" (click)="scanRequested.emit()">
+            Escanear ISBN
+          </button>
+        }
         <p>Completa los campos vacíos. Revisa los datos antes de guardar.</p>
         <p role="status" aria-live="polite">
           {{

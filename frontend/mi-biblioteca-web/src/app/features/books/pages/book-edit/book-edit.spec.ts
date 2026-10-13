@@ -56,6 +56,8 @@ describe('BookEdit', () => {
   it('should not enable or render ISBN lookup in editing', () => {
     load();
     expect(component.editor()!.lookupEnabled()).toBe(false);
+    expect(component.editor()!.scanEnabled()).toBe(false);
+    expect(element.textContent).not.toContain('Escanear ISBN');
     expect(element.querySelector('.isbn-lookup')).toBeNull();
     component.editor()!.form.controls.isbn.setValue('9780132350884');
     component.editor()!.requestLookup();
