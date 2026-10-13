@@ -1,0 +1,21 @@
+mat-form-field {
+  display: block;
+  width: 100%;
+  margin-block-end: 1rem;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+.rows {
+  display: grid;
+  gap: 1rem;
+}
+article {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}

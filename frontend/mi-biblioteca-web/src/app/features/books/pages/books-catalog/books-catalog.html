@@ -2,6 +2,7 @@
   <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
   <div class="catalog-create-actions">
     <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+    <a mat-button routerLink="/books/import" [queryParams]="catalogParams()">Importar ISBN</a>
     <button mat-button type="button" aria-describedby="catalog-scan-help" (click)="openScanner()">
       Escanear ISBN
     </button>
