@@ -51,6 +51,41 @@ The proxy is not part of the production bundle; production routing is a future
 deployment responsibility. A Material light theme is active; dark theme styles
 are prepared under `html.app-dark`, without a theme selector.
 
+## Multiple ISBN import
+
+**Importar ISBN** in the catalog opens `/books/import`, preserving canonical
+catalog navigation context. Paste ISBN-13 entries separated by lines/CRLF,
+commas or semicolons. Spaces separate complete ISBN only when unambiguous;
+internal ASCII spaces/hyphens use the existing strict manual ISBN validation.
+Ambiguous input is shown for correction, never guessed or extracted from free text.
+ISBN-10, Unicode digits, tabs, invalid checksums/prefixes and 9790 are rejected.
+
+Limits are **25 valid unique ISBN**, **100 detected entries** and **10,000
+characters**. Exceeding a limit blocks all requests, without silent truncation.
+Canonical duplicates are counted and processed once. Exact local ISBN search
+precedes metadata lookup through backend/Open Library; at most **2** row pipelines
+run concurrently. Existing books skip lookup, and checking failures do not imply
+the ISBN is new. Cancellation stops queued work but cannot guarantee stopping
+external requests already running on the backend.
+
+Every new book requires **Confirmar datos** in a dialog reusing BookForm, with
+fixed ISBN and no HTTP. Partial or missing metadata can be completed manually.
+Only confirmed rows can be selected. **Importar seleccionados** then creates
+books using individual POSTs, **one at a time**, without a global transaction:
+previous successes remain when other rows fail. Detener waits for the active
+request and starts no further rows. The summary retains per-book results.
+
+409 means conflict, never overwrite; 400 requires correction. Network/timeouts/
+5xx are **uncertain**, with no automatic POST retry: first check the ISBN again;
+if it exists, do not POST; if absent, allow explicit retry with a warning that
+the previous request could still finish. Acknowledged successful POSTs are not
+repeated. Only a real violation of `uq_book_isbn` maps to 409; other integrity
+failures keep their existing treatment.
+
+The batch exists only in page memory. **Reloading or leaving loses pending work**,
+and cancellation does not roll back already-created books or server commits.
+Metadata consultation uses backend/Open Library, so this flow is not offline.
+
 ## Catalog filters
 
 Both existing endpoints accept the same optional filters, preserving pagination,

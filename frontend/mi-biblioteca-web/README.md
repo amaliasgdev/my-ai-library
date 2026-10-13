@@ -22,6 +22,47 @@ versión local. No usar `--force` ni `--legacy-peer-deps` para resolver conflict
 
 ## Escanear ISBN en alta
 
+### Importación múltiple
+
+**Importar ISBN** abre la página lazy `/books/import` (antes de rutas dinámicas),
+no un diálogo grande. Secciones: pegar, consultar, revisar, importar seleccionados
+y resumen. El contexto canónico del catálogo se conserva al volver, pero el lote
+solo vive en memoria local: recargar o salir pierde trabajo pendiente.
+
+Admite hasta **25 ISBN-13 válidos únicos**, **100 entradas detectadas** antes de
+deduplicar y **10.000 caracteres**. Se separa primero por líneas/CRLF/coma/`;`;
+espacios separan únicamente tokens completos inequívocos. Un ISBN con espacios o
+guiones internos usa `normalizeManualIsbnImport()` sin cambios. Texto ambiguo se
+muestra y requiere separadores claros, sin extracción/reparación, ISBN-10,
+Unicode digits ni tabs. Duplicados canónicos conservan primera posición y contador.
+Superar un límite bloquea todas las consultas, sin truncar silenciosamente.
+
+Cada fila distingue existencia, metadatos y creación. La comprobación exacta local
+`searchBooks({isbn}, {page:0,size:1})` nunca lleva filtros del catálogo. Existentes
+no consultan Open Library; errores de existencia no se consideran nuevos. Máximo
+**2 pipelines** concurrentes por lote, con progreso, cancelación, cola y guardas
+de generación. Reintentar consulta es explícito, sin retries automáticos.
+
+Los metadatos no hacen una fila Lista: **BookImportReviewDialog** reutiliza BookForm
+con borrador inicial real, ISBN readonly, scanner/lookup deshabilitados y botón
+**Confirmar datos**, que devuelve un BookRequest válido sin guardar. Permite
+completar metadatos parciales o no encontrados; Cancelar descarta esa revisión.
+Los inputs nuevos de BookForm conservan sus defaults en alta/edición normales.
+
+Solo filas confirmadas/nuevas se seleccionan. **Importar seleccionados** congela
+selección y llama `createBook()` con concurrencia **1**, sin transacción global.
+201 guarda ID y nunca se repite; 409 marca Conflicto sin sobrescribir; 400 requiere
+revisar y confirmar otra vez. Network/timeout/5xx son Resultado incierto y NO
+provocan retry automático: **Comprobar antes de reintentar** usa búsqueda exacta;
+si existe bloquea POST y ofrece detalle, si no existe permite seleccionar/reintentar
+explícitamente, advirtiendo que la petición anterior podría terminar más tarde.
+Detener espera la petición activa y deja de iniciar filas. El resumen conserva
+éxitos/errores individuales; no deshace éxitos previos.
+
+No se añade endpoint batch, store global, storage, dependencias ni cambios al
+scanner/cámara. La consulta de metadatos envía ISBN al backend/Open Library; no
+es offline. Cancelar Angular no asegura detener trabajo externo ni revierte commits.
+
 En el catálogo, **Introducir ISBN**, junto a **Añadir libro** y **Escanear ISBN**,
 abre un diálogo para iniciar el alta, no buscar libros guardados. Acepta solo
 ISBN-13 válido; puedes escribir espacios ASCII y guiones `-`, que se eliminan

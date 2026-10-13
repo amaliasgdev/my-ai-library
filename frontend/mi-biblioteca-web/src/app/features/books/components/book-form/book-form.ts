@@ -22,7 +22,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
-import { bookFormValue, buildBookRequest } from './book-form.helpers';
+import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
 import {
   CRUD_ISBN_PATTERN,
   genreList,
@@ -49,6 +49,9 @@ export class BookForm implements OnChanges {
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly initialBook = input<BookResponse | null>(null);
+  readonly initialDraft = input<BookFormValue | null>(null);
+  readonly saveLabel = input('Guardar');
+  readonly isbnReadonly = input(false);
   readonly submitting = input(false);
   readonly saveDisabled = input(false);
   readonly submissionMessage = input('Guardando libro…');
@@ -160,8 +163,10 @@ export class BookForm implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     const book = this.initialBook();
-    if (!changes['initialBook'] || !book) return;
-    const value = bookFormValue(book);
+    const draft = this.initialDraft();
+    if (!((changes['initialBook'] && book) || (changes['initialDraft'] && draft))) return;
+    const value = draft ?? (book ? bookFormValue(book) : null);
+    if (!value) return;
     this.form.controls.genres.clear();
     for (const genre of value.genres) this.form.controls.genres.push(this.genreControl(genre));
     this.form.reset(value);

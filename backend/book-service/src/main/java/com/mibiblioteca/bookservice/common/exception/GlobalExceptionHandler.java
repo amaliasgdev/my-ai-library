@@ -55,6 +55,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({DataAccessException.class, TransactionException.class})
     public ProblemDetail handlePersistence(Exception ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {
+                ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A book with this ISBN already exists");
+                problem.setTitle("Duplicate ISBN");
+                problem.setProperty("errors", Map.of("isbn", "Already exists"));
+                return problem;
+            }
+        }
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Database operation failed");
     }
 
