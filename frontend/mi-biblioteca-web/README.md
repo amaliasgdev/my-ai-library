@@ -145,7 +145,7 @@ La pantalla muestra el catálogo real con tarjetas y paginación del servidor, o
 inicialmente por título ASC. **Añadir libro** abre un formulario con título y autor obligatorios,
 metadatos opcionales, géneros y URL externa de portada. Guardar crea el libro y vuelve
 al catálogo. **Editar** en cada tarjeta abre el mismo formulario con los valores actuales;
-Guardar reemplaza los 10 campos bibliográficos mediante PUT. La URL de portada recibida,
+Guardar reemplaza los 13 campos del BookRequest, incluida ubicación, mediante PUT. La URL de portada recibida,
 incluidas las portadas gestionadas, se conserva exactamente si no se cambia; sustituirla
 o vaciarla reemplaza o elimina la referencia y el backend gestiona la limpieza.
 Cancelar vuelve sin guardar, sin confirmación de salida. No hay preview local
@@ -182,7 +182,8 @@ Los dos selects se bloquean durante DELETE. No se ordena localmente ni se reubic
 estados o valoraciones nulas. Búsqueda, filtros y ordenación se combinan en backend.
 
 **Filtros del catálogo** es un formulario Material separado de búsqueda y alta:
-estado múltiple, valoración mínima, año desde/hasta, género, idioma y editorial.
+estado múltiple, valoración mínima, año desde/hasta, género, idioma, editorial,
+habitación, estantería y balda.
 Editar no navega ni hace GET. **Aplicar filtros** valida y pone página 0 conservando
 búsqueda/orden/tamaño; **Limpiar filtros** borra filtros y borradores, conservando
 esos mismos valores. Buscar/Limpiar búsqueda conserva filtros. Sin cambio efectivo
@@ -204,7 +205,8 @@ La URL es la fuente de verdad de página, tamaño, orden, búsqueda y filtros ap
 - `/books?readingStatus=READING&readingStatus=READ&ratingMin=4&genre=Terror`.
 
 Se aceptan `page`, `size`, `sortBy`, `direction`, `title`, `author`, `isbn`,
-`readingStatus`, `ratingMin`, `yearFrom`, `yearTo`, `genre`, `language`, `publisher`.
+`readingStatus`, `ratingMin`, `yearFrom`, `yearTo`, `genre`, `language`, `publisher`,
+`room`, `bookcase`, `shelf`.
 Solo `readingStatus` puede repetirse (máximo cuatro ocurrencias, sin CSV); se
 deduplica y serializa en orden TO_READ/READING/READ/ABANDONED. Idioma se convierte
 a minúsculas, textos se recortan y vacíos/defaults se omiten. Un escalar inválido
@@ -269,6 +271,43 @@ vigente. Se mantienen búsqueda, orden, página y tamaño. Las acciones de fecha
 comparten las guardas por libro y la exclusión global con DELETE de libro.
 
 ## Detalle del libro
+
+### Ubicación física opcional
+
+BookForm incluye **Ubicación** (Habitación, Estantería y Balda) en alta, edición y
+revisión de importación. Todos son opcionales, independientes y textuales: balda
+acepta `3`, `Superior` o `Abajo`. Límites raw: **100/100/50** caracteres, sin
+truncado; se rechazan controles Unicode (NUL/tab/CR/LF/DEL/C1) y separadores de
+línea/párrafo incluso en extremos. El builder recorta espacios exteriores y
+convierte vacíos a null, conservando capitalización, tildes, puntuación y espacios
+interiores. GET devuelve null cuando no hay valor; PUT reemplaza los tres y
+omitir/enviar null/vacío elimina ubicación. Se mantienen errores seguros por control.
+
+Detalle muestra una sección **Ubicación** con etiquetas explícitas solo si existe
+algún componente, omitiendo los ausentes. Las tarjetas muestran una línea compacta
+con ajuste en móvil: `Ubicación: Salón · Billy izquierda · Balda 3`. No hay
+placeholders, “Sin ubicación” ni dependencia de tooltip.
+
+Importación comienza con ubicación vacía en cada fila; solo la revisión manual
+la asigna, la confirmación la incluye en BookRequest y reabrir conserva la ubicación.
+No se copia entre filas ni desde filtros. El lookup ISBN no propone ni modifica
+estos campos; no se cambia el contrato Open Library.
+
+El panel de filtros agrega Habitación/Estantería/Balda sin GET al escribir.
+Aplicar/Limpiar conserva búsqueda/orden/tamaño y resetea página 0. Los parámetros
+`room`, `bookcase`, `shelf` coinciden exactamente sin distinguir mayúsculas, pero
+sí tildes (`Salón` = `salón`, distinto de `Salon`), y `%`/`_` son literales.
+URL: trim, capitalización conservada, vacíos omitidos y valores repetidos,
+overlong raw o con controles descartados individualmente sin alertas, con
+canonicalización antes de GET. Los helpers conservan contexto en detalle,
+edición, importación, vuelta, reload y Back/Forward; no se añade sorting por ubicación.
+
+`(room, bookcase, shelf)` es criterio textual, **no identidad estable de balda**.
+Para fotos, inventario persistente o reasignaciones masivas, la evolución prevista
+es Room -> Bookcase -> Shelf con Shelf ID estable y FK nullable desde Book.
+No se crean entidades ni esa migración ahora. Autocompletado autoritativo queda
+para una feature posterior: sin sugerencias de una página, cargar todo el catálogo
+ni nuevos endpoints de distintos.
 
 **Ver detalle** en cada tarjeta abre `/books/:id`, con portada, datos bibliográficos,
 géneros, estado/valoración, fechas de lectura, descripción y metadatos de creación
