@@ -1,0 +1,193 @@
+<section aria-labelledby="reconciliation-heading" [attr.aria-busy]="loading() || pending()">
+  <h1 id="reconciliation-heading">Conciliar ubicaciones anteriores</h1>
+  <a mat-button routerLink="/locations">Volver a ubicaciones</a>
+  <p>La agrupación exacta no garantiza identidad física. Nada se convierte automáticamente.</p>
+  @if (data(); as result) {
+    <dl class="statistics">
+      <div>
+        <dt>Grupos pendientes</dt>
+        <dd>{{ result.statistics.pendingGroups }}</dd>
+      </div>
+      <div>
+        <dt>Libros pendientes</dt>
+        <dd>{{ result.statistics.pendingBooks }}</dd>
+      </div>
+      <div>
+        <dt>Grupos completos</dt>
+        <dd>{{ result.statistics.completeGroups }}</dd>
+      </div>
+      <div>
+        <dt>Grupos parciales</dt>
+        <dd>{{ result.statistics.partialGroups }}</dd>
+      </div>
+    </dl>
+  }
+  <p role="status">
+    Esta sesión: {{ sessionGroups() }} grupos y {{ sessionBooks() }} libros conciliados confirmados.
+  </p>
+  <form [formGroup]="filters" (ngSubmit)="apply()" aria-label="Filtros de conciliación">
+    <mat-form-field
+      ><mat-label>Tipo</mat-label
+      ><mat-select formControlName="type"
+        ><mat-option value="ALL">Todos</mat-option
+        ><mat-option value="COMPLETE">Completos</mat-option
+        ><mat-option value="PARTIAL">Parciales</mat-option></mat-select
+      ></mat-form-field
+    >
+    <mat-form-field
+      ><mat-label>Texto de ubicación</mat-label><input matInput formControlName="text" /><mat-error
+        >Máximo 255 caracteres</mat-error
+      ></mat-form-field
+    >
+    <button mat-flat-button type="submit" [disabled]="pending()">Aplicar</button
+    ><button mat-button type="button" [disabled]="pending()" (click)="clear()">Limpiar</button>
+  </form>
+  @if (writeMessage()) {
+    <p role="status">{{ writeMessage() }}</p>
+  }
+  @if (loading()) {
+    <p role="status">Cargando grupos pendientes…</p>
+  }
+  @if (error()) {
+    <p role="alert">{{ error() }}</p>
+  }
+  <button mat-button [disabled]="pending() || loading()" (click)="load()">
+    Actualizar / Reintentar lectura
+  </button>
+  @if (data(); as result) {
+    @if (result.content.length === 0) {
+      <p>No hay grupos pendientes para estos filtros.</p>
+    }
+    <table mat-table [dataSource]="result.content" aria-label="Grupos legacy pendientes">
+      <ng-container matColumnDef="room"
+        ><th mat-header-cell *matHeaderCellDef>Habitación</th>
+        <td mat-cell *matCellDef="let group">
+          <span class="mobile-label">Habitación: </span>{{ group.room ?? 'Sin habitación' }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="bookcase"
+        ><th mat-header-cell *matHeaderCellDef>Estantería</th>
+        <td mat-cell *matCellDef="let group">
+          <span class="mobile-label">Estantería: </span>{{ group.bookcase ?? 'Sin estantería' }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="shelf"
+        ><th mat-header-cell *matHeaderCellDef>Balda</th>
+        <td mat-cell *matCellDef="let group">
+          <span class="mobile-label">Balda: </span>{{ group.shelf ?? 'Sin balda' }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="counts"
+        ><th mat-header-cell *matHeaderCellDef>Cantidad</th>
+        <td mat-cell *matCellDef="let group">
+          {{ group.bookCount }} libros · {{ group.variantCount }} variantes
+        </td></ng-container
+      >
+      <ng-container matColumnDef="state"
+        ><th mat-header-cell *matHeaderCellDef>Estado</th>
+        <td mat-cell *matCellDef="let group">
+          {{ group.type === 'COMPLETE' ? 'Completo' : 'Parcial' }} ·
+          {{
+            group.match === 'EXACT'
+              ? 'Coincidencia exacta'
+              : group.match === 'NONE'
+                ? 'Sin coincidencia'
+                : group.match === 'AMBIGUOUS'
+                  ? 'Coincidencia ambigua'
+                  : 'Selección manual'
+          }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="suggestion"
+        ><th mat-header-cell *matHeaderCellDef>Sugerencia</th>
+        <td mat-cell *matCellDef="let group">
+          @if (group.destinationSuggestion; as suggestion) {
+            <p>
+              Coincidencia exacta sugerida: {{ suggestion.roomName }} ·
+              {{ suggestion.bookcaseName }} · {{ suggestion.shelfName }}
+            </p>
+            <button mat-button [disabled]="pending()" (click)="useSuggestion(group)">
+              Seleccionar sugerencia
+            </button>
+          } @else {
+            <span>Elige manualmente una balda</span>
+          }
+        </td></ng-container
+      >
+      <ng-container matColumnDef="destination"
+        ><th mat-header-cell *matHeaderCellDef>Destino seleccionado</th>
+        <td mat-cell *matCellDef="let group">
+          @if (active()?.groupKey === group.groupKey && destination(); as target) {
+            <p>{{ target.roomName }} · {{ target.bookcaseName }} · {{ target.shelfName }}</p>
+          } @else {
+            <span>Sin destino seleccionado</span>
+          }
+          <button mat-button [disabled]="pending()" (click)="choose(group)">Elegir destino</button>
+        </td></ng-container
+      >
+      <ng-container matColumnDef="actions"
+        ><th mat-header-cell *matHeaderCellDef>Acciones</th>
+        <td mat-cell *matCellDef="let group">
+          <button mat-button [disabled]="pending()" (click)="books(group)">Ver libros</button>
+          <button
+            mat-flat-button
+            [disabled]="
+              pending() ||
+              active()?.groupKey !== group.groupKey ||
+              !review() ||
+              !destination() ||
+              incomplete()
+            "
+            (click)="reconcile(group)"
+          >
+            Conciliar
+          </button>
+        </td></ng-container
+      >
+      <tr mat-header-row *matHeaderRowDef="columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+    </table>
+    <mat-paginator
+      aria-label="Páginas de grupos legacy"
+      [length]="result.totalElements"
+      [pageIndex]="result.page"
+      [pageSize]="result.size"
+      [pageSizeOptions]="[10, 20, 50, 100]"
+      [disabled]="pending()"
+      (page)="paginate($event)"
+    />
+  }
+  @for (group of active() ? [active()!] : []; track group.groupKey) {
+    <section class="destination-editor" aria-label="Selección de destino del grupo">
+      <h2>
+        Destino para {{ group.room ?? 'Sin habitación' }} /
+        {{ group.bookcase ?? 'Sin estantería' }} / {{ group.shelf ?? 'Sin balda' }}
+      </h2>
+      @if (group.type === 'PARTIAL') {
+        <p>
+          Estos libros comparten una ubicación incompleta; eso no garantiza que pertenezcan a la
+          misma balda.
+        </p>
+        <p>
+          Si pertenecen a distintas baldas, déjalos pendientes y edita cada libro individualmente.
+        </p>
+      }
+      <app-location-selector
+        [rooms]="editor.rooms()"
+        [loading]="editor.loading()"
+        [error]="editor.error()"
+        [shelfId]="shelfId()"
+        [disabled]="pending()"
+        (loadRequested)="loadLocations()"
+        (createRequested)="createLocation($event)"
+        (selected)="select($event)"
+      />
+      @if (incomplete()) {
+        <p role="alert">Selecciona una balda completa.</p>
+      }
+      @if (!review()) {
+        <p>Abre Ver libros y usa esa revisión antes de conciliar.</p>
+      }
+    </section>
+  }
+</section>

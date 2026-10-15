@@ -128,6 +128,45 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 
 ## Estructura y alcance
 
+### Conciliación asistida de legacy
+
+`/locations` enlaza **Conciliar ubicaciones anteriores** a la página lazy
+`/locations/reconcile`. Tabla Material con presentación apilada móvil mediante
+CSS local, estadísticas globales y filtros explícitos Todos/Completos/Parciales
+y texto. Escribir no lanza GET; Aplicar/Limpiar y paginación consultan backend.
+
+El backend agrupa exactamente por textos legacy tras trim exterior Unicode/BOM,
+case-insensitive y accent-sensitive, manteniendo puntuación/espacios interiores.
+No fuzzy matching ni conversión automática. La clave de grupo es opaca: no es
+Shelf ID ni versión. Una coincidencia completa única aparece como **Coincidencia
+exacta sugerida**, nunca seleccionada automáticamente. Parciales requieren una
+balda completa elegida manualmente o permanecen pendientes, sin inventar padres.
+
+**Ver libros** abre un diálogo paginado específico, con título/autor/ISBN y textos
+originales/variantes; no usa filtros de catálogo por nombres efectivos. Usar esta
+revisión acepta un reviewToken opaco del grupo completo. La huella separada
+permite avisar de cambios entre páginas sin decodificar el token. Elegir destino
+reutiliza LocationSelector/LocationEditor y los diálogos/CRUD existentes; crear
+una ubicación persiste inmediatamente aunque se cancele la conciliación.
+
+Antes del único POST explícito, un MatDialog muestra variantes, cantidad revisada,
+destino completo y aviso de reemplazo sin historial/deshacer automático. Durante
+POST no cambian destino ni se duplican acciones. El backend verifica HMAC/TTL
+(15m por defecto), count y fingerprint de IDs+textos originales, bloqueando
+destino/libros en una transacción atómica. **No xmin**, @Version global, V9 ni
+tabla de reconciliación/historial. Un grupo distinto no hereda la selección.
+
+Conflictos stale/expired/destination-changed requieren revisar y confirmar otra
+vez. Éxito confirmado incrementa solo contadores en memoria de la página y recarga
+listado/estadísticas; si falla ese GET, Reintentar solo repite GET. Red/5xx con
+resultado incierto no repite POST ni inventa estadísticas: actualizar y reabrir
+el grupo. Recargar/navegar pierde contadores de sesión, no revierte commits.
+
+Legacy permanece hasta conciliación explícita. Si un grupo parcial representa
+varias baldas físicas, dejar pendiente y editar libros individualmente. No hay
+split automático, bulk correction de textos, movimientos masivos generales,
+fuzzy matching, auto-merge, historial, fotos/OCR/IA o InventorySession.
+
 ### Jerarquía física de ubicaciones
 
 La ruta lazy **`/locations`**, accesible desde navegación principal, gestiona

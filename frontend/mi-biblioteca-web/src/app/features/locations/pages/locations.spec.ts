@@ -7,6 +7,15 @@ import { Locations } from './locations';
 import { testLocations } from '../models/location.testing';
 
 describe('Locations page', () => {
+  it('links to the independent reconciliation page without changing catalog filters', () => {
+    const fixture = create();
+    http.expectOne('/api/locations').flush([]);
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector(
+      'a[href="/locations/reconcile"]',
+    ) as HTMLAnchorElement;
+    expect(link.textContent).toContain('Conciliar ubicaciones anteriores');
+  });
   let http: HttpTestingController;
   beforeEach(() =>
     TestBed.configureTestingModule({
