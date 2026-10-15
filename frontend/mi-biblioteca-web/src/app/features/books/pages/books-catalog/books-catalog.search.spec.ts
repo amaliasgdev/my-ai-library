@@ -90,7 +90,7 @@ describe('BooksCatalog search', () => {
     });
     expect(fixture.componentInstance.currentSearch()).toBeNull();
     expect(element.querySelector('form')?.getAttribute('aria-labelledby')).toBe('search-heading');
-    expect(element.querySelectorAll('.search-form mat-label')).toHaveLength(3);
+    expect(element.querySelectorAll('form mat-label')).toHaveLength(3);
     expect(element.querySelector('button[type="submit"]')?.textContent?.trim()).toBe('Buscar');
     expect(
       Array.from(element.querySelectorAll('button')).find(

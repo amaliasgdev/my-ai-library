@@ -49,9 +49,6 @@ export interface BookRequest {
   pageCount: number | null;
   language: string | null;
   genres: string[];
-  room: string | null;
-  bookcase: string | null;
-  shelf: string | null;
 }
 
 export interface BookResponse {
@@ -66,9 +63,6 @@ export interface BookResponse {
   pageCount: number | null;
   language: string | null;
   genres: string[];
-  room: string | null;
-  bookcase: string | null;
-  shelf: string | null;
   createdAt: string;
   updatedAt: string;
   readingStatus: ReadingStatus;

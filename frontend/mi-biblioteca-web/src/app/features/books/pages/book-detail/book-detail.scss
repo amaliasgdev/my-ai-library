@@ -48,10 +48,6 @@ dd {
 .description {
   white-space: pre-wrap;
 }
-
-[aria-labelledby='location-heading'] dd {
-  white-space: pre-wrap;
-}
 .metadata {
   color: var(--mat-sys-on-surface-variant);
   font-size: 0.875rem;

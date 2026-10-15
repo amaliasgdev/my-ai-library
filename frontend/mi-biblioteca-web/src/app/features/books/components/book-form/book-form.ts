@@ -22,14 +22,13 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
-import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
+import { bookFormValue, buildBookRequest } from './book-form.helpers';
 import {
   CRUD_ISBN_PATTERN,
   genreList,
   httpCoverUrl,
   integer,
   isoLanguage,
-  locationLabel,
   notBlank,
   optionalText,
 } from './book-form.validators';
@@ -50,9 +49,6 @@ export class BookForm implements OnChanges {
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly initialBook = input<BookResponse | null>(null);
-  readonly initialDraft = input<BookFormValue | null>(null);
-  readonly saveLabel = input('Guardar');
-  readonly isbnReadonly = input(false);
   readonly submitting = input(false);
   readonly saveDisabled = input(false);
   readonly submissionMessage = input('Guardando libro…');
@@ -60,8 +56,6 @@ export class BookForm implements OnChanges {
   readonly submitAttempted = output<void>();
   readonly cancelled = output<void>();
   readonly lookupEnabled = input(false);
-  readonly scanEnabled = input(false);
-  readonly scanRequested = output<void>();
   readonly lookupLoading = input(false);
   readonly lookupSuccess = input(false);
   readonly lookupError = input<string | null>(null);
@@ -105,18 +99,6 @@ export class BookForm implements OnChanges {
       validators: [Validators.maxLength(2048), httpCoverUrl],
     }),
     genres: new FormArray<FormControl<string>>([], genreList),
-    room: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(100), locationLabel],
-    }),
-    bookcase: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(100), locationLabel],
-    }),
-    shelf: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(50), locationLabel],
-    }),
   });
 
   constructor() {
@@ -176,10 +158,8 @@ export class BookForm implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     const book = this.initialBook();
-    const draft = this.initialDraft();
-    if (!((changes['initialBook'] && book) || (changes['initialDraft'] && draft))) return;
-    const value = draft ?? (book ? bookFormValue(book) : null);
-    if (!value) return;
+    if (!changes['initialBook'] || !book) return;
+    const value = bookFormValue(book);
     this.form.controls.genres.clear();
     for (const genre of value.genres) this.form.controls.genres.push(this.genreControl(genre));
     this.form.reset(value);
@@ -246,8 +226,6 @@ export class BookForm implements OnChanges {
     if (errors['max']) return `El valor máximo es ${errors['max'].max}`;
     if (errors['pattern']) return 'Introduce un ISBN con formato válido';
     if (errors['language']) return 'Introduce un código de idioma reconocido de dos letras';
-    if (errors['locationLabel'])
-      return 'Introduce una etiqueta de una sola línea, sin caracteres de control';
     if (errors['coverUrl'])
       return 'Introduce una URL HTTP/HTTPS válida, sin espacios ni credenciales';
     if (errors['duplicate']) return 'Este género ya está añadido';

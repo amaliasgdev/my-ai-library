@@ -22,7 +22,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class BookPaginationServiceTest {
@@ -38,12 +37,12 @@ class BookPaginationServiceTest {
         book.setId(1L);
         book.setTitle("Clean Code");
         book.setAuthor("Robert C. Martin");
-        when(bookRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(new PageImpl<>(List.of(book), PageRequest.of(1, 2), 5));
+        when(bookRepository.findAll(any(PageRequest.class))).thenReturn(new PageImpl<>(List.of(book), PageRequest.of(1, 2), 5));
 
         var response = bookService.findAll(1, 2, "title", Sort.Direction.DESC);
 
         ArgumentCaptor<PageRequest> pageable = ArgumentCaptor.forClass(PageRequest.class);
-        org.mockito.Mockito.verify(bookRepository).findAll(any(Specification.class), pageable.capture());
+        org.mockito.Mockito.verify(bookRepository).findAll(pageable.capture());
         assertThat(pageable.getValue().getSort()).containsExactly(Sort.Order.desc("title"), Sort.Order.asc("id"));
         assertThat(response.page()).isEqualTo(1);
         assertThat(response.size()).isEqualTo(2);
@@ -53,12 +52,12 @@ class BookPaginationServiceTest {
 
     @Test
     void findAllShouldNotDuplicateIdSort() {
-        when(bookRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(Page.empty());
+        when(bookRepository.findAll(any(PageRequest.class))).thenReturn(Page.empty());
 
         bookService.findAll(0, 20, "id", Sort.Direction.DESC);
 
         ArgumentCaptor<PageRequest> pageable = ArgumentCaptor.forClass(PageRequest.class);
-        org.mockito.Mockito.verify(bookRepository).findAll(any(Specification.class), pageable.capture());
+        org.mockito.Mockito.verify(bookRepository).findAll(pageable.capture());
         assertThat(pageable.getValue().getSort()).containsExactly(Sort.Order.desc("id"));
     }
 

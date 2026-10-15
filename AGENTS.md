@@ -139,29 +139,22 @@ frontend/mi-biblioteca-web/
 - BooksService uses HttpClient and API_CONFIG for getBooks(), searchBooks(BookSearchRequest, BooksPageRequest?), createBook(), getBook(id), updateBook(id, BookRequest), deleteBook(id), updateReadingStatus(id, status), updateRating(id, rating), deleteRating(id), startReading(id, ReadingDateRequest), finishReading(id, ReadingDateRequest), updateReadingDates(id, UpdateReadingDatesRequest) and deleteReadingDates(id); list/search UI defaults to title ASC with server-side sorting
 - BookCatalogSort/currentSort exposes only title, author, createdAt, readingStatus and rating with ASC/DESC; separate Material selects apply changes immediately, reset page to 0 and retain pageSize/currentSearch; selecting the same value does not reload
 - BookCatalogQuery in models/book-catalog-query.ts represents URL-applied page/size/sortBy/direction/search using existing types; URL is the sole source of navigable catalog state, with no default HTTP trigger before reading queryParamMap
-- Catalog URL supports page/size/sortBy/direction/title/author/isbn and readingStatus/ratingMin/yearFrom/yearTo/genre/language/publisher/room/bookcase/shelf; page is digit-only 0..2147483647, size is 10/20/50/100, sortBy is title/author/createdAt/readingStatus/rating and direction is exactly ASC/DESC. Only readingStatus may repeat; unknown parameters are removed
+- Only page/size/sortBy/direction/title/author/isbn are supported; page is digit-only 0..2147483647, size is 10/20/50/100, sortBy is title/author/createdAt/readingStatus/rating and direction is exactly ASC/DESC; invalid or repeated parameters fall back independently, unknown parameters are removed
 - Defaults page=0/size=20/sortBy=title/direction=ASC/search=null are omitted from deterministic serialization; pure parse/serialize/canonical comparison helpers compare keys/values independent of order, and noncanonical URLs replace history before any GET
 - URL search trims text, discards blank/overlong values without truncation, uses the existing CRUD ISBN syntax without checksum, gives valid ISBN priority over title/author and retains valid title/author if ISBN is invalid; invalid URLs produce no validation alerts
 - User search/sort/page/size actions only navigate normally when the applied state changes; accepted canonical URL updates signals and drives one switchMap GET chain with internal retry/write-reload events, removing stale cards and canceling previous GET
 - Search inputs synchronize initially or when URL-applied search changes, never on page/sort/retry/write reload; drafts stay independent from currentSearch and do not navigate or request until explicit valid submit
 - New searches and Limpiar búsqueda preserve currentSort; page-size changes preserve sorting/search and reset page to 0; no frontend sorting, custom status order or null-rating rearrangement
-- Backend list/search share BookSpecifications and JpaSpecificationExecutor; BookFilterRequest validates raw query cardinality before repository access. Filters combine with AND, states with IN. Genre uses bound Hibernate book_genre_matches via EXISTS/unnest over varchar[], proven on PostgreSQL 16 for paging/count without duplicate rows; no migration/index/dependency changes
-- Filter params: readingStatus exact enum, at most 4 occurrences, deduplicated, no CSV; ratingMin integer 1..5; yearFrom/yearTo integers 1..2100 with from <= to; genre trimmed nonblank <=50; language trimmed recognized ISO 639-1 lowercase; publisher trimmed nonblank <=255, literal case-insensitive substring (%/underscore escaped). Scalars may occur once, present empty values return 400 ProblemDetail errors with public names; null ratings/years do not satisfy active bounds
-- BooksCatalog has a separate typed Reactive Material filter form and currentFilters URL snapshot. Apply/Clear reset page 0 preserving search/sort/size; search/Clear search retain filters. Draft edits never request/navigate, and drafts survive page/sort/retry/write reload. DELETE blocks Apply/Clear with UI/code guards
-- URL filters omit defaults/empty values, trim text, lowercase language and deduplicate states in fixed enum order. Invalid/repeated scalar filters are discarded independently, invalid/overlong state groups are discarded entirely, inverted year ranges discard both bounds; canonical replaceUrl occurs before GET, without validation alerts. Detail/edit context uses the same helpers and preserves filters
-- BooksService getBooks(options, filters?) and searchBooks(criteria, options, filters?) share filter HTTP serialization, repeating state parameters and omitting empty/undefined values. State/start/finish confirmations reload current query when a state filter is active; rating confirmations reload when ratingMin is active, in addition to existing sort-dependent reloads; never locally filter/reorder or repeat successful writes
+- Backend list/search has no readingStatus, rating, genres or publicationYear filters; do not create currentFilters or unsupported filtering controls
 - BooksCatalog has an inline typed Reactive search form for title/author/isbn; only Buscar or native form submit starts a search, never keystrokes
 - currentSearch is the URL-applied search snapshot (null means normal list), independent from edited inputs; one GET chain selects getBooks() or searchBooks(), preserving criteria for pagination, retry and DELETE reload
 - Search requires at least one nonblank criterion; title/author can combine, ISBN is exclusive; limits are 255/255/20 and ISBN uses the shared CRUD syntax pattern without checksum or ISBN lookup
 - New searches and page-size changes navigate to page 0 and retain current criteria/size/sort as applicable; Limpiar always resets draft inputs and navigates to normal list page 0 preserving size/sort, without GET if effective state is unchanged; no localStorage/sessionStorage persistence
 - Search failures preserve form and snapshot with safe inline messages and explicit retry of the actual failed request; no results means No se encontraron libros, not an empty library
 - Frontend BookResponse/BookPageResponse models mirror the backend; nullable fields remain nullable and ISO dates remain strings
-- BookRequest is a separate frontend request model with exactly 13 creation/edit fields, including room/bookcase/shelf; empty optional values become null and absent genres become []
-- Physical location is optional and partial: room/bookcase/shelf are nullable text (100/100/50 raw characters), never numeric shelf IDs. BookForm exposes Habitación/Estantería/Balda in create/edit/import review; null preloads as empty, builder trims exterior Unicode space separators and maps blanks to null while preserving case, accents, punctuation and inner spaces. Validate raw length before trim and reject Unicode Cc/Zl/Zp characters; no silent truncation/repair
-- BookDetail shows an explicitly labelled Ubicación section only when any component exists, omitting absent fields; BookCard shows compact optional Ubicación text with mobile wrapping, no tooltip or placeholder. Lookup never proposes, fills or clears physical location. Bulk drafts start empty and each confirmed request/draft preserves manually entered location independently, never from catalog filters or another row
-- room/bookcase/shelf filters work in list/search through BookSpecifications: AND, exact lower(column)=lower(bound value), case-insensitive but accent-sensitive, literal %/_, null does not match active filters, no sorting changes. Raw filter scalars occur once, must be nonblank, within 100/100/50 and without Cc/Zl/Zp controls; invalid HTTP yields 400 errors under the public field name. Frontend drafts request only on Apply/Clear; URL discards each invalid/repeated/overlong raw value independently, trims valid ones, preserves case and canonicalizes before GET. Shared helpers preserve them through detail/edit/import context and Back/Forward
+- BookRequest is a separate frontend request model with exactly 10 creation/edit fields; empty optional values become null and absent genres become []
 - /books/new and /books/:id/edit lazy-load standalone BookCreate and BookEdit; static routes precede dynamic routes
-- /books/:id lazy-loads standalone BookDetail; route order is books/import, books/new, books/:id/edit, books/:id, books. BookCard has separate accessible Ver detalle, Editar and Eliminar actions; the whole card is not a link
+- /books/:id lazy-loads standalone BookDetail; route order is books/new, books/:id/edit, books/:id, books. BookCard has separate accessible Ver detalle, Editar and Eliminar actions; the whole card is not a link
 - BookDetail uses existing getBook(id), local loading/loaded/error state and one switchMap GET chain for route IDs and explicit retry; changing ID immediately removes old content and cancels GET, and takeUntilDestroyed cancels subscriptions
 - book-id.ts shares digit-only positive safe-integer parsing between BookEdit and BookDetail; invalid IDs produce a local error without HTTP or retry. Valid-ID GET errors use safe 404/0/general messages and retry only the current GET
 - BookDetail shows confirmed cover/fallback, title/author, all bibliographic metadata, ISO language code unchanged, ordered read-only Material genre chips, status/rating, reading dates, description with preserved newlines and discreet createdAt/updatedAt; responsive local CSS Grid uses cover/content columns on desktop and one column on mobile
@@ -172,39 +165,17 @@ frontend/mi-biblioteca-web/
 - book-delete.helpers.ts shares only dialog configuration and safe DELETE error mapping with BooksCatalog; BookDetail guards duplicate dialogs/writes, blocks its navigation while DELETE is pending, closes dialogs/cancels client requests on route change or destruction and rejects stale results; cancellation does not roll back a server commit
 - BookDetail has no inline editing, reading-state/date writes, cover management or ISBN lookup
 - BookForm shares typed Reactive Forms, Material fields, validators, genres, pending input, the sole BookRequest builder and server field error handling; it has no HTTP or routing responsibilities
-- BookForm additionally supports initialDraft (BookFormValue, never a fake BookResponse), saveLabel (default Guardar) and isbnReadonly (default false) for BookImportReviewDialog; normal create/edit defaults and validation remain unchanged. Review disables scanner/lookup by their existing false defaults, validates and emits BookRequest only; Confirmar datos never writes
 - BookCreate/BookEdit own HTTP, submission state, safe general messages and navigation; no inheritance or generic form framework
-- Individual ISBN lookup is available at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; /books/import separately orchestrates explicit bulk lookup using the same endpoint. BookEdit exposes no lookup controls/states
-- Catalog Importar ISBN opens lazy /books/import, transporting only canonical catalog context through existing helpers; returning preserves search/filters/page/size/sort. Batch text/results/progress remain page-local memory, never query params/storage; reload/navigation loses pending work and client cancellation never rolls back server commits
-- Bulk ISBN parser first separates CR/LF/comma/semicolon, accepts a single 13-digit candidate with ASCII spaces/hyphens, or splits space-separated complete 13-digit tokens only when unambiguous; ambiguous/free-text/Unicode/tab input is displayed without guessing/repair. Each candidate uses unchanged normalizeManualIsbnImport (ISBN-13/checksum/978/979/no9790); deduplicate valid canonical ISBN preserving first position and occurrence count. Limits: 25 valid unique ISBN, 100 detected entries before deduplication, 10000 characters; exceeding any bound blocks all HTTP without silently truncating
-- Bulk rows separate existence pending/new/existing/error, metadata pending/found/notFound/error and creation notReady/ready/creating/created/error/uncertain. Exact searchBooks({isbn}, {page:0,size:1}) without catalog filters precedes lookup, at most 2 row pipelines concurrently; existing ISBN skips lookup, existence error is never new. Cancellation stops GETs/queue and generation guards reject late results; retries are explicit and per failed row
-- Bulk metadata never makes a row ready automatically. Each valid/new row must be confirmed in BookImportReviewDialog with fixed ISBN and valid BookRequest; partial/notFound/error metadata may be completed manually, existence errors/existing/invalid/unconfirmed/created rows cannot be selected. Review has no HTTP/routing/persistence
-- Importar seleccionados freezes selection and POSTs existing createBook() one at a time, without global transaction. 201 records ID/created and is never repeated; 409 is conflict/existing with no overwrite, 400 needs review/reconfirmation, network/timeouts/5xx become uncertain with no automatic POST retry. Reconcile uncertain via exact ISBN search: existing blocks POST, absent permits explicit selection/retry with warning that an earlier request may still complete. Detener stops new writes but waits for the active request; progress and per-row summary remain visible
-- Local ISBN barcode scanning is available in BookCreate and through the catalog's Escanear ISBN add-book action; both reuse IsbnScanDialog, with no scanner in BookEdit. BookForm's scanEnabled defaults false and scanRequested is UI-only; BookCreate owns the existing lookup
-- Catalog scan success revalidates the unchanged barcode ISBN helper and navigates only to /books/new?isbn=...; cancel stays in the catalog, destruction closes the dialog and late results never navigate
-- Catalog Introducir ISBN opens BookIsbnImportDialog with a typed Reactive form and no HTTP/routing. normalizeManualIsbnImport accepts only ASCII digits/space/hyphen, removes only space/hyphen and uses the unchanged isValidBarcodeIsbn13 checksum/prefix/9790 validation; ISBN-10, Unicode digits and all other characters are rejected without repair. Invalid submit marks touched and keeps the dialog open; Enter and Continuar share native form submit
-- Catalog scanner/manual dialogs have separate local references and cannot duplicate or overlap; both return canonical ISBN to the same private navigation method, which revalidates without normalization and sends only /books/new?isbn=.... Cancel never navigates, destruction closes both and ignores late results; BookCreate retains all lookup/URL consumption responsibilities and Guardar remains the sole persistence path
-- BookCreate consumes its initial ISBN query seed once after BookForm is rendered: exactly one isbn value passing isValidBarcodeIsbn13, no repair/trim/permissive normalization. Invalid/empty/repeated values do not fill or request; accepted seeds share scanner application, execute one existing lookup and replace the URL with /books/new without cancel/reset/retrigger. Reloading the clean URL does not lookup; a fresh explicit seeded entry does
-- ZXing @zxing/browser 0.1.5 and @zxing/library 0.21.3 are pinned for Node 22; decoder modules load dynamically only during scanner use, without Angular wrapper, native second engine, CDN, OCR or AI
-- Scanner accepts EAN-13 only, exactly 13 ASCII digits with 978/979 prefix, valid checksum and no 9790 (ISMN); scanner-only isValidBarcodeIsbn13 does not tighten CRUD/search/manual lookup validation
-- Camera requests audio:false and facingMode ideal environment only after opening; video is muted/playsinline, one decoder session runs at 250ms intervals and stops after 60 seconds without ISBN; explicit retry/image/manual entry remain available
-- Camera requires HTTPS or localhost; http://a-LAN-IP:4200 is not guaranteed to support getUserMedia, with no TLS/proxy/CORS changes
-- IsbnBarcodeReader owns idempotent cleanup of frame/deadline timers, all tracks, video.srcObject, temporary image URLs and callback generation; closing/cancel/Escape/backdrop/destroy/navigation/timeout release resources, and late getUserMedia streams are stopped without attachment
-- Hidden tabs stop requesting/scanning camera sessions and require explicit restart; no automatic resume, torch, zoom or advanced camera selection
-- Local images accept nonempty JPEG/PNG <=10 MiB and <=20000000 decoded pixels; stop camera first, decode one image without upload/base64/preview/crop, revoke object URLs on every outcome and discard file references
-- First valid detection stops the session and closes the dialog once; invalid products/checksums/formats never modify the form and camera continues with one nonblocking warning instead of per-frame announcements
-- Opening scanner cancels prior ISBN lookup without auto-resume on cancel; accepted ISBN updates the control dirty while preserving touched, shows detected ISBN, then calls the same BookCreate.lookup/BooksService.lookupByIsbn/BookForm.applyLookup path
-- Detected ISBN survives lookup errors and clears on manual ISBN edits; lookup preserves all existing empty-field/draft/description/genres/cover semantics and only explicit Guardar creates a book
-- Barcode recognition is local, with no frames/images sent to backend or persisted; subsequent metadata lookup sends ISBN to backend/Open Library, so the complete flow is not offline
+- ISBN lookup is available only at /books/new: optional BookForm UI is disabled by default and enabled by BookCreate; BookEdit exposes no lookup controls/states
 - BooksService.lookupByIsbn(isbn) uses GET /api/books/isbn-lookup with HttpParams and the raw typed ISBN; independent BookLookupResponse has isbn/title/author/publisher/publicationYear/pageCount/language/genres/coverUrl, never description
-- Lookup is consultative: no persistence, book creation or local duplicate checks; manual lookup uses local empty/pattern/length guards only and backend checksum/normalization; the scanner independently validates detected ISBN-13 without changing the manual contract
+- Lookup is consultative: no persistence, book creation or local duplicate checks; strict checksum/normalization remains backend-only, with local empty/pattern/length guards only
 - Lookup fills only currently empty text fields and null numeric fields, always replaces ISBN with the backend normalized value, never touches description, and preserves edits made during the GET; null proposals never erase values
 - Lookup genres apply only with no existing chips and no pending genre text, using existing validators without merge; coverUrl copies exactly into an empty field, without image requests/preview/upload
 - BookCreate owns idle/loading/success/error and one cancelable GET subscription; ISBN edits cancel and return idle without automatic requests, guarded snapshots prevent stale application, and normalized programmatic ISBN updates preserve success
 - Submission attempts, Cancelar and destruction cancel lookup; createBook remains the sole persistence path and uses the existing BookRequest builder; lookup never blocks the rest of the form
 - Changed lookup controls become dirty, untouched/touched is preserved, and provider errors are safe inline messages separate from CRUD field/general errors; 400/404/502/503/504/0 have specific messages, no automatic retry or Retry-After display
 - BookEdit validates digit-only positive safe integer route IDs before GET, uses loading/loaded/error states and switchMap cancellation for GET only; no empty form while loading
-- Preloaded text nulls become empty inputs, numbers stay numeric/null, and the form starts pristine/untouched; PUT replaces all 13 BookRequest fields
+- Preloaded text nulls become empty inputs, numbers stay numeric/null, and the form starts pristine/untouched; PUT replaces all 10 BookRequest fields
 - coverUrl is preloaded and submitted exactly, including managed URLs; backend alone checks ownership and handles cleanup, with no URL rewriting or image manipulation in Angular
 - Managed cover UI is available only in BookEdit at /books/:id/edit, outside BookRequest; BookCreate has no upload; BooksService.uploadCover(id, File) POSTs FormData with exactly field file and no manual Content-Type, returning BookResponse; deleteCover(id) sends bodyless DELETE and receives 204
 - COVERS_CONFIG centralizes publicBaseUrl (development default matches backend http://localhost:8081/api/covers); configure it to match backend COVERS_PUBLIC_BASE_URL when deploying, without physical storage paths or inferred incoming origins
@@ -244,7 +215,7 @@ frontend/mi-biblioteca-web/
 - MatPaginator uses page/size/totalElements, sizes 10/20/50/100, default 20 and page 0 on size changes; Spanish labels are scoped to the catalog
 - Catalog errors use safe inline messages and explicit retry, not snackbars or automatic retries
 - Angular Material remains the only UI library; responsive cards use native CSS Grid and local SCSS
-- No additional filters (reading dates/pageCount/cover/timestamps), ISBN lookup/scanner in editing, automatic lookup except after explicit valid barcode scan or a valid initial consumable ISBN seed in creation, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
+- No frontend filters, ISBN lookup in editing, automatic lookup, cover upload in creation, local cover preview/processing, reading history/multiple periods, custom interactive stars or fake runtime book data
 - API_CONFIG injection token centralizes apiBaseUrl = /api; services must not scatter backend origins
 - Configure provideHttpClient() in app.config.ts; no interceptors or generic API framework until actually needed
 - Development proxy /api/** targets http://localhost:8081, without path rewriting or backend CORS changes
@@ -633,25 +604,24 @@ Verified:
 - Book reading status is implemented
 - Book rating is implemented
 - Book reading dates are implemented
-- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL), V6 (book metadata), V7 (physical location)
+- Flyway migrations: V1 (book table), V2 (reading status), V3 (rating), V4 (reading dates), V5 (cover URL), V6 (book metadata)
 - OpenAPI documentation is available
 - Book pagination and book search pagination are implemented
 - Optional external book cover URL references are implemented (referenced images are not downloaded or stored locally)
 - Book bibliographic metadata is implemented (publisher, publicationYear, pageCount, language, genres)
 - Consultative ISBN metadata lookup using Open Library is implemented (no persistence)
-- Frontend consultative ISBN lookup is available in /books/new and explicit bulk /books/import; creation fills empty fields preserving user edits, while bulk requires BookForm review of each proposal and explicit selected individual creation
+- Frontend consultative ISBN lookup is available in /books/new only, filling empty fields with normalized ISBN and preserving description/user edits; saving remains explicit
 - Angular/Material frontend setup and read-only paginated /books catalog are implemented (BooksService, frontend book models, BookCard and MatPaginator)
 - Frontend creation at /books/new and editing at /books/:id/edit are implemented with shared BookForm, BookRequest, createBook(), getBook(), updateBook() and Material controls
 - Frontend deletion is implemented through deleteBook(), BookCard actions and BookDeleteDialog confirmation, with backend reload and one-page fallback when empty
 - Frontend submitted search by title/author or exclusive ISBN is implemented with searchBooks(), currentSearch snapshot, server pagination and search-preserving DELETE reload
-- Frontend server-side sorting UI is implemented for title/author/createdAt/readingStatus/rating with currentSort and ASC/DESC; search, filters, pagination, retry and DELETE preserve the applied sorting
+- Frontend server-side sorting UI is implemented for title/author/createdAt/readingStatus/rating with currentSort and ASC/DESC; search, pagination, retry and DELETE preserve the applied sorting; no filters
 - Frontend readingStatus and rating editing is implemented in BookCard with PATCH status, PUT rating and DELETE rating; confirmed response replacement or current-query reload preserves server sorting
 - Frontend reading dates are implemented with local-today start/finish actions and a dedicated Material dialog for PUT/DELETE dates; status changes only as confirmed by the quick-action backend response
 - Managed JPEG/PNG cover uploads, filesystem storage and public cover reading are implemented
 - Frontend managed cover upload/delete is implemented in BookEdit with configured UX ownership classification and partial coverUrl synchronization, without upload in creation
 - Frontend book detail at /books/:id is implemented with complete read-only data, shared ID/display helpers, explicit GET retry, Editar/catalog navigation and existing-dialog book deletion
 - Frontend catalog URL query persistence is implemented with canonical page/size/sort/search, safe normalization, Back/Forward and detail/edit context; retry and successful-write reloads share one cancelable GET chain
-- Frontend local ISBN barcode scanning in BookCreate is implemented with a Material dialog, camera/local JPEG/PNG, scanner-only ISBN-13 validation and automatic reuse of the existing consultative lookup; no scanner in editing or image upload
 
 ---
 
@@ -679,7 +649,7 @@ Book metadata is completed.
 
 Book ISBN lookup is completed.
 
-Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search, server-side sorting, readingStatus/rating editing, reading dates and URL-backed server filters for readingStatus/ratingMin/yearFrom/yearTo/genre/language/publisher/room/bookcase/shelf are completed. No further filters are implemented.
+Frontend technical setup, paginated book catalog, book creation, editing, deletion, submitted search, server-side sorting, readingStatus/rating editing and reading dates are completed. Filters and other frontend interactions are not implemented.
 Book cover upload is completed (JPEG/PNG, configurable filesystem; no NAS deployment).
 
 No next feature is planned. Wait for explicit user instruction.
@@ -698,9 +668,6 @@ publicationYear
 pageCount
 language
 genres
-room
-bookcase
-shelf
 createdAt
 updatedAt
 readingStatus
@@ -750,7 +717,7 @@ Search rules:
 - GET /api/books/search returns BookPageResponse, not a JSON array
 - no results returns an empty page with totalElements=0 and totalPages=0
 - out-of-range pages return 200 with empty content and real pagination totals
-- BookSearchRequest contains only title, author and isbn; BookFilterRequest contains optional catalog filters and pagination uses separate request parameters. Both list/search compose a single Specification query; search still requires a search criterion and ISBN remains exclusive with title/author, but may combine with catalog filters
+- BookSearchRequest contains only title, author and isbn; pagination uses separate request parameters
 - ISBN searches validate pagination and sorting just like other searches
 ```
 
@@ -825,7 +792,6 @@ Cover upload and storage rules:
 - DELETE cover clears the reference and commits before deleting the old managed file; missing physical files count as success
 - PUT book removing/replacing a managed cover and DELETE book schedule identical after-commit cleanup
 - Failed post-commit cleanup is logged; preserve 200/204 and never pretend the committed database change rolled back
-- Global persistence handling translates only Hibernate constraint violation SQLState 23505 with exact constraint uq_book_isbn into 409 Duplicate ISBN, including stale-precheck races. Other integrity violations remain generic 500. Real PostgreSQL tests exercise actual INSERT uniqueness and an unrelated rating CHECK failure; no schema changes
 - External references are replaced/cleared only; no HTTP request or resource deletion, including Open Library references
 - No distributed transaction or automatic orphan sweeper; process crashes/cleanup failures can leave orphan files
 - No pessimistic lock, @Version or global concurrency changes; existing last-writer semantics remain
@@ -879,17 +845,6 @@ ISBN lookup rules:
 - No changes to Book, database schema, Flyway migrations or dependencies
 ```
 
-Physical location rules:
-
-```text
-- V7__add_book_location.sql adds nullable room VARCHAR(100), bookcase VARCHAR(100), shelf VARCHAR(50); no defaults, tables, FK, indexes or uniqueness constraints; never alter V1-V6
-- POST omission/null/blank means null; PUT replaces all three and omission/null/blank clears prior values; all BookResponse operations include all three nullable fields
-- Single-line labels allow Unicode names/accents, normal spaces and punctuation. Raw lengths are validated before trimming; Cc controls (NUL/tab/CR/LF/C1/DEL) and Zl/Zp line/paragraph separators are rejected. Exterior space separators/BOM are trimmed consistently with frontend; inner spaces/case/accents remain unchanged
-- (room, bookcase, shelf) is only a textual query criterion, NOT a stable shelf identity. Before shelf photos, persistent inventory or mass reassignment, evolve through a separate approved feature to Room -> Bookcase -> Shelf, with stable Shelf ID and nullable Book FK; resolve name variants/partial locations explicitly, never invent identities now
-- Autocomplete from authoritative distinct values is a future feature; do not derive suggestions from one catalog page, load all books or add distinct endpoints now
-- Real PostgreSQL 16 tests cover Salón == salón and Salón != Salon, literal wildcards, combined filters, count/paging, V6 data preservation through V7 and Hibernate ddl-auto validate
-```
-
 Metadata rules:
 
 ```text
@@ -908,7 +863,7 @@ Metadata rules:
 - POST omitted scalar metadata becomes null; PUT replaces metadata and omitted/null scalar fields remove previous values
 - PUT omitted/null/[] genres removes all previous genres
 - metadata appears in BookResponse for CRUD, paginated list and paginated search
-- publisher/publicationYear/language/genres have optional catalog filters through BookFilterRequest; pageCount is not a filter. Metadata fields remain outside the sort whitelist, with no dedicated metadata endpoints
+- new metadata fields are not search filters or allowed sortBy values; no dedicated metadata endpoints
 - invalid metadata returns the existing 400 ProblemDetail with field errors, including genres and genres[index]
 - V6 CHECKs enforce year/page ranges, lowercase two-letter language format, genre count and absence of null array elements
 - no new indexes, external integrations or dependencies are required

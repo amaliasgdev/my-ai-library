@@ -130,7 +130,7 @@ describe('Application routes', () => {
   it('should keep static new and edit routes before detail', () => {
     expect(
       routes.filter((route) => route.path?.startsWith('books')).map((route) => route.path),
-    ).toEqual(['books/import', 'books/new', 'books/:id/edit', 'books/:id', 'books']);
+    ).toEqual(['books/new', 'books/:id/edit', 'books/:id', 'books']);
   });
 
   it('should preserve catalog context through detail, edit cancellation and successful PUT', async () => {
