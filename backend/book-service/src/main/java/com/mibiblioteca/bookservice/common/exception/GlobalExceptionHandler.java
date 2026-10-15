@@ -26,6 +26,13 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.mibiblioteca.bookservice.location.reconciliation.ReconciliationException.class)
+    public ProblemDetail handleReconciliation(com.mibiblioteca.bookservice.location.reconciliation.ReconciliationException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setProperty("code", ex.code());
+        return problem;
+    }
+
     @ExceptionHandler(com.mibiblioteca.bookservice.location.LocationException.class)
     public ProblemDetail handleLocation(com.mibiblioteca.bookservice.location.LocationException ex) {
         var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());

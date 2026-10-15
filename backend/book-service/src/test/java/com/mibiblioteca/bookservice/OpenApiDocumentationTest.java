@@ -203,6 +203,22 @@ class OpenApiDocumentationTest {
         assertThat(fields.has("id") || fields.has("readingStatus") || fields.has("createdAt")).isFalse();
     }
 
+    @Test void shouldDocumentExplicitReconciliationWithoutLeakingEntityOrTokenInternals() throws Exception {
+        JsonNode document=objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths=document.path("paths");
+        var list=paths.path("/api/locations/reconciliation").path("get");
+        assertThat(parametersByName(list).keySet()).containsExactlyInAnyOrder("page","size","type","text");
+        assertThat(list.path("responses").has("400")).isTrue();
+        var detail=paths.path("/api/locations/reconciliation/{groupKey}").path("get");
+        assertThat(detail.path("responses").has("404")).isTrue();
+        var assign=paths.path("/api/locations/reconciliation/assign").path("post");
+        for(String status:new String[]{"200","400","404","409"}) assertThat(assign.path("responses").has(status)).isTrue();
+        var schemas=document.path("components").path("schemas");
+        assertThat(schemas.path("Group").path("properties").has("bookIds")).isFalse();
+        assertThat(schemas.path("Detail").path("properties").has("reviewToken")).isTrue();
+        assertThat(schemas.has("Snapshot")).isFalse();
+    }
+
     @Test
     void shouldDocumentMetadataAndValidationLimits() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())

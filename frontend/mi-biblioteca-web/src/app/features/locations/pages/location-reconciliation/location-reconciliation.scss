@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+form {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.statistics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+dd {
+  margin: 0.25rem 0;
+  font-weight: 600;
+}
+table {
+  width: 100%;
+}
+td,
+th {
+  overflow-wrap: anywhere;
+}
+.mobile-label {
+  display: none;
+}
+.destination-editor {
+  margin-block: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+@media (max-width: 60rem) {
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+  }
+  tr {
+    height: auto;
+    margin-block: 1rem;
+    border: 1px solid var(--mat-sys-outline-variant);
+  }
+  td {
+    padding: 0.5rem;
+    border: 0;
+    min-height: auto;
+  }
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .mobile-label {
+    display: inline;
+    font-weight: 600;
+  }
+}

@@ -3,6 +3,14 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'books' },
   {
+    path: 'locations/reconcile',
+    title: 'Conciliar ubicaciones | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/locations/pages/location-reconciliation/location-reconciliation').then(
+        (module) => module.LocationReconciliation,
+      ),
+  },
+  {
     path: 'locations',
     title: 'Ubicaciones | Mi Biblioteca',
     loadComponent: () =>
