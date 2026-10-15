@@ -27,14 +27,6 @@ import org.springframework.validation.method.ParameterValidationResult;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(InvalidBookFilterException.class)
-    public ProblemDetail handleBookFilter(InvalidBookFilterException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid catalog filter");
-        problem.setTitle("Validation error");
-        problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
-        return problem;
-    }
-
     @ExceptionHandler(CoverException.class)
     public ProblemDetail handleCover(CoverException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
@@ -55,15 +47,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({DataAccessException.class, TransactionException.class})
     public ProblemDetail handlePersistence(Exception ex) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
-                && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {
-                ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A book with this ISBN already exists");
-                problem.setTitle("Duplicate ISBN");
-                problem.setProperty("errors", Map.of("isbn", "Already exists"));
-                return problem;
-            }
-        }
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Database operation failed");
     }
 
@@ -159,7 +142,6 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request parameter has an invalid value");
         problemDetail.setTitle("Invalid request parameter");
-        problemDetail.setProperty("errors", Map.of(ex.getName(), "Invalid value"));
         return problemDetail;
     }
 

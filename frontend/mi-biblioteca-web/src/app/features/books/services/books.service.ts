@@ -2,7 +2,6 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
-import { BookFilters, appendBookFilters } from '../models/book-filters';
 import {
   BookPageResponse,
   BookLookupResponse,
@@ -97,11 +96,8 @@ export class BooksService {
     return this.http.post<BookResponse>(`${this.apiConfig.apiBaseUrl}/books`, request);
   }
 
-  getBooks(
-    options: BooksPageRequest = {},
-    filters: BookFilters = {},
-  ): Observable<BookPageResponse> {
-    let params = new HttpParams({
+  getBooks(options: BooksPageRequest = {}): Observable<BookPageResponse> {
+    const params = new HttpParams({
       fromObject: {
         page: options.page ?? 0,
         size: options.size ?? 20,
@@ -109,14 +105,12 @@ export class BooksService {
         direction: options.direction ?? 'ASC',
       },
     });
-    params = appendBookFilters(params, filters);
     return this.http.get<BookPageResponse>(`${this.apiConfig.apiBaseUrl}/books`, { params });
   }
 
   searchBooks(
     criteria: BookSearchRequest,
     options: BooksPageRequest = {},
-    filters: BookFilters = {},
   ): Observable<BookPageResponse> {
     let params = new HttpParams({
       fromObject: {
@@ -130,7 +124,6 @@ export class BooksService {
       const value = criteria[field];
       if (value !== undefined && value.trim() !== '') params = params.set(field, value);
     }
-    params = appendBookFilters(params, filters);
     return this.http.get<BookPageResponse>(`${this.apiConfig.apiBaseUrl}/books/search`, { params });
   }
 }

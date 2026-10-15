@@ -1,4 +1,0 @@
-ALTER TABLE book
-    ADD COLUMN room VARCHAR(100),
-    ADD COLUMN bookcase VARCHAR(100),
-    ADD COLUMN shelf VARCHAR(50);

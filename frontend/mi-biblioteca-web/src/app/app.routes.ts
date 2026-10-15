@@ -3,12 +3,6 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'books' },
   {
-    path: 'books/import',
-    title: 'Importar ISBN | Mi Biblioteca',
-    loadComponent: () =>
-      import('./features/books/pages/book-import/book-import').then((module) => module.BookImport),
-  },
-  {
     path: 'books/new',
     title: 'Añadir libro | Mi Biblioteca',
     loadComponent: () =>

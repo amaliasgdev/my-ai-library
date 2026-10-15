@@ -1,21 +1,16 @@
 <section aria-labelledby="create-heading">
   <h1 id="create-heading">Añadir libro</h1>
-  @if (detectedIsbn()) {
-    <p role="status">ISBN detectado: {{ detectedIsbn() }}</p>
-  }
   @if (generalError()) {
     <p role="alert" class="error-panel">{{ generalError() }}</p>
   }
   <app-book-form
     [submitting]="submitting()"
     [lookupEnabled]="true"
-    [scanEnabled]="true"
     [lookupLoading]="lookupState() === 'loading'"
     [lookupSuccess]="lookupState() === 'success'"
     [lookupError]="lookupError()"
     (lookupRequested)="lookup($event)"
-    (isbnChanged)="isbnChanged()"
-    (scanRequested)="openScanner()"
+    (isbnChanged)="cancelLookup()"
     (submitAttempted)="cancelLookup()"
     (save)="save($event)"
     (cancelled)="cancel()"

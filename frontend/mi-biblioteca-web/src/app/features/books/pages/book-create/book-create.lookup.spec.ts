@@ -47,28 +47,6 @@ describe('BookCreate ISBN lookup', () => {
     expect(page.lookupState()).toBe('idle');
   });
 
-  it('lookup preserves location drafts including edits made during the GET; explicit creation sends them', () => {
-    editor.form.patchValue({ room: ' Salón ', bookcase: 'Billy', shelf: '3' });
-    const request = begin();
-    editor.form.controls.shelf.setValue(' Superior ');
-    request.flush(testBookLookup());
-    fixture.detectChanges();
-    expect(editor.form.getRawValue()).toMatchObject({
-      room: ' Salón ',
-      bookcase: 'Billy',
-      shelf: ' Superior ',
-    });
-    http.expectNone((req) => req.method === 'POST');
-    editor.submit();
-    const post = http.expectOne('/api/books');
-    expect(post.request.body).toMatchObject({
-      room: 'Salón',
-      bookcase: 'Billy',
-      shelf: 'Superior',
-    });
-    post.flush(testBook());
-  });
-
   it.each(['', ' ', 'bad ISBN', '1'.repeat(21)])(
     'should not GET for empty or locally invalid ISBN %s',
     (isbn) => {
@@ -104,9 +82,6 @@ describe('BookCreate ISBN lookup', () => {
     expect(editor.form.getRawValue()).toEqual({
       ...testBookLookup(),
       description: '  My exact description\n',
-      room: '',
-      bookcase: '',
-      shelf: '',
     });
     expect(page.lookupState()).toBe('success');
     expect(element.textContent).toContain(
@@ -274,13 +249,7 @@ describe('BookCreate ISBN lookup', () => {
     http.expectNone('/api/books');
     editor.submit();
     const post = http.expectOne('/api/books');
-    expect(post.request.body).toEqual({
-      ...testBookLookup(),
-      description: 'My description',
-      room: null,
-      bookcase: null,
-      shelf: null,
-    });
+    expect(post.request.body).toEqual({ ...testBookLookup(), description: 'My description' });
     post.flush(testBook());
   });
 

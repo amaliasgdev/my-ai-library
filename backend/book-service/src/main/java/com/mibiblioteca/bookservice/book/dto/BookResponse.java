@@ -23,10 +23,7 @@ public record BookResponse(
     @Schema(example = "2001", nullable = true) Integer publicationYear,
     @Schema(example = "480", nullable = true) Integer pageCount,
     @Schema(description = "Optional two-letter ISO 639-1 code in lowercase", example = "es", nullable = true) String language,
-    @Schema(description = "Up to 10 distinct genres, each up to 50 characters; case and order preserved. Empty array when absent.", example = "[\"Fantasía\", \"Aventura\"]") List<String> genres,
-    @Schema(description = "Optional physical room; textual label, not a stable location ID", nullable = true, example = "Salón") String room,
-    @Schema(nullable = true, example = "Billy izquierda") String bookcase,
-    @Schema(description = "Optional textual shelf label", nullable = true, example = "Superior") String shelf
+    @Schema(description = "Up to 10 distinct genres, each up to 50 characters; case and order preserved. Empty array when absent.", example = "[\"Fantasía\", \"Aventura\"]") List<String> genres
 ) {
     public BookResponse {
         genres = genres == null ? List.of() : List.copyOf(genres);

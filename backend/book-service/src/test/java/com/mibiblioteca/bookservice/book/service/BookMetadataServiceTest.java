@@ -68,7 +68,8 @@ class BookMetadataServiceTest {
         book.setGenres(List.of("Fantasía", "Aventura"));
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
         var page = new PageImpl<>(List.of(book), PageRequest.of(0, 20), 1);
-        when(bookRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class))).thenReturn(page);
+        when(bookRepository.findAll(any(PageRequest.class))).thenReturn(page);
+        when(bookRepository.findByTitleContainingIgnoreCase(any(), any())).thenReturn(page);
 
         List<BookResponse> responses = List.of(bookService.findById(1L),
             bookService.findAll(0, 20, "title", Sort.Direction.ASC).content().getFirst(),
@@ -85,6 +86,6 @@ class BookMetadataServiceTest {
     }
 
     private BookRequest request(String publisher, Integer year, Integer pages, String language, List<String> genres) {
-        return new BookRequest("Book", "Author", null, null, null, publisher, year, pages, language, genres, null, null, null);
+        return new BookRequest("Book", "Author", null, null, null, publisher, year, pages, language, genres);
     }
 }

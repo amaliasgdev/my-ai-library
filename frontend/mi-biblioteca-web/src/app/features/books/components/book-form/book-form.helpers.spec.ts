@@ -11,15 +11,12 @@ describe('Book form mapping and request builder', () => {
       publisher: '',
       coverUrl: '',
       language: '',
-      room: '',
-      bookcase: '',
-      shelf: '',
     });
-    expect(Object.keys(value)).toHaveLength(13);
+    expect(Object.keys(value)).toHaveLength(10);
     expect(value.publicationYear).toBeNull();
   });
 
-  it('should create a complete thirteen-field request and preserve informed text exactly', () => {
+  it('should create a complete ten-field request and preserve informed text exactly', () => {
     const coverUrl = 'HTTPS://Images.Example.test:8443/api/covers/42-a%20b.png';
     const value = bookFormValue(
       testBook({
@@ -41,7 +38,7 @@ describe('Book form mapping and request builder', () => {
         genres: ['Aventura'],
       }),
     );
-    expect(Object.keys(buildBookRequest(value))).toHaveLength(13);
+    expect(Object.keys(buildBookRequest(value))).toHaveLength(10);
   });
 
   it('should send cleared optional fields as null and genres as []', () => {
