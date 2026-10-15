@@ -88,6 +88,76 @@ Metadata consultation uses backend/Open Library, so this flow is not offline.
 
 ## Catalog filters
 
+### Assisted reconciliation of legacy locations
+
+Open **Conciliar ubicaciones anteriores** from `/locations` to reach the lazy
+`/locations/reconcile` page. This is a manual review tool, not an automatic
+migration: legacy labels remain unchanged until an explicit confirmed conversion.
+There is **no V9**, new table/index, history, undo, fuzzy matching or auto-merge.
+
+```text
+GET  /api/locations/reconciliation?page=0&size=20&type=ALL&text=...
+GET  /api/locations/reconciliation/{groupKey}?page=0&size=20
+POST /api/locations/reconciliation/assign
+```
+
+List filters support ALL/COMPLETE/PARTIAL and optional literal text (max 255).
+Pagination is zero-based, size 1–100. Global statistics distinguish pending
+groups/books and complete/partial groups; pagination totals describe the filtered
+result. The list contains counts and suggestions, not Books or full ID arrays.
+Only unstructured books with effective legacy text participate.
+
+PostgreSQL groups `(room,bookcase,shelf)` after exterior Unicode space/BOM trim,
+effective empty-to-null and case folding, preserving accents, punctuation and
+internal spacing. `Salón` and `salón` group together; `Salon`, abbreviations and
+different shelves do not. Originals are never silently cleaned. `groupKey` is
+an opaque canonical-tuple encoding, **not** a revision or physical identity.
+
+**Ver libros** loads paginated lightweight book summaries and original variants
+from the dedicated group endpoint, never the catalog name filters (which also
+match structured books). Its review covers the whole group, not just one page.
+A unique full Room/Bookcase/Shelf match is only a suggestion and is not selected
+automatically. Partial groups require manual full-Shelf selection or stay pending;
+their books may physically belong to different shelves. Use existing individual
+book editing for those cases. No parents or missing shelves are invented.
+
+The POST accepts `{reviewToken,shelfId,expectedDestination:{room,bookcase,shelf}}`.
+The token is JDK HMAC-SHA256 signed with a default 15-minute TTL. Its SHA-256
+fingerprint covers all ordered member IDs and original nullable location strings,
+using unambiguous length-prefix encoding. **No PostgreSQL xmin** or global
+`@Version` is used; bibliographic edits do not invalidate the review. Without
+history, a change away and back to identical originals cannot be detected.
+
+Configure `RECONCILIATION_SECRET` (at least 32 UTF-8 bytes) and optionally
+`RECONCILIATION_TTL` (default `15m`, maximum `1h`). Blank secret generates a random
+process-local key with a warning: restart invalidates reviews, and multiple
+instances require the same configured secret. Tokens are signed, not encrypted,
+and do not provide authentication/authorization.
+
+Confirmation runs in one short REPEATABLE READ transaction: shared locks on the
+destination hierarchy, ordered update locks on source books, exact full-group
+count/fingerprint and destination-name checks, then location-only updates of the
+verified IDs. Legacy fields clear together with `shelf_id` assignment and
+`updated_at` update. Any mismatch rolls back all changes. Members changed,
+removed or added before the transaction snapshot cause 409. New books inserted
+after that snapshot are excluded and remain pending; there is no open name-based
+UPDATE that could include them. Existing later Book PUT last-writer semantics
+remain unchanged; no global concurrency architecture was introduced.
+
+Malformed input/token returns 400, missing group/destination 404, and stale,
+expired or renamed-destination reviews return safe 409 codes:
+`RECONCILIATION_STALE`, `RECONCILIATION_EXPIRED`,
+`RECONCILIATION_DESTINATION_CHANGED`. Deadlock/serialization conflicts never retry
+the write automatically. Confirmation explicitly warns that original text is
+replaced without history or automatic undo.
+
+The page reuses existing hierarchy selection/creation CRUD; newly created
+locations persist even if conversion is cancelled. Session counters are only
+page-local confirmed successes. A failed GET after a successful POST retries only
+GET. Lost POST response/network/5xx is uncertain: refresh/reopen the group, never
+blindly repeat or invent a success counter. No AI/OCR/photos/inventory or general
+mass-move tool is included.
+
 ### Structured library shelves (V8)
 
 The reusable physical hierarchy is **Room → Bookcase → Shelf → Book**. A Book
