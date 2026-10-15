@@ -7,6 +7,19 @@ import { Locations } from './locations';
 import { testLocations } from '../models/location.testing';
 
 describe('Locations page', () => {
+  it('offers inventory links without per-shelf HTTP and explains inventory deletion blocks', () => {
+    const fixture = create();
+    const rooms = testLocations();
+    rooms[0].bookcases[0].shelves[0].canDelete = false;
+    rooms[0].bookcases[0].shelves[0].blockedReason = 'INVENTORY_SESSIONS';
+    http.expectOne('/api/locations').flush(rooms);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('a[href="/locations/shelves/3/inventory"]')?.textContent,
+    ).toContain('Inventario');
+    expect(fixture.nativeElement.textContent).toContain('Tiene historial de inventario');
+    http.expectNone((request) => request.url.includes('inventory-sessions'));
+  });
   it('links to the independent reconciliation page without changing catalog filters', () => {
     const fixture = create();
     http.expectOne('/api/locations').flush([]);

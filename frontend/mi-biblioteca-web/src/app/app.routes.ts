@@ -3,6 +3,22 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'books' },
   {
+    path: 'locations/shelves/:shelfId/inventory',
+    title: 'Inventario de balda | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/inventory/pages/shelf-inventory/shelf-inventory').then(
+        (module) => module.ShelfInventory,
+      ),
+  },
+  {
+    path: 'inventory-sessions/:id',
+    title: 'Sesión de inventario | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/inventory/pages/inventory-session-detail/inventory-session-detail').then(
+        (module) => module.InventorySessionDetail,
+      ),
+  },
+  {
     path: 'locations/reconcile',
     title: 'Conciliar ubicaciones | Mi Biblioteca',
     loadComponent: () =>

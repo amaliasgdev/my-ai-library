@@ -654,6 +654,7 @@ Verified:
 - Frontend local ISBN barcode scanning in BookCreate is implemented with a Material dialog, camera/local JPEG/PNG, scanner-only ISBN-13 validation and automatic reuse of the existing consultative lookup; no scanner in editing or image upload
 - Structured locations are implemented with V8, Room/Bookcase/Shelf CRUD, /locations, a shared selector and stable ID filters. V7 labels remain unchanged until explicit per-book assignment; no automatic reconciliation
 - Assisted legacy reconciliation is available at /locations/reconcile: exact groups, full-group signed review, explicit Shelf selection/confirmation and atomic conversion of verified IDs. No automatic conversion, fuzzy matching, history, undo, reconciliation tables or V9
+- Shelf inventory sessions are implemented with V9: /locations/shelves/:shelfId/inventory and /inventory-sessions/:id. Explicit start/complete/cancel and active-only notes, no Book relationship, photos, OCR or AI
 
 ---
 
@@ -892,6 +893,26 @@ Physical location rules:
 - Real PostgreSQL 16 tests cover Salón == salón and Salón != Salon, literal wildcards, combined filters, count/paging, V6 data preservation through V7 and Hibernate ddl-auto validate
 ```
 
+Shelf inventory sessions (V9):
+
+```text
+- Package inventory owns InventorySession, status, repository, service, DTOs and controller. Shelf -> InventorySession is a temporal observation, not a Book/location/movement/photo/import. Mandatory LAZY Shelf reference is immutable; no cascade, session DELETE, reopen, DRAFT, session_book, InventoryItem or Book snapshots
+- Lifecycle branches IN_PROGRESS -> COMPLETED or IN_PROGRESS -> CANCELLED; terminal sessions are immutable. Repeating either terminal action returns 409 INVENTORY_SESSION_INVALID_TRANSITION; notes on a terminal session return INVENTORY_SESSION_CLOSED. Complete does not certify, compare or modify catalog Books, and an active session does not freeze Shelf assignments or reconciliation
+- V9__create_inventory_session.sql adds inventory_session, restrictive FK, status/terminal/date CHECKs, (shelf_id,started_at DESC,id DESC) history index and uq_inventory_session_active_shelf unique partial index WHERE status='IN_PROGRESS'. No edits to V1-V8. Hibernate remains ddl-auto: validate
+- Application Instant timestamps map to TIMESTAMPTZ. Creation assigns createdAt/updatedAt/startedAt the same instant; complete sets completedAt/updatedAt together; cancel sets cancelledAt/updatedAt together. updatedAt is not a terminal timestamp
+- POST /api/shelves/{shelfId}/inventory-sessions accepts absent body, {} or optional notes and returns 201 + Location + InventorySessionResponse. Creation holds a shared Shelf lock, uses saveAndFlush, and relies on the unique partial index (not a precheck) for one active session. Only that named 23505 violation maps to INVENTORY_SESSION_ALREADY_ACTIVE
+- GET /api/shelves/{shelfId}/inventory-sessions?page=0&size=20 returns current hierarchy context, activeSession independently of page and all-state paginated summaries; size 1..100, fixed startedAt DESC/id DESC, no filters or configurable sorting. Missing Shelf ->404, empty/out-of-range content ->200 with true totals. Projections/explicit fetches avoid N+1
+- GET /api/inventory-sessions/{id} returns current Room/Bookcase/Shelf names via stable Shelf ID, never historical name snapshots. POST /api/inventory-sessions/{id}/complete and /cancel are bodyless actions. PUT /api/inventory-sessions/{id}/notes requires the notes property; null clears it
+- notes raw length <=2000 is validated before exterior whitespace/Zs/BOM trim, effective blank ->null; preserve interior spaces/newlines, never truncate. Only explicit Guardar notas, no autosave. Concurrent active note writes serialize with last accepted writer prevailing, not optimistic draft conflict detection
+- Short READ COMMITTED writes lock InventorySession pessimistically before checking state. Complete vs cancel: one wins, second conflicts. Notes cannot apply after closure. No xmin/global @Version/automatic write retry. History's composed read uses a single REPEATABLE READ snapshot, not unnecessary stronger write isolation
+- Any session including cancelled/completed blocks Shelf deletion (LOCATION_IN_USE), enforced by precheck and FK RESTRICT. Hierarchy uses one additional grouped query (five bounded queries total); bookCount stays books-only. canDelete requires no books and no sessions; blockedReason BOOKS takes priority over INVENTORY_SESSIONS. No per-Shelf active HTTP, no activeInventorySessionId/public inventory count added to hierarchy; Room/Bookcase deletion rules unchanged
+- features/inventory has lazy Shelf history/detail pages, typed HttpClient service/models, Material creation/confirmation dialogs and page-local signals/write state. /locations offers Inventario per Shelf without fetching sessions per row. Current context, active actions, server pagination and explicit history return page/size query parameters; no storage/history.back dependency
+- One write per screen, no optimistic updates; GET uses switchMap and destruction/route changes reject late responses and close dialogs. Confirm complete/cancel explicitly. Dirty notes require return to save first or explicit discard followed by the domain confirmation; never silently combine notes and closure
+- Successful complete/cancel/notes synchronize via GET; failed synchronization retries GET only. A 409 active session on create refreshes backend state. Lost response/network/5xx for any write is uncertain: consult current state, never automatically retry POST/PUT. Client cancellation does not undo server commits
+- No photos/uploads/OCR/AI/recognition/comparison/movements/reports/export/auth/notifications/archiving. Future photos belong to InventorySession, NOT Book. Future expected-books/name snapshots are separate design decisions, not retroactively reconstructible facts
+- Tests include real PostgreSQL V8->V9 migration, CHECK/FK/unique partial index, actual commits/locks/concurrency, lifecycle/API/OpenAPI/query counts, offline frontend flows and existing location/BookForm/import/reconciliation regressions
+```
+
 Assisted legacy reconciliation (no schema migration):
 
 ```text
@@ -924,7 +945,7 @@ Structured library locations (V8):
 - BookForm owns typed shelfId and emits UI events, no HTTP/routing. LocationSelector has dependent Material selects, clears descendants, blocks partial structured saves, supports preserve/edit legacy, explicit replace and clear. Create/Edit/ImportReview use page-scoped LocationEditor to load hierarchy on explicit Elegir balda, create via dialogs and refresh; no extra lookup/scanner-triggered location HTTP
 - Location entities created from the form persist immediately even if Book is later cancelled; UI states this. Drafts/confirmed import selections are independent by row, no catalog-filter seeding or Apply-to-all. Lookup never touches shelfId or legacy location. Missing/deleted location requires explicit review/reselection, not duplicate ISBN handling or automatic POST retry
 - Catalog has ID selects (loads hierarchy explicitly), retains old text bookmarks and normal Apply/Clear/DELETE guards; shared URL helpers preserve IDs through reload/Back/Forward/detail/edit/import. New selections and Ver libros use IDs; no automatic text bookmark reconciliation
-- Future InventorySession should reference Shelf ID and own scan photos/observations plus expected-books/name snapshots. No such entities now. Legacy columns may be removed only after reviewed reconciliation and client retirement; no destructive migration is scheduled
+- InventorySession now references Shelf ID (V9); future photos belong to the session. Expected-books/name snapshots are deferred, not implemented. Legacy columns may be removed only after reviewed reconciliation and client retirement; no destructive migration is scheduled
 ```
 
 Metadata rules:

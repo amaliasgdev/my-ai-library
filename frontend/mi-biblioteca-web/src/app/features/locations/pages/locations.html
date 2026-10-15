@@ -79,6 +79,9 @@
                   <li>
                     <strong>Balda {{ shelf.name }} — {{ shelf.bookCount }} libros</strong>
                     <div class="actions">
+                      <a mat-button [routerLink]="['/locations/shelves', shelf.id, 'inventory']"
+                        >Inventario</a
+                      >
                       <a mat-button routerLink="/books" [queryParams]="{ shelfId: shelf.id }"
                         >Ver libros</a
                       >
@@ -94,7 +97,13 @@
                       </button>
                     </div>
                     @if (!shelf.canDelete) {
-                      <p class="hint">Contiene libros; no se puede eliminar.</p>
+                      <p class="hint">
+                        {{
+                          shelf.blockedReason === 'INVENTORY_SESSIONS'
+                            ? 'Tiene historial de inventario; no se puede eliminar.'
+                            : 'Contiene libros; no se puede eliminar.'
+                        }}
+                      </p>
                     }
                   </li>
                 }

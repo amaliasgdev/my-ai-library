@@ -1,0 +1,99 @@
+<section aria-labelledby="inventory-heading" [attr.aria-busy]="loading() || write.pending()">
+  <h1 id="inventory-heading">Inventario de balda</h1>
+  <a mat-button routerLink="/locations" [disabled]="write.pending()">Volver a ubicaciones</a>
+  @if (loading()) {
+    <p role="status">Cargando inventario…</p>
+  }
+  @if (error()) {
+    <p role="alert">{{ error() }}</p>
+    <button mat-button (click)="retry()">Reintentar lectura</button>
+  }
+  @if (write.message()) {
+    <p role="status">{{ write.message() }}</p>
+  }
+  @if (data(); as result) {
+    <nav aria-label="Ubicación de la balda">
+      {{ result.shelf.roomName }} > {{ result.shelf.bookcaseName }} > {{ result.shelf.shelfName }}
+    </nav>
+    <p>
+      La sesión registra una revisión temporal. No compara ni modifica libros y no congela la balda.
+    </p>
+    @if (result.activeSession; as active) {
+      <section aria-label="Sesión activa" class="active-session">
+        <h2>Inventario en curso</h2>
+        <p>Inicio: {{ active.startedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+        <a
+          mat-button
+          [routerLink]="['/inventory-sessions', active.id]"
+          [queryParams]="paging()"
+          [disabled]="write.pending()"
+          >Abrir sesión activa</a
+        >
+        <button
+          mat-button
+          [disabled]="write.pending() || write.needsRead()"
+          (click)="closeSession('complete')"
+        >
+          Finalizar
+        </button>
+        <button
+          mat-button
+          [disabled]="write.pending() || write.needsRead()"
+          (click)="closeSession('cancel')"
+        >
+          Cancelar
+        </button>
+      </section>
+    } @else {
+      <button mat-flat-button [disabled]="write.pending() || write.needsRead()" (click)="start()">
+        Iniciar inventario
+      </button>
+    }
+    <h2>Historial de sesiones</h2>
+    @if (result.content.length === 0) {
+      <p>No hay sesiones en esta página.</p>
+    }
+    <table mat-table [dataSource]="result.content" aria-label="Historial de inventarios">
+      <ng-container matColumnDef="started"
+        ><th mat-header-cell *matHeaderCellDef>Inicio</th>
+        <td mat-cell *matCellDef="let session">
+          <span class="mobile-label">Inicio: </span
+          >{{ session.startedAt | date: 'dd/MM/yyyy HH:mm' }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="status"
+        ><th mat-header-cell *matHeaderCellDef>Estado</th>
+        <td mat-cell *matCellDef="let session">{{ statusLabel(session.status) }}</td></ng-container
+      >
+      <ng-container matColumnDef="notes"
+        ><th mat-header-cell *matHeaderCellDef>Notas</th>
+        <td mat-cell *matCellDef="let session" class="notes">
+          {{ session.notes ?? 'Sin notas' }}
+        </td></ng-container
+      >
+      <ng-container matColumnDef="actions"
+        ><th mat-header-cell *matHeaderCellDef>Acciones</th>
+        <td mat-cell *matCellDef="let session">
+          <a
+            mat-button
+            [routerLink]="['/inventory-sessions', session.id]"
+            [queryParams]="paging()"
+            [disabled]="write.pending()"
+            >Abrir detalle</a
+          >
+        </td></ng-container
+      >
+      <tr mat-header-row *matHeaderRowDef="columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+    </table>
+    <mat-paginator
+      aria-label="Páginas del historial"
+      [length]="result.totalElements"
+      [pageIndex]="result.page"
+      [pageSize]="result.size"
+      [pageSizeOptions]="[10, 20, 50, 100]"
+      [disabled]="write.pending()"
+      (page)="paginate($event)"
+    />
+  }
+</section>

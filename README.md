@@ -88,6 +88,74 @@ Metadata consultation uses backend/Open Library, so this flow is not offline.
 
 ## Catalog filters
 
+### Shelf inventory sessions (V9)
+
+**Shelf → InventorySession** records a point-in-time physical review of one
+structured shelf. From `/locations`, choose **Inventario** on a shelf to open
+`/locations/shelves/:shelfId/inventory`. The page shows current Room/Bookcase/Shelf
+context, any active session and paginated history. Session detail lives at
+`/inventory-sessions/:id`; explicit return links preserve history `page/size`.
+
+Lifecycle has two terminal branches, not a sequence through both states:
+
+```text
+IN_PROGRESS -> COMPLETED
+IN_PROGRESS -> CANCELLED
+```
+
+Creation starts immediately: no DRAFT. Only one IN_PROGRESS session is allowed
+per Shelf, enforced by PostgreSQL's unique partial index
+`uq_inventory_session_active_shelf`. Terminal sessions cannot be reopened,
+edited or deleted. A cancelled session stays in history. Any session blocks Shelf
+deletion, even if there are no books; FK RESTRICT prevents destructive cascades.
+Hierarchy `bookCount` still counts only books. `canDelete` additionally accounts
+for inventory history through one aggregated query, not a request per shelf.
+
+```text
+POST /api/shelves/{shelfId}/inventory-sessions
+GET  /api/shelves/{shelfId}/inventory-sessions?page=0&size=20
+GET  /api/inventory-sessions/{id}
+POST /api/inventory-sessions/{id}/complete
+POST /api/inventory-sessions/{id}/cancel
+PUT  /api/inventory-sessions/{id}/notes
+```
+
+Creation accepts no body, `{}`, or `{"notes":null}`/`{"notes":"..."}` and
+returns 201 with Location. Notes PUT requires the `notes` property; null clears.
+Notes validate the original maximum 2000 characters before exterior trim,
+map effective blanks to null and preserve interior newlines/spaces. Notes are
+editable only while active, using explicit **Guardar notas**, never autosave.
+Unsaved edits must be saved first or explicitly discarded before closing.
+Complete/cancel are bodyless actions with explicit Material confirmations.
+
+Application-generated UTC instants use TIMESTAMPTZ: creation shares one instant
+for createdAt/updatedAt/startedAt; closure sets completedAt or cancelledAt together
+with updatedAt. The other terminal timestamp stays null. V9 adds status/date
+CHECKs and a `(shelf_id,started_at DESC,id DESC)` history index; V1–V8 are unchanged.
+Short READ COMMITTED writes use a shared Shelf lock during creation and an
+exclusive session lock during state/notes changes. Concurrent creates yield
+one success and a specific 409; competing terminal actions cannot both succeed.
+No xmin, global versioning or automatic write retries are introduced.
+
+History accepts page>=0, size=1..100, fixed startedAt DESC then id DESC. The
+response includes the active session independently of the displayed page,
+current hierarchy context and totals. Missing Shelf/session is 404; invalid
+input 400. Conflicts use `INVENTORY_SESSION_ALREADY_ACTIVE`,
+`INVENTORY_SESSION_INVALID_TRANSITION`, `INVENTORY_SESSION_CLOSED` or
+`INVENTORY_SESSION_CONFLICT`. Shelf deletion retains `LOCATION_IN_USE`.
+
+After a write, read the confirmed state; if that GET fails, retry GET only.
+Lost write responses are uncertain: consult state, never blindly repeat a POST
+or PUT. Client cancellation does not roll back a server commit.
+
+**No Book relationship or session_book**, expected-book or historical-name
+snapshots, movements or comparisons. Context uses current location names, so a
+rename also changes the labels displayed for old sessions. Completing inventory
+does not compare/modify Books or certify a matching catalog, and an active
+session does not freeze assignments or legacy reconciliation. No photos, uploads,
+OCR, AI or recognition are implemented. Future photos will belong to
+InventorySession, **not Book**.
+
 ### Assisted reconciliation of legacy locations
 
 Open **Conciliar ubicaciones anteriores** from `/locations` to reach the lazy

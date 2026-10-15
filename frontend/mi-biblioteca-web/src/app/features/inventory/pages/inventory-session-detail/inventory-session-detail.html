@@ -1,0 +1,75 @@
+<section aria-labelledby="session-heading" [attr.aria-busy]="loading() || write.pending()">
+  <h1 id="session-heading">Sesión de inventario</h1>
+  @if (loading()) {
+    <p role="status">Cargando sesión…</p>
+  }
+  @if (error()) {
+    <p role="alert">{{ error() }}</p>
+    <button mat-button (click)="retry()">Reintentar lectura</button>
+  }
+  @if (write.message()) {
+    <p role="status">{{ write.message() }}</p>
+  }
+  @if (session(); as data) {
+    <nav aria-label="Ubicación de la sesión">
+      {{ data.shelf.roomName }} > {{ data.shelf.bookcaseName }} > {{ data.shelf.shelfName }}
+    </nav>
+    <a
+      mat-button
+      [routerLink]="['/locations/shelves', data.shelf.shelfId, 'inventory']"
+      [queryParams]="paging()"
+      [disabled]="write.pending()"
+      >Volver al inventario de esta balda</a
+    >
+    <dl>
+      <dt>Estado</dt>
+      <dd>{{ labels[data.status] }}</dd>
+      <dt>Inicio</dt>
+      <dd>{{ data.startedAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+      <dt>Finalización</dt>
+      <dd>
+        {{ data.completedAt ? (data.completedAt | date: 'dd/MM/yyyy HH:mm') : 'Sin finalizar' }}
+      </dd>
+      <dt>Cancelación</dt>
+      <dd>
+        {{ data.cancelledAt ? (data.cancelledAt | date: 'dd/MM/yyyy HH:mm') : 'Sin cancelar' }}
+      </dd>
+    </dl>
+    @if (data.status === 'IN_PROGRESS') {
+      <form (ngSubmit)="save()" aria-label="Notas del inventario">
+        <mat-form-field
+          ><mat-label>Notas</mat-label
+          ><textarea
+            matInput
+            [formControl]="notes"
+            rows="6"
+            [readonly]="write.pending() || write.needsRead()"
+          ></textarea
+          ><mat-error>Máximo 2000 caracteres</mat-error></mat-form-field
+        >
+        <button mat-flat-button type="submit" [disabled]="write.pending() || write.needsRead()">
+          Guardar notas
+        </button>
+      </form>
+      <div class="actions">
+        <button
+          mat-button
+          [disabled]="write.pending() || write.needsRead()"
+          (click)="closeSession('complete')"
+        >
+          Finalizar</button
+        ><button
+          mat-button
+          [disabled]="write.pending() || write.needsRead()"
+          (click)="closeSession('cancel')"
+        >
+          Cancelar
+        </button>
+      </div>
+    } @else {
+      <h2>Notas</h2>
+      <p class="notes">{{ data.notes ?? 'Sin notas' }}</p>
+      <p>Sesión cerrada. Solo lectura; no puede reabrirse.</p>
+    }
+  }
+</section>

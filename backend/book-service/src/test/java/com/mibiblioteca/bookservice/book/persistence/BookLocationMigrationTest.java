@@ -35,7 +35,7 @@ class BookLocationMigrationTest {
                 assertThat(column.get("is_nullable")).isEqualTo("YES"); assertThat(column.get("column_default")).isNull();
                 assertThat(column.get("character_maximum_length")).isEqualTo(field.equals("shelf") ? 50 : 100);
             }
-            Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load().migrate();
+            Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target("8").load().migrate();
             Configuration configuration = new Configuration().addAnnotatedClass(Book.class)
                 .addAnnotatedClass(com.mibiblioteca.bookservice.location.Room.class)
                 .addAnnotatedClass(com.mibiblioteca.bookservice.location.Bookcase.class)
