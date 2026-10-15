@@ -128,6 +128,46 @@ defaults zoneless de Angular 22, sin Zone.js ni providers de animaciones legacy.
 
 ## Estructura y alcance
 
+### Inventario de baldas
+
+Desde cada Shelf en `/locations`, **Inventario** abre la ruta lazy
+`/locations/shelves/:shelfId/inventory`. Una sola consulta compuesta obtiene
+contexto actual Room > Bookcase > Shelf, sesión activa e historial paginado;
+no hay peticiones de inventario por balda al renderizar la jerarquía. La activa
+se muestra aunque no esté en la página de historial visible. Sin activa puede
+iniciarse una sesión mediante un MatDialog con notas opcionales; un error GET
+nunca se interpreta como ausencia de activa.
+
+El detalle lazy `/inventory-sessions/:id` muestra estado, fechas independientes
+de inicio/finalización/cancelación y notas. Los enlaces de detalle/retorno
+conservan page/size del historial mediante query params, sin depender de
+history.back ni storage. Tabla Material con CSS local responsive, signals,
+formularios tipados y GET cancelables con switchMap; una escritura por pantalla.
+
+**Shelf → InventorySession** es una observación temporal. Se crea directamente
+IN_PROGRESS y puede pasar a COMPLETED **o** CANCELLED, nunca de COMPLETED a
+CANCELLED. Ambos estados son terminales, de solo lectura, sin reapertura ni
+borrado. Cualquier sesión bloquea el borrado de Shelf; la UI diferencia libros
+de historial de inventario sin mezclar los conteos.
+
+Notas: máximo original de 2000 caracteres, trim exterior en backend, vacío a
+null, saltos/espacios interiores intactos. **Guardar notas** es explícito, sin
+autosave. Si hay cambios pendientes al cerrar, se ofrece volver para guardarlos
+primero o descartarlos explícitamente; después se confirma la acción de dominio.
+Finalizar advierte que no compara ni modifica libros; cancelar conserva historial.
+
+No actualizaciones optimistas ni retries automáticos de escrituras. Tras cierre
+o notas se consulta GET; si falla, Reintentar solo repite GET. Un 409 al crear
+recarga el estado y permite abrir la activa confirmada por backend. Red/5xx implica
+resultado incierto: consultar antes de otra acción, no repetir POST/PUT
+automáticamente. Cancelación cliente no implica rollback servidor.
+
+No snapshots históricos de nombres: una renombración se refleja en sesiones
+antiguas. No relación con Book/session_book, no snapshots de libros ni bloqueo de
+la balda; siguen permitidos Book CRUD y conciliación. No fotos, uploads, OCR, IA,
+reconocimiento o comparación. Futuras fotos pertenecerán a InventorySession y
+no directamente a Book.
+
 ### Conciliación asistida de legacy
 
 `/locations` enlaza **Conciliar ubicaciones anteriores** a la página lazy

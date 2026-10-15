@@ -184,7 +184,7 @@ class LocationIntegrationTest {
             stats.clear(); bookService.findAll(0, 20, "title", org.springframework.data.domain.Sort.Direction.ASC);
             assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(2);
             entityManager.clear(); stats.clear(); locationService.hierarchy();
-            assertThat(stats.getPrepareStatementCount()).isEqualTo(4);
+            assertThat(stats.getPrepareStatementCount()).isEqualTo(5);
         } finally { stats.setStatisticsEnabled(enabled); }
     }
 

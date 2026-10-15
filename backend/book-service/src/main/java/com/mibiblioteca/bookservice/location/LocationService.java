@@ -14,13 +14,17 @@ public class LocationService {
     private final BookcaseRepository bookcases;
     private final ShelfRepository shelves;
     private final BookRepository books;
-    public LocationService(RoomRepository rooms, BookcaseRepository bookcases, ShelfRepository shelves, BookRepository books) {
+    private final com.mibiblioteca.bookservice.inventory.InventorySessionRepository inventory;
+    public LocationService(RoomRepository rooms, BookcaseRepository bookcases, ShelfRepository shelves, BookRepository books, com.mibiblioteca.bookservice.inventory.InventorySessionRepository inventory) {
+        this.inventory = inventory;
         this.rooms = rooms; this.bookcases = bookcases; this.shelves = shelves; this.books = books;
     }
 
     @Transactional(readOnly = true)
     public List<RoomNode> hierarchy() {
         Map<Long, Long> counts = new HashMap<>();
+        Set<Long> inventoryShelves = new HashSet<>();
+        for (var count : inventory.countByShelf()) inventoryShelves.add(count.getShelfId());
         for (var count : books.countByShelf()) counts.put(count.getShelfId(), count.getBookCount());
         var allShelves = shelves.findAll(); var allBookcases = bookcases.findAll();
         Comparator<Shelf> shelfOrder = Comparator.comparing(Shelf::getName).thenComparing(Shelf::getId);
@@ -29,7 +33,8 @@ public class LocationService {
             var children = allBookcases.stream().filter(b -> b.getRoom().getId().equals(room.getId())).sorted(caseOrder).map(bookcase -> {
                 var nodes = allShelves.stream().filter(s -> s.getBookcase().getId().equals(bookcase.getId())).sorted(shelfOrder).map(s -> {
                     long count = counts.getOrDefault(s.getId(), 0L);
-                    return new ShelfNode(s.getId(), s.getName(), count, count == 0, count == 0 ? null : "BOOKS");
+                    boolean history = inventoryShelves.contains(s.getId());
+                    return new ShelfNode(s.getId(), s.getName(), count, count == 0 && !history, count > 0 ? "BOOKS" : history ? "INVENTORY_SESSIONS" : null);
                 }).toList();
                 return new BookcaseNode(bookcase.getId(), bookcase.getName(), nodes.stream().mapToLong(ShelfNode::bookCount).sum(), nodes.isEmpty(), nodes.isEmpty() ? null : "SHELVES", nodes);
             }).toList();
@@ -57,7 +62,7 @@ public class LocationService {
         shelf.setName(name(name, 50)); var saved = shelves.saveAndFlush(shelf); return new Item(saved.getId(), saved.getName());
     }
     public Item renameShelf(Long id, String name) { var shelf = shelf(id); shelf.setName(name(name, 50)); shelves.saveAndFlush(shelf); return new Item(shelf.getId(), shelf.getName()); }
-    public void deleteShelf(Long id) { var shelf = shelf(id); if (books.existsByAssignedShelfId(id)) throw LocationException.inUse(); shelves.delete(shelf); shelves.flush(); }
+    public void deleteShelf(Long id) { var shelf = shelf(id); if (books.existsByAssignedShelfId(id) || inventory.existsByShelfId(id)) throw LocationException.inUse(); shelves.delete(shelf); shelves.flush(); }
     @Transactional(readOnly = true)
     public Shelf shelf(Long id) { return shelves.findById(id).orElseThrow(() -> LocationException.missing("location.shelfId")); }
     private Room room(Long id) { return rooms.findById(id).orElseThrow(() -> LocationException.missing("roomId")); }

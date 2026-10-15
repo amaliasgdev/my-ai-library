@@ -72,10 +72,15 @@ public class GlobalExceptionHandler {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation) {
                 String constraint = violation.getConstraintName();
+                if ("23505".equals(violation.getSQLState()) && "uq_inventory_session_active_shelf".equals(constraint)) {
+                    var exActive = com.mibiblioteca.bookservice.inventory.InventorySessionException.active();
+                    var problem = ProblemDetail.forStatusAndDetail(exActive.status(), exActive.getMessage());
+                    problem.setProperty("code", exActive.code()); return problem;
+                }
                 if ("23505".equals(violation.getSQLState()) && java.util.Set.of("uq_room_name", "uq_bookcase_name", "uq_shelf_name").contains(constraint == null ? "" : constraint)) {
                     return handleLocation(new com.mibiblioteca.bookservice.location.LocationException(HttpStatus.CONFLICT, "LOCATION_NAME_CONFLICT", "A location with this name already exists in this parent", "name"));
                 }
-                if ("23503".equals(violation.getSQLState()) && java.util.Set.of("fk_book_shelf", "fk_shelf_bookcase", "fk_bookcase_room").contains(constraint == null ? "" : constraint)) {
+                if ("23503".equals(violation.getSQLState()) && java.util.Set.of("fk_inventory_session_shelf", "fk_book_shelf", "fk_shelf_bookcase", "fk_bookcase_room").contains(constraint == null ? "" : constraint)) {
                     return handleLocation(new com.mibiblioteca.bookservice.location.LocationException(HttpStatus.CONFLICT, "LOCATION_IN_USE", "Location changed or is in use; refresh and try again", "location"));
                 }
             }

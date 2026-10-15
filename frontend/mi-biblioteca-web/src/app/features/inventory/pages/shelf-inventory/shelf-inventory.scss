@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+table {
+  width: 100%;
+}
+td {
+  overflow-wrap: anywhere;
+}
+.notes {
+  white-space: pre-wrap;
+}
+.active-session {
+  border: 1px solid var(--mat-sys-outline-variant);
+  padding: 1rem;
+  margin-block: 1rem;
+}
+.mobile-label {
+  display: none;
+}
+@media (max-width: 45rem) {
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+  }
+  tr {
+    height: auto;
+    margin-block: 1rem;
+    border: 1px solid var(--mat-sys-outline-variant);
+  }
+  td {
+    padding: 0.5rem;
+    border: 0;
+  }
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .mobile-label {
+    display: inline;
+  }
+}

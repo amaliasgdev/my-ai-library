@@ -27,7 +27,7 @@ class LocationMigrationTest {
                 jdbc.update("INSERT INTO " + schema + ".book(title,author,room,bookcase,shelf) VALUES ('V7','Author',?,?,?)", (Object[]) values);
             }
             var before = jdbc.queryForList("SELECT id,room,bookcase,shelf FROM " + schema + ".book ORDER BY id");
-            var flyway = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load();
+            var flyway = Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target("8").load();
             assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1); flyway.validate();
             assertThat(jdbc.queryForList("SELECT id,room,bookcase,shelf FROM " + schema + ".book ORDER BY id")).isEqualTo(before);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM " + schema + ".book WHERE shelf_id IS NOT NULL", Long.class)).isZero();

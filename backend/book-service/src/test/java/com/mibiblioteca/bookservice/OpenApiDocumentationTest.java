@@ -219,6 +219,22 @@ class OpenApiDocumentationTest {
         assertThat(schemas.has("Snapshot")).isFalse();
     }
 
+    @Test void shouldDocumentInventoryLifecycleAndNotesWithoutBookRelations() throws Exception {
+        var document=objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths=document.path("paths");
+        assertThat(paths.path("/api/shelves/{shelfId}/inventory-sessions").path("post").path("responses").has("201")).isTrue();
+        for(String action:new String[]{"complete","cancel"}) {
+            var operation=paths.path("/api/inventory-sessions/{id}/"+action).path("post");
+            for(String code:new String[]{"200","400","404","409"}) assertThat(operation.path("responses").has(code)).isTrue();
+        }
+        assertThat(paths.path("/api/inventory-sessions/{id}").has("delete")).isFalse();
+        var schemas=document.path("components").path("schemas");
+        assertThat(schemas.path("UpdateInventorySessionNotesRequest").path("required").toString()).contains("notes");
+        assertThat(schemas.path("CreateInventorySessionRequest").path("properties").path("notes").path("maxLength").asInt()).isEqualTo(2000);
+        assertThat(schemas.path("InventorySessionResponse").path("properties").has("books")).isFalse();
+        assertThat(schemas.path("ShelfInventorySessionsResponse").path("properties").has("activeSession")).isTrue();
+    }
+
     @Test
     void shouldDocumentMetadataAndValidationLimits() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
