@@ -26,20 +26,6 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(com.mibiblioteca.bookservice.location.reconciliation.ReconciliationException.class)
-    public ProblemDetail handleReconciliation(com.mibiblioteca.bookservice.location.reconciliation.ReconciliationException ex) {
-        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
-        problem.setProperty("code", ex.code());
-        return problem;
-    }
-
-    @ExceptionHandler(com.mibiblioteca.bookservice.location.LocationException.class)
-    public ProblemDetail handleLocation(com.mibiblioteca.bookservice.location.LocationException ex) {
-        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
-        problem.setProperty("code", ex.code());
-        if (ex.field() != null) problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
-        return problem;
-    }
 
     @ExceptionHandler(InvalidBookFilterException.class)
     public ProblemDetail handleBookFilter(InvalidBookFilterException ex) {
@@ -70,20 +56,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({DataAccessException.class, TransactionException.class})
     public ProblemDetail handlePersistence(Exception ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation) {
-                String constraint = violation.getConstraintName();
-                if ("23505".equals(violation.getSQLState()) && "uq_inventory_session_active_shelf".equals(constraint)) {
-                    var exActive = com.mibiblioteca.bookservice.inventory.InventorySessionException.active();
-                    var problem = ProblemDetail.forStatusAndDetail(exActive.status(), exActive.getMessage());
-                    problem.setProperty("code", exActive.code()); return problem;
-                }
-                if ("23505".equals(violation.getSQLState()) && java.util.Set.of("uq_room_name", "uq_bookcase_name", "uq_shelf_name").contains(constraint == null ? "" : constraint)) {
-                    return handleLocation(new com.mibiblioteca.bookservice.location.LocationException(HttpStatus.CONFLICT, "LOCATION_NAME_CONFLICT", "A location with this name already exists in this parent", "name"));
-                }
-                if ("23503".equals(violation.getSQLState()) && java.util.Set.of("fk_inventory_session_shelf", "fk_book_shelf", "fk_shelf_bookcase", "fk_bookcase_room").contains(constraint == null ? "" : constraint)) {
-                    return handleLocation(new com.mibiblioteca.bookservice.location.LocationException(HttpStatus.CONFLICT, "LOCATION_IN_USE", "Location changed or is in use; refresh and try again", "location"));
-                }
-            }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                 && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {
                 ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A book with this ISBN already exists");
@@ -170,9 +142,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleUnreadableMessage(HttpMessageNotReadableException ex) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof com.mibiblioteca.bookservice.location.LocationException location) return handleLocation(location);
-        }
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request body is invalid");
         problemDetail.setTitle("Invalid request body");
         return problemDetail;

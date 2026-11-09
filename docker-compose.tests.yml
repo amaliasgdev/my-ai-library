@@ -1,0 +1,26 @@
+name: mi-biblioteca-tests
+
+services:
+  postgres-tests:
+    image: postgres:16-alpine
+    container_name: mi-biblioteca-postgres-tests
+    environment:
+      POSTGRES_DB: bookdb_tests
+      POSTGRES_USER: booktest_admin
+      POSTGRES_PASSWORD: ${TEST_DB_ADMIN_PASSWORD:?Load the local test database secrets first}
+      TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?Load the local test database secrets first}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-tests-data:/var/lib/postgresql/data
+      - ./docker/postgres-tests/init-test-role.sh:/docker-entrypoint-initdb.d/init-test-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booktest -d bookdb_tests"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-tests-data:
+    name: mi-biblioteca-tests_postgres-tests-data

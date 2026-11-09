@@ -11,10 +11,6 @@ export interface BookFormValue {
   pageCount: number | null;
   language: string;
   genres: string[];
-  room: string;
-  bookcase: string;
-  shelf: string;
-  shelfId?: number | null;
 }
 
 export function bookFormValue(book: BookResponse): BookFormValue {
@@ -29,16 +25,12 @@ export function bookFormValue(book: BookResponse): BookFormValue {
     pageCount: book.pageCount,
     language: book.language ?? '',
     genres: [...book.genres],
-    room: book.room ?? '',
-    bookcase: book.bookcase ?? '',
-    shelf: book.shelf ?? '',
-    shelfId: book.shelfId ?? null,
   };
 }
 
 export function buildBookRequest(value: BookFormValue): BookRequest {
   const optional = (text: string): string | null => (text.trim() ? text : null);
-  const request: BookRequest = {
+  return {
     title: value.title,
     author: value.author,
     isbn: optional(value.isbn),
@@ -49,15 +41,5 @@ export function buildBookRequest(value: BookFormValue): BookRequest {
     pageCount: value.pageCount,
     language: optional(value.language.toLowerCase()),
     genres: value.genres.map((genre) => genre.trim()),
-    room: optional(value.room.trim()),
-    bookcase: optional(value.bookcase.trim()),
-    shelf: optional(value.shelf.trim()),
   };
-  if (value.shelfId != null) {
-    delete request.room;
-    delete request.bookcase;
-    delete request.shelf;
-    request.location = { kind: 'SHELF', shelfId: value.shelfId };
-  }
-  return request;
 }

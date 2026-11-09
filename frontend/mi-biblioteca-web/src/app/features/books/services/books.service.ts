@@ -19,11 +19,6 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class BooksService {
-  updateLocation(id: number, shelfId: number | null) {
-    return this.http.put<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}/location`, {
-      shelfId,
-    });
-  }
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
 

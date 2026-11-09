@@ -73,31 +73,6 @@
               <p>Sin géneros</p>
             }
           </section>
-          @if (current.book.room || current.book.bookcase || current.book.shelf) {
-            <section aria-labelledby="location-heading">
-              <h2 id="location-heading">Ubicación</h2>
-              <dl>
-                @if (current.book.room) {
-                  <div>
-                    <dt>Habitación</dt>
-                    <dd>{{ current.book.room }}</dd>
-                  </div>
-                }
-                @if (current.book.bookcase) {
-                  <div>
-                    <dt>Estantería</dt>
-                    <dd>{{ current.book.bookcase }}</dd>
-                  </div>
-                }
-                @if (current.book.shelf) {
-                  <div>
-                    <dt>Balda</dt>
-                    <dd>{{ current.book.shelf }}</dd>
-                  </div>
-                }
-              </dl>
-            </section>
-          }
           <section aria-labelledby="reading-heading">
             <h2 id="reading-heading">Lectura</h2>
             <dl>

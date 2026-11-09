@@ -1,10 +1,6 @@
 package com.mibiblioteca.bookservice.book.persistence;
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
-import com.mibiblioteca.bookservice.location.Shelf;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,12 +21,6 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "book")
 public class Book {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shelf_id")
-    private Shelf assignedShelf;
-
-    public Shelf getAssignedShelf() { return assignedShelf; }
-    public void setAssignedShelf(Shelf shelf) { this.assignedShelf = shelf; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -66,15 +56,6 @@ public class Book {
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false, columnDefinition = "VARCHAR(50)[]")
     private List<String> genres = new ArrayList<>();
-
-    @Column(length = 100)
-    private String room;
-
-    @Column(length = 100)
-    private String bookcase;
-
-    @Column(length = 50)
-    private String shelf;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reading_status", nullable = false, length = 20)
@@ -186,13 +167,6 @@ public class Book {
     public ReadingStatus getReadingStatus() {
         return readingStatus;
     }
-
-    public String getRoom() { return room; }
-    public void setRoom(String room) { this.room = room; }
-    public String getBookcase() { return bookcase; }
-    public void setBookcase(String bookcase) { this.bookcase = bookcase; }
-    public String getShelf() { return shelf; }
-    public void setShelf(String shelf) { this.shelf = shelf; }
 
     public void setReadingStatus(ReadingStatus readingStatus) {
         this.readingStatus = readingStatus;

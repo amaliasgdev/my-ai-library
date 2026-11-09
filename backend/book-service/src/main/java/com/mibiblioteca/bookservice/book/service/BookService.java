@@ -1,10 +1,6 @@
 package com.mibiblioteca.bookservice.book.service;
 
 import com.mibiblioteca.bookservice.book.dto.BookRequest;
-import com.mibiblioteca.bookservice.book.dto.BookLocationRequest;
-import com.mibiblioteca.bookservice.book.dto.UpdateBookLocationRequest;
-import com.mibiblioteca.bookservice.location.LocationService;
-import com.mibiblioteca.bookservice.location.LocationException;
 import com.mibiblioteca.bookservice.book.dto.BookResponse;
 import com.mibiblioteca.bookservice.book.dto.BookPageResponse;
 import com.mibiblioteca.bookservice.book.dto.BookSearchRequest;
@@ -40,13 +36,11 @@ public class BookService {
     private final BookRepository bookRepository;
     private final IsbnNormalizer isbnNormalizer;
     private final CoverLifecycle covers;
-    private final LocationService locations;
 
-    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers, LocationService locations) {
+    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers) {
         this.bookRepository = bookRepository;
         this.isbnNormalizer = isbnNormalizer;
         this.covers = covers;
-        this.locations = locations;
     }
 
     @Transactional
@@ -62,7 +56,6 @@ public class BookService {
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
         applyMetadata(book, request);
-        applyLocation(book, request);
 
         Book saved = bookRepository.save(book);
         return toResponse(saved);
@@ -127,7 +120,6 @@ public class BookService {
         book.setDescription(request.description());
         book.setCoverUrl(request.coverUrl());
         applyMetadata(book, request);
-        applyLocation(book, request);
 
         Book saved = bookRepository.save(book);
         covers.afterCommit(id, previousCover, saved.getCoverUrl());
@@ -276,9 +268,6 @@ public class BookService {
     }
 
     private BookResponse toResponse(Book book) {
-        var shelf = book.getAssignedShelf();
-        var bookcase = shelf == null ? null : shelf.getBookcase();
-        var room = bookcase == null ? null : bookcase.getRoom();
         return new BookResponse(
             book.getId(),
             book.getTitle(),
@@ -296,41 +285,7 @@ public class BookService {
             book.getPublicationYear(),
             book.getPageCount(),
             book.getLanguage(),
-            book.getGenres(),
-            room == null ? book.getRoom() : room.getName(),
-            bookcase == null ? book.getBookcase() : bookcase.getName(),
-            shelf == null ? book.getShelf() : shelf.getName(),
-            room == null ? null : room.getId(),
-            bookcase == null ? null : bookcase.getId(),
-            shelf == null ? null : shelf.getId(),
-            shelf == null && (book.getRoom() != null || book.getBookcase() != null || book.getShelf() != null)
+            book.getGenres()
         );
-    }
-
-    private void applyLocation(Book book, BookRequest request) {
-        var location = request.location();
-        if (location != null) {
-            if (request.room() != null || request.bookcase() != null || request.shelf() != null) throw LocationException.invalid("location");
-            location.checkRepresentation();
-        }
-        book.setAssignedShelf(location != null && location.kind() == BookLocationRequest.Kind.SHELF ? locations.shelf(location.shelfId()) : null);
-        book.setRoom(normalizeLocation(location == null ? request.room() : location.room()));
-        book.setBookcase(normalizeLocation(location == null ? request.bookcase() : location.bookcase()));
-        book.setShelf(normalizeLocation(location == null ? request.shelf() : location.shelf()));
-    }
-
-    @Transactional
-    public BookResponse updateLocation(Long id, UpdateBookLocationRequest request) {
-        Book book = findBook(id);
-        book.setAssignedShelf(request.shelfId() == null ? null : locations.shelf(request.shelfId()));
-        book.setRoom(null); book.setBookcase(null); book.setShelf(null);
-        return toResponse(bookRepository.saveAndFlush(book));
-    }
-
-    private String normalizeLocation(String value) {
-        if (value == null) return null;
-        // Unicode space separators + BOM match frontend trim for valid single-line labels.
-        String trimmed = value.replaceAll("^[\\p{Zs}\\uFEFF]+|[\\p{Zs}\\uFEFF]+$", "");
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }

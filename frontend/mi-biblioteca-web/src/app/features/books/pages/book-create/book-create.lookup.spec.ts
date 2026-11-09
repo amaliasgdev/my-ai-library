@@ -47,42 +47,6 @@ describe('BookCreate ISBN lookup', () => {
     expect(page.lookupState()).toBe('idle');
   });
 
-  it('lookup preserves location drafts including edits made during the GET; explicit creation sends them', () => {
-    editor.form.patchValue({ room: ' Salón ', bookcase: 'Billy', shelf: '3' });
-    const request = begin();
-    editor.form.controls.shelf.setValue(' Superior ');
-    request.flush(testBookLookup());
-    fixture.detectChanges();
-    expect(editor.form.getRawValue()).toMatchObject({
-      room: ' Salón ',
-      bookcase: 'Billy',
-      shelf: ' Superior ',
-    });
-    http.expectNone((req) => req.method === 'POST');
-    editor.submit();
-    const post = http.expectOne('/api/books');
-    expect(post.request.body).toMatchObject({
-      room: 'Salón',
-      bookcase: 'Billy',
-      shelf: 'Superior',
-    });
-    post.flush(testBook());
-  });
-
-  it('loads hierarchy only on explicit selector request; creation sends Shelf ID and no legacy fields', () => {
-    editor.locationsRequested.emit();
-    const hierarchy = http.expectOne('/api/locations');
-    hierarchy.flush([]);
-    editor.selectLocation({ shelfId: 42, incomplete: false, clearLegacy: true });
-    editor.form.patchValue({ title: 'Book', author: 'Author' });
-    editor.submit();
-    const post = http.expectOne('/api/books');
-    expect(post.request.body.location).toEqual({ kind: 'SHELF', shelfId: 42 });
-    for (const field of ['room', 'bookcase', 'shelf'])
-      expect(Object.hasOwn(post.request.body, field)).toBe(false);
-    post.flush(testBook({ shelfId: 42 }));
-  });
-
   it.each(['', ' ', 'bad ISBN', '1'.repeat(21)])(
     'should not GET for empty or locally invalid ISBN %s',
     (isbn) => {
@@ -116,12 +80,8 @@ describe('BookCreate ISBN lookup', () => {
     request.flush(testBookLookup());
     fixture.detectChanges();
     expect(editor.form.getRawValue()).toEqual({
-      shelfId: null,
       ...testBookLookup(),
       description: '  My exact description\n',
-      room: '',
-      bookcase: '',
-      shelf: '',
     });
     expect(page.lookupState()).toBe('success');
     expect(element.textContent).toContain(
@@ -289,13 +249,7 @@ describe('BookCreate ISBN lookup', () => {
     http.expectNone('/api/books');
     editor.submit();
     const post = http.expectOne('/api/books');
-    expect(post.request.body).toEqual({
-      ...testBookLookup(),
-      description: 'My description',
-      room: null,
-      bookcase: null,
-      shelf: null,
-    });
+    expect(post.request.body).toEqual({ ...testBookLookup(), description: 'My description' });
     post.flush(testBook());
   });
 

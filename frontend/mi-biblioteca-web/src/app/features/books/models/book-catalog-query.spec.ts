@@ -13,6 +13,36 @@ describe('book catalog URL query', () => {
     expect(parse()).toEqual({ page: 0, size: 20, sortBy: 'title', direction: 'ASC', search: null });
     expect(serializeBookCatalogQuery(parse())).toEqual({});
   });
+  it('discards retired physical filters while preserving bibliographic catalog context', () => {
+    const supported = {
+      page: '2',
+      size: '50',
+      sortBy: 'rating',
+      direction: 'DESC',
+      title: 'Dune',
+      readingStatus: ['READING', 'READ'],
+      ratingMin: '4',
+      yearFrom: '1960',
+      yearTo: '2026',
+      genre: 'Ciencia ficción',
+      language: 'es',
+      publisher: 'Editorial',
+    };
+    const obsolete = convertToParamMap({
+      ...supported,
+      room: 'Salón',
+      bookcase: 'Billy',
+      shelf: 'Superior',
+      roomId: '1',
+      bookcaseId: '2',
+      shelfId: '3',
+    });
+    const query = parseBookCatalogQuery(obsolete);
+    expect(query).toEqual(parse(supported));
+    expect(isCanonicalBookCatalogQuery(obsolete, query)).toBe(false);
+    expect(serializeBookCatalogQuery(query)).toEqual(supported);
+    expect(isCanonicalBookCatalogQuery(convertToParamMap(supported), query)).toBe(true);
+  });
   it.each(['0', '1', '002', '2147483647'])('accepts page %s', (page) =>
     expect(parse({ page }).page).toBe(Number(page)),
   );

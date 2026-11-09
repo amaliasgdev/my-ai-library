@@ -109,11 +109,7 @@ describe('BookEdit', () => {
     );
     const editor = component.editor()!;
     expect(editor.form.getRawValue()).toEqual({
-      shelfId: null,
       ...testBookRequest(),
-      room: '',
-      bookcase: '',
-      shelf: '',
       isbn: '9780132350884',
       description: ' Description ',
       coverUrl: managedCover,
@@ -196,7 +192,7 @@ describe('BookEdit', () => {
     http.expectNone((req) => req.method === 'PUT');
   });
 
-  it('should PUT exactly thirteen request fields, preserve the managed cover and navigate on success', () => {
+  it('should PUT exactly ten request fields, preserve the managed cover and navigate on success', () => {
     load(
       testBook({
         id: 42,
@@ -210,7 +206,7 @@ describe('BookEdit', () => {
     const request = http.expectOne('/api/books/42');
     expect(request.request.method).toBe('PUT');
     expect(request.request.body).toEqual(testBookRequest({ coverUrl: managedCover }));
-    expect(Object.keys(request.request.body)).toHaveLength(13);
+    expect(Object.keys(request.request.body)).toHaveLength(10);
     request.flush(testBook({ id: 42, coverUrl: managedCover }));
     expect(navigate).toHaveBeenCalledWith(['/books']);
     expect(component.submitting()).toBe(false);
