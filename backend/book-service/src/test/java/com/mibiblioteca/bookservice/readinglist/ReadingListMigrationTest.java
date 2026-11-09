@@ -127,6 +127,34 @@ class ReadingListMigrationTest {
         assertThat(jdbc.queryForObject("SELECT success FROM public.flyway_schema_history WHERE version='11'", Boolean.class)).isTrue();
     }
 
+    @Test
+    void upgradesCompatibleV9ThroughV10AndV11PreservingBibliographicBooks() throws Exception {
+        migrateTo("9");
+        jdbc.execute("""
+            INSERT INTO public.room(name) VALUES ('Test room');
+            INSERT INTO public.bookcase(room_id,name) SELECT id,'Test bookcase' FROM public.room;
+            INSERT INTO public.shelf(bookcase_id,name) SELECT id,'Test shelf' FROM public.bookcase;
+            INSERT INTO public.inventory_session(shelf_id,status,started_at,created_at,updated_at)
+                SELECT id,'IN_PROGRESS',now(),now(),now() FROM public.shelf;
+            INSERT INTO public.book(title,author,reading_status,genres,room,created_at,updated_at)
+                VALUES ('Legacy book','Author','TO_READ',ARRAY['Essay'],'Legacy room',now(),now());
+            INSERT INTO public.book(title,author,reading_status,genres,shelf_id,created_at,updated_at)
+                SELECT 'Structured book','Author','READ','{}',id,now(),now() FROM public.shelf;
+            """);
+        String before = jdbc.queryForObject("""
+            SELECT jsonb_agg(to_jsonb(b) - ARRAY['room','bookcase','shelf','shelf_id'] ORDER BY id)::text
+            FROM public.book b
+            """, String.class);
+        migrateTo("11");
+        assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(b) ORDER BY id)::text FROM public.book b", String.class))
+            .isEqualTo(before);
+        assertThat(jdbc.queryForList("SELECT tablename FROM pg_tables WHERE schemaname='public'", String.class))
+            .containsExactlyInAnyOrder("book", "flyway_schema_history", "reading_list", "reading_list_entry");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM public.reading_list_entry", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT revision FROM public.reading_list WHERE id=1", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM public.flyway_schema_history WHERE success", Integer.class)).isEqualTo(11);
+    }
+
     private String preservedState() {
         return jdbc.queryForObject("""
             SELECT jsonb_build_object(

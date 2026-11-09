@@ -1,5 +1,22 @@
 # My AI Library
 
+## Reading list and safe validation
+
+The personal reading list is available at `/reading-list`, with catalog/detail
+membership actions, server-side state filters, reading dates and persistent ordering
+using Up/Down or optional CDK Drag & Drop. See
+[usage and limitations](frontend/mi-biblioteca-web/READING-LIST.md),
+[REST contracts](backend/book-service/READING-LIST-API.md) and
+[integral validation](backend/book-service/READING-LIST-VALIDATION.md).
+
+**Do not start the backend with its default datasource for reading-list validation.**
+The original `bookdb` is still V9. Pending V10 removes retired location/inventory
+data; V11 adds the reading list. Their application to the original database requires
+separate approval, a current verified backup and a controlled migration window.
+Use only the isolated PostgreSQL service and instructions in
+[TESTING.md](backend/book-service/TESTING.md). Never use `git add .` while local
+`backups/` is untracked; do not stage dumps, local secrets or validation logs.
+
 ## Frontend technical base
 
 Location: [`frontend/mi-biblioteca-web`](frontend/mi-biblioteca-web/README.md).

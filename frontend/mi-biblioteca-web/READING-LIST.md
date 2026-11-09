@@ -107,3 +107,24 @@ npm run build
 ```
 
 No hace falta arrancar el backend ni PostgreSQL para esta verificación.
+
+## Validación integral — Etapa 6
+
+La suite frontend cubre las operaciones anteriores con HTTP simulado, los harnesses
+Material, navegación real del Router y eventos CDK. No certifica gestos táctiles
+físicos, contraste visual en todos los dispositivos ni una auditoría completa con
+lector de pantalla. Esas comprobaciones manuales deben realizarse antes de una
+liberación, sin apuntar nunca al backend conectado a bookdb.
+
+El recorrido HTTP real y la persistencia PostgreSQL se verifican por separado
+mediante ReadingListHttpJourneyTest en el entorno aislado. Las instrucciones y
+los resultados están en
+[TESTING.md](../../backend/book-service/TESTING.md) y
+[READING-LIST-VALIDATION.md](../../backend/book-service/READING-LIST-VALIDATION.md).
+
+Limitaciones: una lista personal sin usuarios ni autorización, sin paginación de
+la lista, sin reordenación en filtros activos ni orden optimista. Consultas y
+actualizaciones son instantáneas: otra sesión puede cambiar la lista después de
+una lectura. La revisión protege escrituras estructurales; no es una versión
+global de los datos Book. Una cancelación cliente no revierte un commit servidor.
+No existe undo, historia de movimientos ni reintento automático de escrituras.

@@ -84,3 +84,48 @@ development cover directory. Do not run a backend with test dependencies or
 destructive migrations against the original database. The full migration history,
 including V10 and V11, is applied only to the guarded isolated test destinations;
 the original and restore-validation databases are never test targets.
+
+## Full reading-list validation (Stage 6)
+
+From repository root, after verifying that the existing isolated container is healthy:
+
+```powershell
+. ./scripts/Use-TestDatabase.ps1
+python scripts/Prepare-ReadingListMigrationDatabase.py
+Set-Location backend/book-service
+.\mvnw.cmd '-Dtest=IsolatedTestDatabaseConnectionTest,IsolatedTestDatabaseInitializerTest' test
+.\mvnw.cmd clean verify
+```
+
+`verify` includes compilation, the full test phase, JAR packaging and the Maven
+verification lifecycle. Do not use skip-tests flags. Do not run another suite or
+an interactive application against these databases concurrently.
+
+The new `ReadingListHttpJourneyTest` starts an embedded HTTP server on loopback
+and a random port with the **test classpath** and registered fail-closed initializer.
+It uses real Java HttpClient requests, independent server transactions and actual
+PostgreSQL commits. Its fixtures are created through POST /api/books and removed
+afterwards; existing Book data is not deleted. It verifies add/membership, duplicate
+and stale-revision conflicts, ordering, status/date changes, withdrawal, Book
+deletion/compaction, repeat GET persistence and OpenAPI. It is not a browser test.
+
+To repeat only that real HTTP journey after the safety checks:
+
+```powershell
+.\mvnw.cmd '-Dtest=ReadingListHttpJourneyTest' test
+```
+
+The random HTTP port is not the Angular development proxy target. Frontend tests
+use HttpTestingController without a live server. Do not point the development
+proxy at a normally started backend as a shortcut for validation.
+
+Migration coverage includes an empty database through V11, compatible V9 ->
+V10 -> V11 with legacy/structured Book fixtures and inventory objects, and V10 ->
+V11 with preservation of Book rows/history/constraints/indexes/sequence. V10
+intentionally removes retired physical-location/inventory data, not bibliographic
+data; dependencies that prevent its restrictive DDL must be resolved explicitly.
+The real database is **not** an approved migration target in this workflow.
+
+See [READING-LIST-VALIDATION.md](READING-LIST-VALIDATION.md) for evidence and
+remaining manual checks. Never run Flyway clean outside the fixed disposable
+migration fixture, delete volumes or restore over an existing database here.
