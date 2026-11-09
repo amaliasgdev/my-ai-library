@@ -227,6 +227,151 @@ class ReadingListConcurrencyTest {
         assertThat(service.getList(null).revision()).isEqualTo(Long.toString(Long.MAX_VALUE));
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void simultaneousEffectiveMovesCommitOnceAndRejectTheStaleWriter(boolean sameEntry) throws Exception {
+        long first = service.add(request(book(), "0")).item().entryId();
+        long second = service.add(request(book(), "1")).item().entryId();
+        long third = service.add(request(book(), "2")).item().entryId();
+        var ready = new CountDownLatch(2);
+        var go = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(() -> concurrentOperation(ready, go,
+                () -> service.move(first, moveRequest(3, "3")), "moved"));
+            var b = pool.submit(() -> concurrentOperation(ready, go,
+                () -> service.move(sameEntry ? first : third, moveRequest(sameEntry ? 2 : 1, "3")), "moved"));
+            try { await(ready); } finally { go.countDown(); }
+            assertThat(List.of(a.get(15, TimeUnit.SECONDS), b.get(15, TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder("moved", "READING_LIST_REVISION_CONFLICT");
+        }
+        var confirmed = service.getList(null);
+        assertThat(confirmed.revision()).isEqualTo("4");
+        assertThat(confirmed.items()).extracting(ReadingListDtos.ReadingListItemResponse::position).containsExactly(1, 2, 3);
+        var order = confirmed.items().stream().map(ReadingListDtos.ReadingListItemResponse::entryId).toList();
+        assertThat(order).isIn(List.of(second, third, first), sameEntry ? List.of(second, first, third) : List.of(third, first, second));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"append", "remove", "deleteBook"})
+    void movesCoordinateWithEveryOtherStructuralWrite(String operation) throws Exception {
+        long firstBook = book();
+        long middleBook = book();
+        long lastBook = book();
+        long appendedBook = book();
+        long first = service.add(request(firstBook, "0")).item().entryId();
+        long middle = service.add(request(middleBook, "1")).item().entryId();
+        service.add(request(lastBook, "2"));
+        var ready = new CountDownLatch(2);
+        var go = new CountDownLatch(1);
+        String moved;
+        String other;
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(() -> concurrentOperation(ready, go,
+                () -> service.move(first, moveRequest(3, "3")), "moved"));
+            var b = pool.submit(() -> concurrentOperation(ready, go, () -> {
+                switch (operation) {
+                    case "append" -> service.add(request(appendedBook, "3"));
+                    case "remove" -> service.remove(middle, "3");
+                    case "deleteBook" -> bookService.delete(middleBook);
+                    default -> throw new AssertionError(operation);
+                }
+            }, "written"));
+            try { await(ready); } finally { go.countDown(); }
+            moved = a.get(15, TimeUnit.SECONDS);
+            other = b.get(15, TimeUnit.SECONDS);
+        }
+        var confirmed = service.getList(null);
+        assertThat(confirmed.items()).extracting(ReadingListDtos.ReadingListItemResponse::position)
+            .containsExactlyElementsOf(java.util.stream.IntStream.rangeClosed(1, confirmed.items().size()).boxed().toList());
+        if (operation.equals("deleteBook")) {
+            assertThat(other).isEqualTo("written");
+            assertThat(moved).isIn("moved", "READING_LIST_REVISION_CONFLICT");
+            assertThat(confirmed.revision()).isEqualTo(moved.equals("moved") ? "5" : "4");
+            assertThat(confirmed.items()).hasSize(2);
+            assertThat(books.existsById(middleBook)).isFalse();
+        } else {
+            assertThat(List.of(moved, other)).containsExactlyInAnyOrder(
+                moved.equals("moved") ? "moved" : "written", "READING_LIST_REVISION_CONFLICT");
+            assertThat(confirmed.revision()).isEqualTo("4");
+            int size = moved.equals("moved") ? 3 : operation.equals("append") ? 4 : 2;
+            assertThat(confirmed.items()).hasSize(size);
+            assertThat(books.existsById(middleBook)).isTrue();
+        }
+    }
+
+    @Test
+    void concurrentNoOpsBothSucceedWithoutIncrementingRevision() throws Exception {
+        long entry = service.add(request(book(), "0")).item().entryId();
+        var ready = new CountDownLatch(2);
+        var go = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Callable<String> move = () -> concurrentOperation(ready, go,
+                () -> assertThat(service.move(entry, moveRequest(1, "1")).revision()).isEqualTo("1"), "unchanged");
+            var a = pool.submit(move);
+            var b = pool.submit(move);
+            try { await(ready); } finally { go.countDown(); }
+            assertThat(List.of(a.get(15, TimeUnit.SECONDS), b.get(15, TimeUnit.SECONDS)))
+                .containsExactly("unchanged", "unchanged");
+        }
+        assertThat(service.getList(null).revision()).isEqualTo("1");
+    }
+
+    @Test
+    void failureAfterActualMoveAndRevisionFlushRollsBackTheWholeInterval() {
+        long first = service.add(request(book(), "0")).item().entryId();
+        service.add(request(book(), "1"));
+        service.add(request(book(), "2"));
+        var before = service.getList(null);
+        doAnswer(invocation -> {
+            entityManager.flush();
+            jdbc.update("UPDATE public.reading_list SET revision=-1 WHERE id=1");
+            return null;
+        }).when(lists).flush();
+        assertThatThrownBy(() -> service.move(first, moveRequest(3, "3")))
+            .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(service.getList(null)).isEqualTo(before);
+    }
+
+    @Test
+    void unresolvedDeferredPositionCollisionFailsAndRollsBackBeforeReturning() {
+        long first = service.add(request(book(), "0")).item().entryId();
+        service.add(request(book(), "1"));
+        long third = service.add(request(book(), "2")).item().entryId();
+        var before = service.getList(null);
+        doAnswer(invocation -> entityManager.createQuery("""
+            select entry from ReadingListEntry entry
+            where entry.readingList.id = 1 and entry.id <> :omitted order by entry.position
+            """, ReadingListEntry.class).setParameter("omitted", first).getResultList())
+            .when(entries).findByReadingListIdAndPositionBetweenOrderByPositionAsc(ReadingList.SINGLETON_ID, 1, 3);
+        // Simulate an incomplete interval from storage: position 1 is not shifted,
+        // so the actual deferred UNIQUE must reject the moved entry at position 1.
+        assertThatThrownBy(() -> service.move(third, moveRequest(1, "3")))
+            .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(service.getList(null)).isEqualTo(before);
+    }
+
+    @Test
+    void effectiveMoveAtMaximumRevisionRollsBackWithoutChangingOrder() {
+        long first = service.add(request(book(), "0")).item().entryId();
+        service.add(request(book(), "1"));
+        jdbc.update("UPDATE public.reading_list SET revision=? WHERE id=1", Long.MAX_VALUE);
+        var before = service.getList(null);
+        assertThatThrownBy(() -> service.move(first, moveRequest(2, Long.toString(Long.MAX_VALUE))))
+            .isInstanceOfSatisfying(ReadingListException.class,
+                exception -> assertThat(exception.code()).isEqualTo("READING_LIST_REVISION_EXHAUSTED"));
+        assertThat(service.getList(null)).isEqualTo(before);
+    }
+
+    private String concurrentOperation(CountDownLatch ready, CountDownLatch go, Runnable operation, String success) throws Exception {
+        ready.countDown(); await(go);
+        try { operation.run(); return success; }
+        catch (ReadingListException exception) { return exception.code(); }
+    }
+
+    private ReadingListDtos.MoveReadingListItemRequest moveRequest(int position, String revision) {
+        return new ReadingListDtos.MoveReadingListItemRequest(position, revision);
+    }
+
     private String concurrentAdd(long id, CountDownLatch ready, CountDownLatch go) throws Exception {
         ready.countDown(); await(go);
         try { service.add(request(id, "0")); return "created"; }

@@ -53,6 +53,17 @@ public class ReadingListController {
         return ResponseEntity.created(URI.create("/api/reading-list/items/" + response.item().entryId())).body(response);
     }
 
+    @PostMapping("/items/{entryId}/move")
+    @Operation(summary = "Move an entry to an absolute global position", description = "Position is relative to the complete list, never a filtered view, and must be between 1 and its current size. Locks the singleton and checks expectedRevision before entry validation, including no-op moves. Shifts only the affected interval atomically. Effective moves increment revision once; moving to the current position leaves revision unchanged. Returns revision as a decimal string and the confirmed entryId/position.")
+    @ApiResponse(responseCode = "200", description = "Confirmed position and revision, including valid no-op moves")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    @ApiResponse(responseCode = "409", ref = "Conflict")
+    public ReadingListMoveResponse move(@PathVariable String entryId,
+        @Valid @RequestBody MoveReadingListItemRequest request) {
+        return service.move(ReadingListParameters.id(entryId, "entryId"), request);
+    }
+
     @DeleteMapping("/items/{entryId}")
     @Operation(summary = "Remove an entry without deleting its book", description = "Requires exactly one expectedRevision query parameter. Compacts later positions atomically and increments revision once. Stale revision is checked before entry existence.")
     @Parameter(name = "expectedRevision", in = ParameterIn.QUERY, required = true, schema = @Schema(type = "string", example = "1"))

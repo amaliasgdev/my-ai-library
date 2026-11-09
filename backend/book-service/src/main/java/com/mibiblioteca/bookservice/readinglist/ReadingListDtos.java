@@ -30,4 +30,13 @@ public final class ReadingListDtos {
     public record ReadingListAddResponse(String revision, ReadingListItemResponse item) { }
 
     public record ReadingListRevisionResponse(String revision) { }
+
+    public record MoveReadingListItemRequest(
+        @NotNull @Positive Integer toPosition,
+        @NotNull @JsonDeserialize(using = RevisionStringDeserializer.class)
+        @Schema(description = "Expected nonnegative BIGINT revision as a canonical decimal string", example = "5")
+        String expectedRevision
+    ) { }
+
+    public record ReadingListMoveResponse(String revision, Long entryId, int position) { }
 }

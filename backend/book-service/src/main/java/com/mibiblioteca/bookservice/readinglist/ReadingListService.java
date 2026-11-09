@@ -77,6 +77,32 @@ public class ReadingListService {
         return new ReadingListRevisionResponse(Long.toString(list.getRevision()));
     }
 
+    @Transactional
+    public ReadingListMoveResponse move(long entryId, MoveReadingListItemRequest request) {
+        ReadingList list = lockAndCheck(ReadingListParameters.revision(request.expectedRevision()));
+        var entry = entries.findByIdAndReadingListId(entryId, SINGLETON_ID).orElseThrow(() ->
+            new ReadingListException(HttpStatus.NOT_FOUND, "READING_LIST_ENTRY_NOT_FOUND", "The entry does not exist", "entryId"));
+        Integer target = request.toPosition();
+        if (target == null || target < 1 || target > entries.countByReadingListId(SINGLETON_ID))
+            throw ReadingListException.invalid("toPosition");
+        int previous = entry.getPosition();
+        if (target != previous) {
+            jdbc.execute("SET CONSTRAINTS public.uq_reading_list_entry_position DEFERRED");
+            // Fetch before changing managed positions: query auto-flush must not
+            // influence which rows belong to the original affected interval.
+            var affected = entries.findByReadingListIdAndPositionBetweenOrderByPositionAsc(
+                SINGLETON_ID, Math.min(previous, target), Math.max(previous, target));
+            int shift = target < previous ? 1 : -1;
+            affected.stream().filter(other -> !other.getId().equals(entry.getId()))
+                .forEach(other -> other.setPosition(other.getPosition() + shift));
+            entry.setPosition(target);
+            increment(list);
+            lists.flush();
+            jdbc.execute("SET CONSTRAINTS public.uq_reading_list_entry_position IMMEDIATE");
+        }
+        return new ReadingListMoveResponse(Long.toString(list.getRevision()), entry.getId(), entry.getPosition());
+    }
+
     /** Joins Book.delete's transaction; always acquire the singleton before Book. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void removeBookBeforeDeletion(long bookId) {

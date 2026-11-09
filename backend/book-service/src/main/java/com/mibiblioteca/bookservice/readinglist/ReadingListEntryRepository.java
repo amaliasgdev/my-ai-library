@@ -26,6 +26,9 @@ public interface ReadingListEntryRepository extends JpaRepository<ReadingListEnt
 
     List<ReadingListEntry> findByReadingListIdAndPositionGreaterThanOrderByPositionAsc(Long readingListId, int position);
 
+    List<ReadingListEntry> findByReadingListIdAndPositionBetweenOrderByPositionAsc(
+        Long readingListId, int firstPosition, int lastPosition);
+
     interface Membership {
         Long getBookId();
         Long getEntryId();

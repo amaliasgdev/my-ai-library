@@ -1,6 +1,6 @@
 # Lista de lectura — Etapa 2: API básica
 
-No hay movimientos, reordenación arbitraria, paginación ni cambios Angular.
+La Etapa 3 añade el movimiento absoluto descrito abajo. No hay paginación ni cambios Angular.
 V1–V11 no cambian. La lista sigue siendo única y referencia Book sin duplicarlo.
 
 ## Contratos
@@ -80,6 +80,47 @@ No hay body DELETE ni eliminación de Book.
 La URI de Location identifica la entrada para DELETE; esta etapa no añade un
 endpoint GET individual de entrada.
 
+### POST /api/reading-list/items/{entryId}/move — Etapa 3
+
+```json
+{"toPosition":1,"expectedRevision":"5"}
+```
+
+HTTP 200 con la posición confirmada:
+
+```json
+{"revision":"6","entryId":8,"position":1}
+```
+
+- El destino es un INTEGER obligatorio, positivo y <= tamaño actual de la lista
+  **completa**. No representa un índice de una vista filtrada ni una posición
+  relativa. La numeración empieza en 1, no en 0.
+- El ID y la revisión reutilizan exactamente la validación de las otras escrituras;
+  la revisión JSON debe ser una cadena decimal canónica dentro de BIGINT.
+- Tras validación sintáctica, bloquea el singleton, comprueba revisión, existencia
+  de entrada y límites actuales. Revisión obsoleta: 409 incluso si el movimiento
+  sería un no-op o la entrada ya no existe. Entrada ausente con revisión vigente:
+  404. Destino fuera de rango: 400 con errors.toPosition.
+- Si el destino coincide con la posición actual, responde con la misma revisión,
+  sin DML sobre entradas ni singleton. Esto también funciona en Long.MAX_VALUE.
+- Si cambia, difiere la unicidad y recupera únicamente el intervalo inclusivo entre
+  origen y destino, antes de modificar entidades para evitar un autoflush que
+  altere el criterio de selección. Hacia arriba: desplaza las otras posiciones +1;
+  hacia abajo: -1. Asigna el destino a la entrada y aumenta revisión una sola vez.
+- Flush y comprobación IMMEDIATE de la unicidad preceden al commit. Cualquier
+  error revierte todas las posiciones y la revisión. No hay reintentos automáticos.
+- Se mantienen IDs, pertenencia, addedAt y todos los campos Book. No se modifican
+  posiciones fuera del intervalo. No se añaden tablas, migraciones o triggers.
+
+El coste es O(longitud del intervalo) para carga y escrituras, coherente con las
+posiciones consecutivas de una lista personal. No carga un Book por entrada.
+Se mantiene el mismo orden de bloqueo que altas, bajas y Book.delete. Dos
+movimientos efectivos con la misma revisión producen un commit y un conflicto;
+dos no-ops pueden aceptar la misma revisión porque no la modifican.
+
+La interfaz futura debe desactivar la reordenación en vistas filtradas para evitar
+ambigüedad visual; la API siempre interpreta el destino global.
+
 ## Errores
 
 ProblemDetail seguro, con `code` y `errors` cuando hay un campo asociado:
@@ -144,14 +185,14 @@ la revisión estructural. Las próximas lecturas reflejan esos datos actuales.
 - Rollback después de INSERT real y después de DELETE/compactación/revisión,
   incluyendo un fallo real de CHECK PostgreSQL y rollback conjunto con Book.
 - Colisión real de unicidad de lista y traducción distinta del conflicto ISBN.
-- Contratos OpenAPI y ausencia de endpoint de movimiento.
+- Contratos OpenAPI de pertenencia y del movimiento absoluto.
 
 Ejecutar únicamente con `scripts/Use-TestDatabase.ps1` y el clúster aislado del
 puerto 5433. La suite completa también necesita la base auxiliar de migraciones
 preparada en la etapa anterior. Ver TESTING.md. No arrancar el backend normal con
 su configuración predeterminada, que todavía puede apuntar a bookdb.
 
-### Resultado verificado
+### Resultado verificado de la Etapa 2
 
 - Comprobaciones previas de aislamiento: 15 pruebas, sin fallos ni errores.
 - Suite final `mvnw.cmd clean test`: **525 pruebas, 0 fallos, 0 errores,
@@ -159,3 +200,22 @@ su configuración predeterminada, que todavía puede apuntar a bookdb.
 - Incluye 41 casos API nuevos, 11 casos de concurrencia/rollback reales y una
   nueva prueba OpenAPI, además de todas las regresiones previas.
 - Sin cambios en V1–V11 ni en frontend; sin commits, push o cambios de rama.
+
+### Cobertura adicional de la Etapa 3
+
+- Ascensos/descensos, extremos, movimientos adyacentes, no-op y lista de un libro.
+- Recarga desde PostgreSQL, continuidad 1…N y revisión exacta. Comparación de ctid
+  prueba que solo se escriben filas del intervalo; se comparan todos los campos
+  Book y metadatos de entradas para detectar modificaciones ajenas al orden.
+- Destinos globales después de filtrar; validaciones JSON, IDs, revisión y límites.
+- No-op con revisión obsoleta y con revisión BIGINT máxima.
+- Movimientos concurrentes sobre la misma/distintas entradas; carreras con altas,
+  retiradas y eliminación de Book; no-ops concurrentes, con commits reales.
+- Rollback tras flush real y fallo CHECK, colisión diferida UNIQUE y revisión agotada.
+- Documentación OpenAPI con respuestas 200/400/404/409.
+
+Resultado final de la Etapa 3: `mvnw.cmd clean test` con **574 pruebas,
+0 fallos, 0 errores y 1 omitida**, `BUILD SUCCESS`. Se añaden 40 casos HTTP
+de movimiento y nueve de concurrencia/rollback; se mantienen las regresiones
+anteriores. Las 15 comprobaciones previas de aislamiento también pasan.
+No se modifica Angular, Book ni las migraciones V1–V11 en esta etapa.
