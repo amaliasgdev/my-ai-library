@@ -31,6 +31,7 @@ import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookCoverServiceTest {
+    @org.mockito.Spy private BookResponseMapper mapper = new BookResponseMapper();
     @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();

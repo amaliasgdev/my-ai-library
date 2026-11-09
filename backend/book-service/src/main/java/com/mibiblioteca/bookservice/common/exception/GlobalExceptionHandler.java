@@ -2,6 +2,7 @@ package com.mibiblioteca.bookservice.common.exception;
 
 import com.mibiblioteca.bookservice.book.lookup.BookLookupException;
 import com.mibiblioteca.bookservice.book.cover.CoverException;
+import com.mibiblioteca.bookservice.readinglist.ReadingListException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.TransactionException;
 import org.springframework.web.multipart.MultipartException;
@@ -26,6 +27,14 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ReadingListException.class)
+    public ProblemDetail handleReadingList(ReadingListException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setProperty("code", ex.code());
+        if (ex.field() != null) problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
+        return problem;
+    }
 
     @ExceptionHandler(InvalidBookFilterException.class)
     public ProblemDetail handleBookFilter(InvalidBookFilterException ex) {
@@ -56,6 +65,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({DataAccessException.class, TransactionException.class})
     public ProblemDetail handlePersistence(Exception ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_reading_list_entry_book".equals(violation.getConstraintName())) {
+                return handleReadingList(ReadingListException.duplicate());
+            }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                 && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {
                 ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A book with this ISBN already exists");

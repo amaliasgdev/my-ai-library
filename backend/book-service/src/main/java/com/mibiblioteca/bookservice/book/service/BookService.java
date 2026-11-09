@@ -15,6 +15,7 @@ import com.mibiblioteca.bookservice.book.persistence.BookRepository;
 import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
 import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
+import com.mibiblioteca.bookservice.readinglist.ReadingListService;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
@@ -36,11 +37,16 @@ public class BookService {
     private final BookRepository bookRepository;
     private final IsbnNormalizer isbnNormalizer;
     private final CoverLifecycle covers;
+    private final BookResponseMapper mapper;
+    private final ReadingListService readingList;
 
-    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers) {
+    public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers,
+                       BookResponseMapper mapper, ReadingListService readingList) {
         this.bookRepository = bookRepository;
         this.isbnNormalizer = isbnNormalizer;
         this.covers = covers;
+        this.mapper = mapper;
+        this.readingList = readingList;
     }
 
     @Transactional
@@ -193,6 +199,8 @@ public class BookService {
 
     @Transactional
     public void delete(Long id) {
+        // Lock order is always singleton -> Book, including books not yet in the list.
+        readingList.removeBookBeforeDeletion(id);
         Book book = findBook(id);
         String previousCover = book.getCoverUrl();
         bookRepository.deleteById(id);
@@ -268,24 +276,6 @@ public class BookService {
     }
 
     private BookResponse toResponse(Book book) {
-        return new BookResponse(
-            book.getId(),
-            book.getTitle(),
-            book.getAuthor(),
-            book.getIsbn(),
-            book.getDescription(),
-            book.getCreatedAt(),
-            book.getUpdatedAt(),
-            book.getReadingStatus(),
-            book.getRating(),
-            book.getStartedOn(),
-            book.getFinishedOn(),
-            book.getCoverUrl(),
-            book.getPublisher(),
-            book.getPublicationYear(),
-            book.getPageCount(),
-            book.getLanguage(),
-            book.getGenres()
-        );
+        return mapper.toResponse(book);
     }
 }

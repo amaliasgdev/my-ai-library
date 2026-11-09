@@ -84,6 +84,31 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void documentsReadingListContractsAndOnlyTheFourBasicOperations() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths = document.path("paths");
+        assertThat(parametersByName(paths.path("/api/reading-list").path("get")).keySet()).containsExactly("readingStatus");
+        var membership = parametersByName(paths.path("/api/reading-list/membership").path("get"));
+        assertThat(membership.keySet()).containsExactly("bookId");
+        assertThat(membership.get("bookId").path("required").asBoolean()).isTrue();
+        assertThat(paths.path("/api/reading-list/items").path("post").path("responses").has("201")).isTrue();
+        for (String code : new String[] {"400", "404", "409"}) {
+            assertThat(paths.path("/api/reading-list/items").path("post").path("responses").has(code)).isTrue();
+            assertThat(paths.path("/api/reading-list/items/{entryId}").path("delete").path("responses").has(code)).isTrue();
+        }
+        assertThat(paths.path("/api/reading-list/items/{entryId}").path("delete").path("responses").has("200")).isTrue();
+        assertThat(parametersByName(paths.path("/api/reading-list/items/{entryId}").path("delete")))
+            .containsKeys("entryId", "expectedRevision");
+        assertThat(paths.has("/api/reading-list/items/{entryId}/move")).isFalse();
+        var schemas = document.path("components").path("schemas");
+        assertThat(schemas.path("ReadingListResponse").path("properties").path("revision").path("type").toString()).contains("\"string\"");
+        assertThat(schemas.path("ReadingListItemResponse").path("properties").path("book").path("$ref").asText())
+            .isEqualTo("#/components/schemas/BookResponse");
+        assertThat(schemas.path("AddReadingListItemRequest").path("required").toString()).contains("bookId", "expectedRevision");
+    }
+
+    @Test
     void searchShouldDocumentSamePaginationContractAsList() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
