@@ -2,7 +2,6 @@ package com.mibiblioteca.bookservice.book.dto;
 
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.validation.IsoLanguageValidator;
-import com.mibiblioteca.bookservice.book.validation.LocationLabelValidator;
 import com.mibiblioteca.bookservice.common.exception.InvalidBookFilterException;
 import java.util.List;
 import java.util.Locale;
@@ -16,19 +15,9 @@ public record BookFilterRequest(
     Integer yearTo,
     String genre,
     String language,
-    String publisher,
-    String room,
-    String bookcase,
-    String shelf,
-    Long roomId,
-    Long bookcaseId,
-    Long shelfId
+    String publisher
 ) {
-    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null, null, null, null, null, null, null);
-
-    public BookFilterRequest(List<ReadingStatus> states, Integer ratingMin, Integer yearFrom, Integer yearTo, String genre, String language, String publisher, String room, String bookcase, String shelf) {
-        this(states, ratingMin, yearFrom, yearTo, genre, language, publisher, room, bookcase, shelf, null, null, null);
-    }
+    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null);
 
     public BookFilterRequest {
         readingStatus = readingStatus == null ? List.of() : List.copyOf(readingStatus);
@@ -42,12 +31,6 @@ public record BookFilterRequest(
         }
         genre = text("genre", genre, 50);
         publisher = text("publisher", publisher, 255);
-        room = location("room", room, 100);
-        bookcase = location("bookcase", bookcase, 100);
-        shelf = location("shelf", shelf, 50);
-        for (var entry : java.util.Map.of("roomId", roomId == null ? 1L : roomId, "bookcaseId", bookcaseId == null ? 1L : bookcaseId, "shelfId", shelfId == null ? 1L : shelfId).entrySet()) {
-            if (entry.getValue() < 1 || entry.getValue() > 9007199254740991L) fail(entry.getKey(), "Must be a positive safe integer");
-        }
         language = text("language", language, 2);
         if (!new IsoLanguageValidator().isValid(language, null)) {
             fail("language", "Must be a recognized ISO 639-1 code");
@@ -63,8 +46,7 @@ public record BookFilterRequest(
         if (raw.size() > 4) fail("readingStatus", "At most four occurrences are allowed");
         List<ReadingStatus> states = raw.stream().map(BookFilterRequest::state).toList();
         return new BookFilterRequest(states, integer(params, "ratingMin"), integer(params, "yearFrom"),
-            integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"),
-            single(params, "room"), single(params, "bookcase"), single(params, "shelf"), id(params, "roomId"), id(params, "bookcaseId"), id(params, "shelfId"));
+            integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"));
     }
 
     private static ReadingStatus state(String value) {
@@ -92,14 +74,6 @@ public record BookFilterRequest(
         }
     }
 
-    private static Long id(MultiValueMap<String, String> params, String key) {
-        String value = single(params, key);
-        if (value == null) return null;
-        if (!value.matches("[0-9]+")) fail(key, "Must be a positive safe integer");
-        try { return Long.valueOf(value); }
-        catch (NumberFormatException ex) { throw new InvalidBookFilterException(key, "Must be a positive safe integer"); }
-    }
-
     private static void range(String key, Integer value, int max) {
         if (value != null && (value < 1 || value > max)) fail(key, "Must be between 1 and " + max);
     }
@@ -114,15 +88,5 @@ public record BookFilterRequest(
     }
     private static void fail(String key, String message) {
         throw new InvalidBookFilterException(key, message);
-    }
-
-    private static String location(String key, String value, int max) {
-        if (value == null) return null;
-        if (value.length() > max || !new LocationLabelValidator().isValid(value, null)) {
-            fail(key, "Must be a single-line label of at most " + max + " characters without controls");
-        }
-        String trimmed = value.replaceAll("^[\\p{Zs}\\uFEFF]+|[\\p{Zs}\\uFEFF]+$", "");
-        if (trimmed.isEmpty()) fail(key, "Must be nonblank");
-        return trimmed;
     }
 }

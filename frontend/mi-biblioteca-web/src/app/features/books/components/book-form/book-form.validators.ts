@@ -1,11 +1,5 @@
 import { ValidatorFn } from '@angular/forms';
 import { isIsoLanguage } from '../../models/iso-language';
-import { isLocationLabel } from '../../models/book-location';
-
-export const locationLabel: ValidatorFn = (control) =>
-  typeof control.value === 'string' && isLocationLabel(control.value)
-    ? null
-    : { locationLabel: true };
 
 export { CRUD_ISBN_PATTERN } from '../../models/isbn-pattern';
 

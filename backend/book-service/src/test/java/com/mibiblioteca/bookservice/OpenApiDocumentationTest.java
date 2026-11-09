@@ -59,6 +59,31 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void retiredModulesAreAbsentAndBookContractsKeepBibliographicAndReadingData() throws Exception {
+        JsonNode document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        document.path("paths").fieldNames().forEachRemaining(path -> {
+            for (String prefix : new String[] {"/api/locations", "/api/rooms", "/api/bookcases",
+                "/api/shelves", "/api/inventory-sessions"}) {
+                assertThat(path).doesNotStartWith(prefix);
+            }
+            assertThat(path).isNotEqualTo("/api/books/{id}/location");
+        });
+        JsonNode schemas = document.path("components").path("schemas");
+        var requestFields = new java.util.ArrayList<String>();
+        schemas.path("BookRequest").path("properties").fieldNames().forEachRemaining(requestFields::add);
+        assertThat(requestFields).containsExactlyInAnyOrder("title", "author", "isbn", "description",
+            "coverUrl", "publisher", "publicationYear", "pageCount", "language", "genres");
+        var responseFields = new java.util.ArrayList<String>();
+        schemas.path("BookResponse").path("properties").fieldNames().forEachRemaining(responseFields::add);
+        assertThat(responseFields).containsExactlyInAnyOrder("id", "title", "author", "isbn", "description",
+            "coverUrl", "publisher", "publicationYear", "pageCount", "language", "genres",
+            "createdAt", "updatedAt", "readingStatus", "rating", "startedOn", "finishedOn");
+        mockMvc.perform(get("/api/locations")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/inventory-sessions/1")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void searchShouldDocumentSamePaginationContractAsList() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
@@ -66,8 +91,8 @@ class OpenApiDocumentationTest {
         Map<String, JsonNode> listParameters = parametersByName(paths.path("/api/books").path("get"));
         Map<String, JsonNode> searchParameters = parametersByName(paths.path("/api/books/search").path("get"));
 
-        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher", "room", "bookcase", "shelf", "roomId", "bookcaseId", "shelfId");
-        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher", "room", "bookcase", "shelf", "roomId", "bookcaseId", "shelfId"}) {
+        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher");
+        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher"}) {
             assertThat(searchParameters.get(name).path("schema")).isEqualTo(listParameters.get(name).path("schema"));
             assertThat(searchParameters.get(name).path("in").asText()).isEqualTo("query");
             assertThat(searchParameters.get(name).path("required").asBoolean()).isFalse();
@@ -118,46 +143,6 @@ class OpenApiDocumentationTest {
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
 
-    @Test void structuredLocationsHaveDocumentedRoutesAndNeverLeakEntities() throws Exception {
-        JsonNode document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        JsonNode paths = document.path("paths");
-        assertThat(paths.path("/api/locations").path("get").path("description").asText()).contains("not reconciled");
-        for (String resource : new String[]{"rooms", "bookcases", "shelves"}) {
-            JsonNode post = paths.path("/api/" + resource).path("post");
-            assertThat(post.path("responses").has("400")).isTrue(); assertThat(post.path("responses").has("409")).isTrue();
-            for (String operation : new String[]{"put", "delete"}) {
-                JsonNode responses = paths.path("/api/" + resource + "/{id}").path(operation).path("responses");
-                assertThat(responses.has("404")).isTrue(); assertThat(responses.has("409")).isTrue();
-            }
-        }
-        assertThat(paths.path("/api/books/{id}/location").path("put").path("responses").has("404")).isTrue();
-        JsonNode properties = document.path("components").path("schemas").path("BookResponse").path("properties");
-        for (String key : new String[]{"roomId", "bookcaseId", "shelfId", "locationPending"}) assertThat(properties.has(key)).isTrue();
-        assertThat(document.path("components").path("schemas").path("BookRequest").path("properties").has("location")).isTrue();
-        assertThat(document.path("components").path("schemas").path("RoomNode").path("properties").has("books")).isFalse();
-    }
-
-    @Test void shouldDocumentNullableTextualLocationAndExactFiltersWithoutNewRoutes() throws Exception {
-        JsonNode document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        for (String field : new String[]{"room", "bookcase", "shelf"}) {
-            for (String name : new String[]{"BookRequest", "BookResponse"}) {
-                JsonNode schema = document.path("components").path("schemas").path(name);
-                JsonNode property = schema.path("properties").path(field);
-                assertThat(property.path("type").toString()).contains("string");
-                assertThat(property.path("nullable").asBoolean() || property.path("type").toString().contains("null")).isTrue();
-                assertThat(schema.path("required").toString()).doesNotContain("\"" + field + "\"");
-            }
-            assertThat(document.path("components").path("schemas").path("BookRequest").path("properties").path(field).path("maxLength").asInt()).isEqualTo(field.equals("shelf") ? 50 : 100);
-            for (String path : new String[]{"/api/books", "/api/books/search"}) {
-                JsonNode parameter = parametersByName(document.path("paths").path(path).path("get")).get(field);
-                assertThat(parameter.path("description").asText()).contains("Exact case-insensitive");
-                assertThat(parameter.path("schema").path("maxLength").asInt()).isEqualTo(field.equals("shelf") ? 50 : 100);
-            }
-        }
-        assertThat(document.path("paths").has("/api/books/{id}/location")).isTrue();
-        assertThat(document.path("components").path("schemas").path("BookLookupResponse").path("properties").has("room")).isFalse();
-    }
-
     @Test
     void shouldDocumentMultipartUploadDeletionAndBinaryCoverReading() throws Exception {
         String json = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
@@ -201,38 +186,6 @@ class OpenApiDocumentationTest {
         JsonNode fields = document.path("components").path("schemas").path("BookLookupResponse").path("properties");
         assertThat(fields.size()).isEqualTo(9);
         assertThat(fields.has("id") || fields.has("readingStatus") || fields.has("createdAt")).isFalse();
-    }
-
-    @Test void shouldDocumentExplicitReconciliationWithoutLeakingEntityOrTokenInternals() throws Exception {
-        JsonNode document=objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        var paths=document.path("paths");
-        var list=paths.path("/api/locations/reconciliation").path("get");
-        assertThat(parametersByName(list).keySet()).containsExactlyInAnyOrder("page","size","type","text");
-        assertThat(list.path("responses").has("400")).isTrue();
-        var detail=paths.path("/api/locations/reconciliation/{groupKey}").path("get");
-        assertThat(detail.path("responses").has("404")).isTrue();
-        var assign=paths.path("/api/locations/reconciliation/assign").path("post");
-        for(String status:new String[]{"200","400","404","409"}) assertThat(assign.path("responses").has(status)).isTrue();
-        var schemas=document.path("components").path("schemas");
-        assertThat(schemas.path("Group").path("properties").has("bookIds")).isFalse();
-        assertThat(schemas.path("Detail").path("properties").has("reviewToken")).isTrue();
-        assertThat(schemas.has("Snapshot")).isFalse();
-    }
-
-    @Test void shouldDocumentInventoryLifecycleAndNotesWithoutBookRelations() throws Exception {
-        var document=objectMapper.readTree(mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        var paths=document.path("paths");
-        assertThat(paths.path("/api/shelves/{shelfId}/inventory-sessions").path("post").path("responses").has("201")).isTrue();
-        for(String action:new String[]{"complete","cancel"}) {
-            var operation=paths.path("/api/inventory-sessions/{id}/"+action).path("post");
-            for(String code:new String[]{"200","400","404","409"}) assertThat(operation.path("responses").has(code)).isTrue();
-        }
-        assertThat(paths.path("/api/inventory-sessions/{id}").has("delete")).isFalse();
-        var schemas=document.path("components").path("schemas");
-        assertThat(schemas.path("UpdateInventorySessionNotesRequest").path("required").toString()).contains("notes");
-        assertThat(schemas.path("CreateInventorySessionRequest").path("properties").path("notes").path("maxLength").asInt()).isEqualTo(2000);
-        assertThat(schemas.path("InventorySessionResponse").path("properties").has("books")).isFalse();
-        assertThat(schemas.path("ShelfInventorySessionsResponse").path("properties").has("activeSession")).isTrue();
     }
 
     @Test

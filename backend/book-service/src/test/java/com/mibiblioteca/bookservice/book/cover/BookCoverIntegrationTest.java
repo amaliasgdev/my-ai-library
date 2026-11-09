@@ -77,7 +77,7 @@ class BookCoverIntegrationTest {
     }
 
     private BookRequest request(String coverUrl) {
-        return new BookRequest("Cover test", "Author", null, "Description", coverUrl, "Publisher", 2001, 10, "es", List.of("Genre"), null, null, null);
+        return new BookRequest("Cover test", "Author", null, "Description", coverUrl, "Publisher", 2001, 10, "es", List.of("Genre"));
     }
 
     private String upload(Long id) throws Exception {

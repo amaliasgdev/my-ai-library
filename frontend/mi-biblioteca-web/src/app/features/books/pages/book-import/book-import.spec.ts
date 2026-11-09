@@ -37,9 +37,6 @@ describe('BookImport controlled HTTP workflow', () => {
                 ratingMin: '4',
                 genre: 'Terror',
                 sortBy: 'author',
-                room: 'Filtro Salón',
-                bookcase: 'Filtro Billy',
-                shelf: 'Filtro 3',
               }),
             },
           },
@@ -101,81 +98,12 @@ describe('BookImport controlled HTTP workflow', () => {
     expect(root.querySelector('a')?.getAttribute('href')).toContain('genre=Terror');
     http.expectNone((req) => req.method === 'GET');
   });
-
-  it('each row starts without location, confirmed location survives reopening and is sent in its POST only', () => {
-    analyze([A, B].join('\n'));
-    newBook(A);
-    newBook(B);
-    expect(page.rows()[0].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
-    expect(page.rows()[1].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
-    page.review(page.rows()[0]);
-    result.next(testBookRequest({ isbn: A, room: 'Salón', bookcase: 'Billy', shelf: 'Superior' }));
-    page.review(page.rows()[0]);
-    expect(open).toHaveBeenLastCalledWith(
-      BookImportReviewDialog,
-      expect.objectContaining({
-        data: expect.objectContaining({ room: 'Salón', bookcase: 'Billy', shelf: 'Superior' }),
-      }),
-    );
-    result.next(undefined);
-    expect(page.rows()[0].request).toMatchObject({
-      room: 'Salón',
-      bookcase: 'Billy',
-      shelf: 'Superior',
-    });
-    expect(page.rows()[1].draft).toMatchObject({ room: '', bookcase: '', shelf: '' });
-    page.importSelected();
-    const request = post();
-    expect(request.request.body).toMatchObject({
-      room: 'Salón',
-      bookcase: 'Billy',
-      shelf: 'Superior',
-    });
-    request.flush(testBook());
-  });
-
-  it('structured review preserves the confirmed Shelf when reopened, independent of other rows or catalog filters', () => {
-    analyze([A, B].join('\n'));
-    newBook(A);
-    newBook(B);
-    const request = testBookRequest({ isbn: A });
-    delete request.room;
-    delete request.bookcase;
-    delete request.shelf;
-    request.location = { kind: 'SHELF', shelfId: 42 };
-    page.review(page.rows()[0]);
-    result.next(request);
-    page.review(page.rows()[0]);
-    expect(open).toHaveBeenLastCalledWith(
-      BookImportReviewDialog,
-      expect.objectContaining({
-        data: expect.objectContaining({ shelfId: 42, room: '', bookcase: '', shelf: '' }),
-      }),
-    );
-    result.next(undefined);
-    expect(page.rows()[1].draft?.shelfId ?? null).toBeNull();
-    page.importSelected();
-    const created = post();
-    expect(created.request.body).toEqual(request);
-    created.flush(testBook({ shelfId: 42 }));
-  });
-  it('missing Shelf at POST requires explicit review, never marks ISBN existing or retries automatically', () => {
-    analyze(A);
-    newBook(A);
-    confirm(0);
-    page.importSelected();
-    post().flush({ code: 'LOCATION_NOT_FOUND' }, { status: 404, statusText: 'Not Found' });
-    expect(page.rows()[0].creation).toBe('error');
-    expect(page.rows()[0].existence).toBe('new');
-    expect(page.rows()[0].message).toContain('ubicación');
-    http.expectNone((req) => req.method === 'POST');
-  });
   it('existence checks ignore catalog filters and existing ISBN never does lookup/POST', () => {
     analyze();
     const req = search();
     expect(req.request.params.get('page')).toBe('0');
     expect(req.request.params.get('size')).toBe('1');
-    for (const key of ['title', 'genre', 'readingStatus', 'ratingMin', 'room', 'bookcase', 'shelf'])
+    for (const key of ['title', 'genre', 'readingStatus', 'ratingMin'])
       expect(req.request.params.has(key)).toBe(false);
     req.flush(testBookPage({ content: [testBook({ id: 7 })], totalElements: 1 }));
     expect(page.rows()[0].existence).toBe('existing');
