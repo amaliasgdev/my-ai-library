@@ -6,14 +6,24 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book.models';
 import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-display';
+import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
+import { ReadingListAction } from '../../../reading-list/reading-list-action';
 
 @Component({
   selector: 'app-book-card',
-  imports: [MatCardModule, MatButtonModule, RouterLink, MatFormFieldModule, MatSelectModule],
+  imports: [
+    MatCardModule,
+    MatButtonModule,
+    RouterLink,
+    MatFormFieldModule,
+    MatSelectModule,
+    ReadingListAction,
+  ],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',
 })
 export class BookCard implements OnChanges {
+  readonly membership = input<ReadingListMembership | null>(null);
   readonly book = input.required<BookResponse>();
   readonly catalogParams = input<Params>({});
   readonly deleting = input(false);

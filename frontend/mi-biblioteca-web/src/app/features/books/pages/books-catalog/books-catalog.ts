@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
 import {
   afterNextRender,
   Component,
@@ -122,11 +123,12 @@ function searchError(error: unknown): string {
     MatInputModule,
     MatSelectModule,
   ],
-  providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
+  providers: [ReadingListMembership, { provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
   styleUrl: './books-catalog.scss',
 })
 export class BooksCatalog {
+  readonly membership = inject(ReadingListMembership);
   private readonly booksService = inject(BooksService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -269,6 +271,9 @@ export class BooksCatalog {
           this.totalElements.set(state.response.totalElements);
         }
         this.state.set(state);
+        this.membership.setBooks(
+          state.status === 'success' ? state.response.content.map((book) => book.id) : [],
+        );
         if (state.status !== 'loading' && this.restoreFocusAfterReload) {
           this.restoreFocusAfterReload = false;
           afterNextRender(

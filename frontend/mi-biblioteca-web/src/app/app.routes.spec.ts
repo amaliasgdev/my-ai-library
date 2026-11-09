@@ -3,6 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Title } from '@angular/platform-browser';
 import { routes } from './app.routes';
+import { completeMembershipQueries } from './features/reading-list/reading-list-membership.testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BooksCatalog } from './features/books/pages/books-catalog/books-catalog';
@@ -29,6 +30,7 @@ describe('Application routes', () => {
 
   afterEach(() => {
     const http = TestBed.inject(HttpTestingController);
+    completeMembershipQueries(http);
     http.verify();
   });
 

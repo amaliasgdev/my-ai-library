@@ -2,6 +2,7 @@ import { Location } from '@angular/common';
 import { provideLocationMocks } from '@angular/common/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
@@ -37,6 +38,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     harness = await RouterTestingHarness.create();
   });
   afterEach(() => {
+    completeMembershipQueries(http);
     http.verify();
     harness.fixture.destroy();
   });
@@ -72,7 +74,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     expect(req.request.params.get('size')).toBe('20');
     expect(router.url).toBe('/books');
     req.flush(testBookPage());
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
   it('restores page, size, sort and search on a direct URL with a single effective GET', async () => {
     await enter('/books?page=2&size=50&sortBy=author&direction=DESC&title=Dune&author=Herbert');
@@ -128,7 +130,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     page.searchForm.controls.title.setValue('Draft');
     await stable();
     expect(params()).toEqual({ title: 'Dune' });
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     page.onPageChange({ pageIndex: 2, pageSize: 20, length: 200 });
     await stable();
     expect(params()).toEqual({ page: '2', title: 'Dune' });
@@ -161,7 +163,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     await loaded('/books?page=3&size=50&sortBy=author&direction=DESC', 3, 50);
     page.searchForm.controls.title.setValue(' Dune ');
     page.submitSearch();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     expect(page.currentSearch()).toBeNull();
     await stable();
     expect(params()).toEqual({ size: '50', sortBy: 'author', direction: 'DESC', title: 'Dune' });
@@ -185,7 +187,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     await stable();
     expect(page.searchForm.getRawValue()).toEqual({ title: '', author: '', isbn: '' });
     expect(navigate).not.toHaveBeenCalled();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
   it('sort/page/size navigate preserving the applied search and ignore already active values', async () => {
     await loaded('/books?page=2&title=Dune', 2);
@@ -210,7 +212,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     page.onSortDirectionChange('DESC');
     page.onPageChange({ pageIndex: 0, pageSize: 100, length: 200 });
     expect(navigate).not.toHaveBeenCalled();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
   it('cancels old requests during rapid URL changes and clears old cards', async () => {
     await loaded();
@@ -235,7 +237,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     expect(reload.request.params.get('page')).toBe('2');
     const navigate = vi.spyOn(router, 'navigate');
     reload.flush(testBookPage({ page: 2, content: [], totalElements: 20 }));
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     await stable();
     expect(params()).toEqual({ page: '1', sortBy: 'author', title: 'Dune' });
     expect(navigate).toHaveBeenCalledWith(['/books'], {
@@ -246,7 +248,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
     expect(previous.request.params.get('page')).toBe('1');
     previous.flush(testBookPage({ page: 1, content: [], totalElements: 20 }));
     await stable();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('never repeats a committed DELETE after reload fails, and retry keeps the current URL', async () => {

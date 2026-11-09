@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog';
@@ -51,6 +52,7 @@ describe('BookDetail', () => {
   afterEach(() => {
     fixture.destroy();
     TestBed.inject(MatDialog).closeAll();
+    completeMembershipQueries(http);
     http.verify();
   });
   function load(overrides: Partial<BookResponse> = {}) {
@@ -94,7 +96,7 @@ describe('BookDetail', () => {
       );
       expect(element.textContent).not.toContain('Reintentar');
       page.retry();
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
   it('accepts a digit-only id with leading zeros', () => {
@@ -118,7 +120,9 @@ describe('BookDetail', () => {
       message: 'El identificador del libro no es válido',
     });
     page.retry();
-    http.expectNone((request) => request.method === 'GET');
+    http.expectNone(
+      (request) => request.method === 'GET' && request.url !== '/api/reading-list/membership',
+    );
   });
 
   it.each([1, 2, 3, 4, 5])('renders rating %s without interactive controls', (rating) => {
@@ -258,7 +262,7 @@ describe('BookDetail', () => {
     fixture.detectChanges();
     expect(element.querySelector('img')).toBeNull();
     expect(element.querySelector('.cover')?.textContent?.trim()).toBe('Sin portada');
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
   it('links Editar and Volver to the correct routes', () => {
     load();

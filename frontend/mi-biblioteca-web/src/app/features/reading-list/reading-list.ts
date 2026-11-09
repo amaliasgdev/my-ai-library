@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import {
   afterNextRender,
   Component,
@@ -29,7 +30,14 @@ type LoadState =
 
 @Component({
   selector: 'app-reading-list',
-  imports: [RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatSelectModule],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    DragDropModule,
+  ],
   templateUrl: './reading-list.html',
   styleUrl: './reading-list.scss',
 })
@@ -116,8 +124,26 @@ export class ReadingList {
   }
 
   move(item: ReadingListItem, delta: -1 | 1): void {
+    this.moveTo(item, item.position + delta);
+  }
+
+  drop(event: CdkDragDrop<ReadingListItem[]>): void {
+    const state = this.state();
+    if (
+      state.status !== 'loaded' ||
+      !event.isPointerOverContainer ||
+      event.previousContainer !== event.container ||
+      event.previousIndex === event.currentIndex
+    )
+      return;
+    const item = event.item.data as ReadingListItem;
+    if (state.response.items[event.previousIndex] !== item) return;
+    const target = state.response.items[event.currentIndex];
+    if (target) this.moveTo(item, target.position);
+  }
+
+  private moveTo(item: ReadingListItem, target: number): void {
     const response = this.current(item);
-    const target = item.position + delta;
     if (
       !response ||
       this.datesDialog ||
@@ -129,7 +155,7 @@ export class ReadingList {
     this.focusEntry = item.entryId;
     this.write(
       this.api.move(item.entryId, target, response.revision),
-      'Posición de lectura actualizada.',
+      `Posición de lectura actualizada: ${target}.`,
     );
   }
 

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { completeMembershipQueries } from './features/reading-list/reading-list-membership.testing';
 import { App } from './app';
 import { provideRouter, Router } from '@angular/router';
 import { routes } from './app.routes';
@@ -14,7 +15,10 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+  afterEach(() => {
+    completeMembershipQueries(TestBed.inject(HttpTestingController));
+    TestBed.inject(HttpTestingController).verify();
+  });
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);

@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
@@ -42,7 +43,10 @@ describe('BooksCatalog', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    completeMembershipQueries(http);
+    http.verify();
+  });
 
   function pendingRequest() {
     return http.expectOne((request) => request.url === '/api/books');
@@ -128,7 +132,7 @@ describe('BooksCatalog', () => {
     fixture.componentInstance.openDeleteDialog(testBook({ id: 42 }));
     expect(open).not.toHaveBeenCalled();
     fixture.componentInstance.onPageChange({ pageIndex: 1, pageSize: 50, length: 42 });
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     expect(element.querySelectorAll('app-book-card')).toHaveLength(2);
     deletion.flush(null, { status: 204, statusText: 'No Content' });
     const reload = pendingRequest();
@@ -164,7 +168,7 @@ describe('BooksCatalog', () => {
     );
     await fixture.whenStable();
     expect(paginator().pageIndex).toBe(2);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should show an empty library after deleting the last book on page 0', async () => {
@@ -180,7 +184,7 @@ describe('BooksCatalog', () => {
     expect(paginator().length).toBe(0);
     expect(paginator().pageIndex).toBe(0);
     expect(document.activeElement).toBe(element.querySelector('h1'));
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should reload the current page then request exactly page - 1 when empty', async () => {
@@ -198,7 +202,7 @@ describe('BooksCatalog', () => {
     await fixture.whenStable();
     expect(paginator().pageIndex).toBe(1);
     expect(paginator().length).toBe(40);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should go back only one page, without computing the last valid page or looping', async () => {
@@ -215,7 +219,7 @@ describe('BooksCatalog', () => {
     previous.flush(testBookPage({ content: [], page: 2, totalElements: 10, totalPages: 1 }));
     await fixture.whenStable();
     expect(paginator().pageIndex).toBe(2);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it.each([
@@ -241,7 +245,7 @@ describe('BooksCatalog', () => {
       expect(paginator().length).toBe(21);
       expect(paginator().disabled).toBe(false);
       expect(fixture.componentInstance.deletingId()).toBeNull();
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
 

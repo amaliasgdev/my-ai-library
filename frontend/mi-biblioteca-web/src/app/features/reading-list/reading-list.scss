@@ -2,6 +2,20 @@
   display: grid;
   gap: 1rem;
 }
+.drag-handle {
+  align-self: start;
+  cursor: grab;
+  touch-action: none;
+}
+.drag-handle:disabled {
+  cursor: default;
+}
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+.cdk-drag-preview {
+  box-sizing: border-box;
+}
 .entry {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);

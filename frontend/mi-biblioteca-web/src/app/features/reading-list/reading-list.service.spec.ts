@@ -52,4 +52,19 @@ describe('ReadingListService', () => {
     expect(request.request.body).toBeNull();
     request.flush({ revision: '6' });
   });
+
+  it('sends unique membership IDs as repeated query parameters in one GET', () => {
+    service.membership([1, 42, 1]).subscribe();
+    const request = http.expectOne('/custom/reading-list/membership?bookId=1&bookId=42');
+    expect(request.request.method).toBe('GET');
+    request.flush({ revision: '5', items: [] });
+  });
+
+  it('adds using a JSON string revision without precision loss', () => {
+    service.add(42, '9223372036854775806').subscribe();
+    const request = http.expectOne('/custom/reading-list/items');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ bookId: 42, expectedRevision: '9223372036854775806' });
+    request.flush({ revision: '9223372036854775807', item: { entryId: 9 } });
+  });
 });

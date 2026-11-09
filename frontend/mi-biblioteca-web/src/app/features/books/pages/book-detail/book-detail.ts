@@ -1,4 +1,6 @@
 import { DatePipe } from '@angular/common';
+import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
+import { ReadingListAction } from '../../../reading-list/reading-list-action';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -47,11 +49,20 @@ function loadError(error: unknown): string {
 
 @Component({
   selector: 'app-book-detail',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatChipsModule, MatProgressSpinnerModule],
+  imports: [
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatChipsModule,
+    MatProgressSpinnerModule,
+    ReadingListAction,
+  ],
+  providers: [ReadingListMembership],
   templateUrl: './book-detail.html',
   styleUrl: './book-detail.scss',
 })
 export class BookDetail {
+  readonly membership = inject(ReadingListMembership);
   private readonly service = inject(BooksService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -108,7 +119,10 @@ export class BookDetail {
         }),
         takeUntilDestroyed(),
       )
-      .subscribe((state) => this.state.set(state));
+      .subscribe((state) => {
+        this.state.set(state);
+        this.membership.setBooks(state.status === 'loaded' ? [state.id] : []);
+      });
   }
 
   retry(): void {

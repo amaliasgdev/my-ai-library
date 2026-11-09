@@ -1,5 +1,6 @@
 <section aria-labelledby="books-heading">
   <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
+  <p aria-live="polite" aria-atomic="true">{{ membership.message() }}</p>
   <div class="catalog-create-actions">
     <a mat-flat-button routerLink="/books/new">Añadir libro</a>
     <a mat-button routerLink="/books/import" [queryParams]="catalogParams()">Importar ISBN</a>
@@ -191,6 +192,7 @@
               <li>
                 <app-book-card
                   [book]="book"
+                  [membership]="membership"
                   [catalogParams]="catalogParams()"
                   [deleting]="deletingId() === book.id"
                   [deleteDisabled]="deletingId() !== null || pendingUpdates().size > 0"

@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog';
@@ -45,7 +46,10 @@ describe('BooksCatalog reading dates', () => {
     get().flush(page());
     fixture.detectChanges();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    completeMembershipQueries(http);
+    http.verify();
+  });
   function get(search = false) {
     return http.expectOne((req) => req.url === (search ? '/api/books/search' : '/api/books'));
   }
@@ -114,7 +118,7 @@ describe('BooksCatalog reading dates', () => {
       direction: 'DESC',
     });
     expect(cards()[0].book().startedOn).toBe('2026-02-01');
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should prevent duplicate dialog operations and retain values on a network error', async () => {
@@ -184,7 +188,9 @@ describe('BooksCatalog reading dates', () => {
           sortBy: 'title',
           direction: 'ASC',
         });
-        http.expectNone((req) => req.method === 'GET');
+        http.expectNone(
+          (req) => req.method === 'GET' && req.url !== '/api/reading-list/membership',
+        );
         expect(iso).not.toHaveBeenCalled();
       } finally {
         iso.mockRestore();
@@ -256,7 +262,7 @@ describe('BooksCatalog reading dates', () => {
     request.flush(confirmed);
     await fixture.whenStable();
     expect(cards()[0].book()).toEqual(confirmed);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     await vi.waitFor(() => expect(TestBed.inject(MatDialog).openDialogs).toHaveLength(0));
     const paginator = fixture.nativeElement.querySelector('mat-paginator') as HTMLElement;
     expect(paginator.textContent).toContain('101');

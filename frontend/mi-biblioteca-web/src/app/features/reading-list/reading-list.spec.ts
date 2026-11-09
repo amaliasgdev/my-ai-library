@@ -1,4 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
+import { CdkDragDrop } from '@angular/cdk/drag-drop';
+import { ReadingListItem } from './reading-list.models';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -355,4 +357,103 @@ describe('ReadingList', () => {
     fixture.destroy();
     expect(close).toHaveBeenCalled();
   });
+
+  function drop(from = 0, to = 1): CdkDragDrop<ReadingListItem[]> {
+    const container = {};
+    return {
+      previousContainer: container,
+      container,
+      previousIndex: from,
+      currentIndex: to,
+      isPointerOverContainer: true,
+      item: { data: data.items[from] },
+    } as CdkDragDrop<ReadingListItem[]>;
+  }
+
+  it('persists a drop without changing the array optimistically, then reloads the confirmed order', async () => {
+    load();
+    expect(dom().querySelectorAll('.drag-handle')).toHaveLength(2);
+    expect(dom().querySelector('.drag-handle')?.getAttribute('aria-label')).toContain('Primero');
+    page.drop(drop());
+    const request = http.expectOne('/api/reading-list/items/11/move');
+    expect(request.request.body).toEqual({ toPosition: 2, expectedRevision: data.revision });
+    expect(data.items.map((item) => item.entryId)).toEqual([11, 22]);
+    fixture.detectChanges();
+    expect(dom().querySelector<HTMLButtonElement>('.drag-handle')!.disabled).toBe(true);
+    page.drop(drop());
+    http.expectNone('/api/reading-list/items/11/move');
+    request.flush({ revision: '9007199254740994', entryId: 11, position: 2 });
+    const persisted = {
+      ...data,
+      revision: '9007199254740994',
+      items: [
+        { ...data.items[1], position: 1 },
+        { ...data.items[0], position: 2 },
+      ],
+    };
+    http.expectOne('/api/reading-list').flush(persisted);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement?.getAttribute('data-entry')).toBe('11');
+    expect(page.notice()).toContain('actualizada: 2');
+    page.retry();
+    http.expectOne('/api/reading-list').flush(persisted);
+    fixture.detectChanges();
+    expect([...dom().querySelectorAll('h2')].map((node) => node.textContent)).toEqual([
+      'Segundo',
+      'Primero',
+    ]);
+  });
+
+  it('ignores no-op drops, outside drops and stale dragged items', () => {
+    load();
+    page.drop(drop(0, 0));
+    page.drop({ ...drop(), isPointerOverContainer: false });
+    page.drop({ ...drop(), previousContainer: {} } as CdkDragDrop<ReadingListItem[]>);
+    page.drop({ ...drop(), item: { data: { ...data.items[0] } } } as CdkDragDrop<
+      ReadingListItem[]
+    >);
+    http.expectNone((req) => req.method === 'POST');
+  });
+
+  it('disables handles and guards drop under status filters, leaving keyboard buttons available in Todos', () => {
+    load();
+    page.changeFilter('READ');
+    http.expectOne('/api/reading-list?readingStatus=READ').flush(data);
+    fixture.detectChanges();
+    expect(dom().querySelector<HTMLButtonElement>('.drag-handle')!.disabled).toBe(true);
+    page.drop(drop());
+    http.expectNone((req) => req.method === 'POST');
+    page.changeFilter(null);
+    http.expectOne('/api/reading-list').flush(data);
+    fixture.detectChanges();
+    const down = dom().querySelector<HTMLButtonElement>('button[aria-label="Bajar Primero"]')!;
+    expect(down.disabled).toBe(false);
+    down.focus();
+    expect(document.activeElement).toBe(down);
+    down.click();
+    http
+      .expectOne('/api/reading-list/items/11/move')
+      .flush({ revision: '6', entryId: 11, position: 2 });
+    http.expectOne('/api/reading-list').flush(data);
+  });
+
+  it.each([409, 0, 503])(
+    'reconciles drop failure %s using only GET, blocking another drop until synchronized',
+    (status) => {
+      load();
+      page.drop(drop());
+      const request = http.expectOne('/api/reading-list/items/11/move');
+      if (status === 0) request.error(new ProgressEvent('error'));
+      else request.flush({}, { status, statusText: 'Error' });
+      page.drop(drop());
+      http.expectNone((req) => req.method === 'POST');
+      http.expectOne('/api/reading-list').flush({}, { status: 500, statusText: 'Error' });
+      page.drop(drop());
+      page.retry();
+      http.expectOne('/api/reading-list').flush(data);
+      expect(page.busy()).toBe(false);
+      expect(page.notice()).toContain(status === 409 ? 'han cambiado' : 'Resultado incierto');
+    },
+  );
 });

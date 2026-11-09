@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
@@ -40,7 +41,10 @@ describe('BooksCatalog sorting', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    completeMembershipQueries(http);
+    http.verify();
+  });
 
   function listRequest() {
     return http.expectOne((req) => req.url === '/api/books');
@@ -115,7 +119,7 @@ describe('BooksCatalog sorting', () => {
     expect(element.querySelectorAll('.sort-controls mat-label')[0].textContent).toBe('Ordenar por');
     expect(element.querySelectorAll('.sort-controls mat-label')[1].textContent).toBe('Dirección');
     expect(element.querySelector('form .sort-controls')).toBeNull();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it.each([
@@ -159,7 +163,7 @@ describe('BooksCatalog sorting', () => {
     await direction.clickOptions({ text: 'Ascendente' });
     fixture.componentInstance.onSortByChange('title');
     fixture.componentInstance.onSortDirectionChange('ASC');
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should retain applied search, not unsubmitted input edits, when changing sort', async () => {
@@ -342,7 +346,7 @@ describe('BooksCatalog sorting', () => {
       expect(await direction.isDisabled()).toBe(true);
       fixture.componentInstance.onSortByChange('author');
       fixture.componentInstance.onSortDirectionChange('ASC');
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
       expect(fixture.componentInstance.currentSort()).toEqual({
         sortBy: 'rating',
         direction: 'DESC',

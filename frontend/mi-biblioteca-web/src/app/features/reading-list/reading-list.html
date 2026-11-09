@@ -1,5 +1,8 @@
 <h1 tabindex="-1">Lista de lectura</h1>
 <p>Tu orden personal de lectura. Retirar un libro de esta lista no lo elimina de la biblioteca.</p>
+<p id="reading-list-order-help">
+  Puedes ordenar con el asa de arrastre o con los botones Subir y Bajar, también mediante teclado.
+</p>
 <button mat-button [disabled]="busy()" (click)="retry()">Actualizar lista</button>
 <mat-form-field>
   <mat-label>Estado de lectura</mat-label>
@@ -40,9 +43,36 @@
       }}
     </p>
   }
-  <div class="entries" [attr.aria-busy]="busy()">
+  <div
+    class="entries"
+    cdkDropList
+    [cdkDropListData]="load.response.items"
+    [cdkDropListDisabled]="busy() || filter() !== null"
+    cdkDropListOrientation="vertical"
+    (cdkDropListDropped)="drop($event)"
+    [attr.aria-busy]="busy()"
+  >
     @for (item of load.response.items; track item.entryId) {
-      <mat-card [attr.data-entry]="item.entryId" tabindex="-1" [attr.aria-label]="item.book.title">
+      <mat-card
+        cdkDrag
+        [cdkDragData]="item"
+        [cdkDragDisabled]="busy() || filter() !== null"
+        [cdkDragStartDelay]="{ touch: 180, mouse: 0 }"
+        [attr.data-entry]="item.entryId"
+        tabindex="-1"
+        [attr.aria-label]="item.book.title"
+      >
+        <button
+          mat-button
+          type="button"
+          class="drag-handle"
+          cdkDragHandle
+          aria-describedby="reading-list-order-help"
+          [disabled]="busy() || filter() !== null"
+          [attr.aria-label]="'Arrastrar para ordenar: ' + item.book.title"
+        >
+          ↕ Arrastrar
+        </button>
         <div class="entry">
           <div class="cover">
             @if (item.book.coverUrl; as url) {

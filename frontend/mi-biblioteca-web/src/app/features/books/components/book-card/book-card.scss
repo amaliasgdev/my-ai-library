@@ -77,3 +77,7 @@ mat-card-subtitle {
   flex-basis: 100%;
   color: var(--mat-sys-on-surface-variant);
 }
+.list-action {
+  padding: 0.5rem 1rem;
+  overflow-wrap: anywhere;
+}

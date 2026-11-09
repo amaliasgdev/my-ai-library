@@ -18,3 +18,8 @@ export interface ReadingListMoveResponse {
   entryId: number;
   position: number;
 }
+
+export interface ReadingListMembershipResponse {
+  revision: string;
+  items: { bookId: number; included: boolean; entryId: number | null }[];
+}

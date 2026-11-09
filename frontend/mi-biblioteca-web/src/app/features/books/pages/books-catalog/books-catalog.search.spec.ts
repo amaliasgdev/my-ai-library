@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog';
@@ -42,7 +43,10 @@ describe('BooksCatalog search', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    completeMembershipQueries(http);
+    http.verify();
+  });
 
   function listRequest() {
     return http.expectOne((req) => req.url === '/api/books');
@@ -178,7 +182,7 @@ describe('BooksCatalog search', () => {
     searchRequest().flush(testBookPage({ totalElements: 41, totalPages: 3 }));
     fixture.detectChanges();
     setInput('title', 'Changed');
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     expect(fixture.componentInstance.currentSearch()).toEqual({ title: 'Dune' });
     fixture.componentInstance.onPageChange({ pageIndex: 1, pageSize: 20, length: 41 });
     const next = searchRequest();
@@ -325,7 +329,7 @@ describe('BooksCatalog search', () => {
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/new');
     fixture.componentInstance.submitSearch();
     fixture.componentInstance.clearSearch();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     deletion.flush(null, { status: 204, statusText: 'No Content' });
     const reload = searchRequest();
     expect(reload.request.params.get('title')).toBe('Dune');
@@ -406,6 +410,6 @@ describe('BooksCatalog search', () => {
     expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
     expect(fixture.componentInstance.currentSearch()).toEqual({ isbn: '9780306406157' });
     expect(paginator().disabled).toBe(false);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 });

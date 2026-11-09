@@ -2,6 +2,7 @@ import { Location } from '@angular/common';
 import { provideLocationMocks } from '@angular/common/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
@@ -36,6 +37,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     harness = await RouterTestingHarness.create();
   });
   afterEach(() => {
+    completeMembershipQueries(http);
     http.verify();
     harness.fixture.destroy();
   });
@@ -87,7 +89,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await stable();
     expect(navigate).not.toHaveBeenCalled();
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     harness
       .routeNativeElement!.querySelector('form.filters-form')!
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -130,7 +132,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     req.flush(testBookPage());
     page.applyFilters();
     await stable();
-    http.expectNone((item) => item.method === 'GET');
+    http.expectNone((item) => item.method === 'GET' && item.url !== '/api/reading-list/membership');
   });
   it('Clear empties filters and drafts only, retains search/sort/size and avoids unchanged GET', async () => {
     await loaded('/books?page=2&size=50&sortBy=author&title=Dune&ratingMin=4&genre=Terror');
@@ -147,7 +149,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     page.clearFilters();
     await stable();
     expect(page.filtersForm.controls.genre.value).toBe('');
-    http.expectNone((item) => item.method === 'GET');
+    http.expectNone((item) => item.method === 'GET' && item.url !== '/api/reading-list/membership');
   });
   it('invalid form stays local and shows field/range errors', async () => {
     await loaded();
@@ -160,7 +162,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     expect(harness.routeNativeElement!.textContent).toContain(
       'Introduce un código de idioma reconocido',
     );
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
   it('search submit and clear search retain filters, independently of filter drafts', async () => {
     await loaded('/books?ratingMin=4');

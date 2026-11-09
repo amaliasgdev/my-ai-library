@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
@@ -43,6 +44,7 @@ describe('Catalog scan-to-create action', () => {
   });
   afterEach(() => {
     fixture.destroy();
+    completeMembershipQueries(http);
     http.verify();
   });
   function button(text = 'Escanear ISBN'): HTMLButtonElement {

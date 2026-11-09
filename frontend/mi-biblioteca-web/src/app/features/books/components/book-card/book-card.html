@@ -95,6 +95,16 @@
       <p class="update-error" role="alert">{{ updateError() }}</p>
     }
   </mat-card-content>
+  @if (membership(); as list) {
+    <div class="list-action">
+      <app-reading-list-action
+        [membership]="list"
+        [bookId]="book().id"
+        [title]="book().title"
+        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+      />
+    </div>
+  }
   <mat-card-actions>
     <a
       mat-button
