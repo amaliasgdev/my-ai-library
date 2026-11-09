@@ -56,8 +56,31 @@ in the same shell:
 ./mvnw.cmd clean test
 ```
 
+### Reading-list migration fixture
+
+Before running the full suite for the first time on an existing test volume,
+prepare the additional disposable migration database from the repository root:
+
+```powershell
+python scripts/Prepare-ReadingListMigrationDatabase.py
+```
+
+The script verifies the independent test container, loopback port, volume and
+server identity before creating `bookdb_tests_reading_list_migration`, owned by
+the non-administrative `booktest` role. It never drops or overwrites a database.
+The test JVM does not receive bootstrap administrator credentials.
+
+`ReadingListMigrationTest` verifies its fixed destination before each migration
+or cleanup and cleans only `public` in that disposable database. This separate
+database is necessary because historical V10 explicitly targets `public`, so
+using another schema in the shared test database would not isolate its DDL.
+Do not run concurrent suites sharing this fixture. See
+`READING-LIST-PERSISTENCE.md` for coverage and the boundaries of this stage.
+
 Migration, concurrency, filter, repository and cover integration tests write or
 delete data and may commit. They belong exclusively in the disposable test
 cluster. Cover tests use temporary directories or `target/test-covers`, not the
 development cover directory. Do not run a backend with test dependencies or
-destructive migrations against the original database. No V10 is part of this setup.
+destructive migrations against the original database. The full migration history,
+including V10 and V11, is applied only to the guarded isolated test destinations;
+the original and restore-validation databases are never test targets.
