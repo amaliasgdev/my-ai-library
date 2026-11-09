@@ -1,6 +1,12 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
+  {
+    path: 'reading-list',
+    title: 'Lista de lectura | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/reading-list/reading-list').then((module) => module.ReadingList),
+  },
   { path: '', pathMatch: 'full', redirectTo: 'books' },
   {
     path: 'books/import',

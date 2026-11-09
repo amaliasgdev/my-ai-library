@@ -1,0 +1,151 @@
+<h1 tabindex="-1">Lista de lectura</h1>
+<p>Tu orden personal de lectura. Retirar un libro de esta lista no lo elimina de la biblioteca.</p>
+<button mat-button [disabled]="busy()" (click)="retry()">Actualizar lista</button>
+<mat-form-field>
+  <mat-label>Estado de lectura</mat-label>
+  <mat-select [value]="filter()" [disabled]="busy()" (selectionChange)="changeFilter($event.value)">
+    <mat-option [value]="null">Todos</mat-option>
+    @for (status of statuses; track status) {
+      <mat-option [value]="status">{{
+        status === 'READ' ? 'Leídos' : status === 'ABANDONED' ? 'Abandonados' : labels[status]
+      }}</mat-option>
+    }
+  </mat-select>
+</mat-form-field>
+@if (filter()) {
+  <p>Para cambiar el orden, selecciona Todos. Las posiciones son globales.</p>
+}
+<p role="status" aria-live="polite">{{ notice() }}</p>
+@let load = state();
+@if (load.status === 'loading') {
+  <p role="status">Cargando lista de lectura…</p>
+} @else if (load.status === 'error') {
+  <div role="alert">
+    <p>
+      {{
+        synchronizing()
+          ? 'No se pudo confirmar el estado actual. Las escrituras siguen bloqueadas.'
+          : 'No se pudo cargar la lista de lectura.'
+      }}
+    </p>
+    <button mat-button (click)="retry()">Reintentar consulta</button>
+  </div>
+} @else {
+  @if (load.response.items.length === 0) {
+    <p>
+      {{
+        load.response.totalItems === 0
+          ? 'Tu lista de lectura está vacía.'
+          : 'No hay libros con este estado en la lista.'
+      }}
+    </p>
+  }
+  <div class="entries" [attr.aria-busy]="busy()">
+    @for (item of load.response.items; track item.entryId) {
+      <mat-card [attr.data-entry]="item.entryId" tabindex="-1" [attr.aria-label]="item.book.title">
+        <div class="entry">
+          <div class="cover">
+            @if (item.book.coverUrl; as url) {
+              @if (!failedCovers().has(url)) {
+                <img
+                  [src]="url"
+                  [alt]="'Portada de ' + item.book.title"
+                  loading="lazy"
+                  (error)="coverFailed(url)"
+                />
+              } @else {
+                <span>Sin portada</span>
+              }
+            } @else {
+              <span>Sin portada</span>
+            }
+          </div>
+          <div class="content">
+            <p>Posición {{ item.position }}</p>
+            <h2>
+              <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+            </h2>
+            <p>{{ item.book.author }}</p>
+            <p>{{ labels[item.book.readingStatus] }}</p>
+            @if (item.book.startedOn) {
+              <p>Inicio: {{ displayDate(item.book.startedOn) }}</p>
+            }
+            @if (item.book.finishedOn) {
+              <p [class.finished]="item.book.readingStatus === 'READ'">
+                Fin: {{ displayDate(item.book.finishedOn) }}
+              </p>
+            }
+            <mat-form-field>
+              <mat-label>Estado de {{ item.book.title }}</mat-label>
+              <mat-select
+                [value]="item.book.readingStatus"
+                [disabled]="busy()"
+                (selectionChange)="statusChanged(item, $event)"
+              >
+                @for (status of statuses; track status) {
+                  <mat-option [value]="status">{{ labels[status] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <div class="actions">
+              <button
+                mat-button
+                [disabled]="busy() || filter() !== null || item.position === 1"
+                [attr.aria-label]="'Subir ' + item.book.title"
+                (click)="move(item, -1)"
+              >
+                Subir
+              </button>
+              <button
+                mat-button
+                [disabled]="
+                  busy() || filter() !== null || item.position === load.response.totalItems
+                "
+                [attr.aria-label]="'Bajar ' + item.book.title"
+                (click)="move(item, 1)"
+              >
+                Bajar
+              </button>
+              <button
+                mat-button
+                [disabled]="busy()"
+                [attr.aria-label]="'Retirar de la lista: ' + item.book.title"
+                (click)="remove(item)"
+              >
+                Retirar de la lista
+              </button>
+              @if (item.book.readingStatus === 'TO_READ') {
+                <button
+                  mat-button
+                  [disabled]="busy()"
+                  [attr.aria-label]="'Iniciar lectura: ' + item.book.title"
+                  (click)="quickReading(item, 'start')"
+                >
+                  Iniciar lectura
+                </button>
+              }
+              @if (item.book.readingStatus === 'TO_READ' || item.book.readingStatus === 'READING') {
+                <button
+                  mat-button
+                  [disabled]="busy()"
+                  [attr.aria-label]="'Finalizar lectura: ' + item.book.title"
+                  (click)="quickReading(item, 'finish')"
+                >
+                  Finalizar lectura
+                </button>
+              }
+              <button
+                mat-button
+                [disabled]="busy()"
+                [attr.aria-label]="'Gestionar fechas: ' + item.book.title"
+                (click)="manageDates(item)"
+              >
+                Gestionar fechas
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-card>
+    }
+  </div>
+}

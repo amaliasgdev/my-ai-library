@@ -22,6 +22,22 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
+  it('lazy loads the reading list from primary navigation', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const link = compiled.querySelector<HTMLAnchorElement>('nav a[href="/reading-list"]');
+    expect(link).not.toBeNull();
+    link?.click();
+    await fixture.whenStable();
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/reading-list')
+      .flush({ revision: '0', totalItems: 0, items: [] });
+    await fixture.whenStable();
+    expect(compiled.querySelector('h1')?.textContent).toBe('Lista de lectura');
+    expect(TestBed.inject(Router).url).toBe('/reading-list');
+  });
+
   it('should render the shell and route the root URL to the catalog', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
