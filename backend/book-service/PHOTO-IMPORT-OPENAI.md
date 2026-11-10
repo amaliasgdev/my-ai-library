@@ -6,6 +6,9 @@ procedure, use [Stage 7 validation](PHOTO-IMPORT-VALIDATION.md). Its explicit
 neither document authorizes activation. Stage 8 explicitly updates the configurable
 model default to `gpt-5.4-mini`; enabled=false/provider=none remain unchanged.
 See [Stage 8 UX and recognition](PHOTO-IMPORT-UX.md) for the current wizard and prompt.
+For the complete user-run real-provider test with isolated persistence, use
+[Stage 9 manual procedure](PHOTO-IMPORT-FULL-TEST.md), not the historical startup
+examples below. Stage 9 preparation does not execute that test.
 
 Implemented with **no real API calls, real keys, personal photos or charges** during
 development. Disabled by default. This document describes a later, separately

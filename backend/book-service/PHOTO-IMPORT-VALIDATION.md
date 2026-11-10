@@ -1,5 +1,9 @@
 # Photo import — Stage 7: offline validation and a gated first real test
 
+Para la prueba manual completa posterior a la etapa 8, con Open Library real y
+altas exclusivamente aisladas, usar [Etapa 9](PHOTO-IMPORT-FULL-TEST.md).
+Este documento conserva el procedimiento histórico de la primera prueba limitada.
+
 ## Status and boundaries (2026-11-10)
 
 Phase B is **NOT authorized by this document**. Do not enter a real key, activate
