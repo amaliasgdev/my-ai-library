@@ -9,6 +9,14 @@ export const routes: Routes = [
   },
   { path: '', pathMatch: 'full', redirectTo: 'books' },
   {
+    path: 'books/photo-import',
+    title: 'Importar libros desde fotografías | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/books/pages/book-photo-import/book-photo-import').then(
+        (module) => module.BookPhotoImport,
+      ),
+  },
+  {
     path: 'books/import',
     title: 'Importar ISBN | Mi Biblioteca',
     loadComponent: () =>

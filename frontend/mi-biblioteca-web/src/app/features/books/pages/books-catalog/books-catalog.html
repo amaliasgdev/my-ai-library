@@ -4,6 +4,9 @@
   <div class="catalog-create-actions">
     <a mat-flat-button routerLink="/books/new">Añadir libro</a>
     <a mat-button routerLink="/books/import" [queryParams]="catalogParams()">Importar ISBN</a>
+    <a mat-button routerLink="/books/photo-import" [queryParams]="catalogParams()">
+      Importar desde fotografías
+    </a>
     <button mat-button type="button" aria-describedby="catalog-scan-help" (click)="openScanner()">
       Escanear ISBN
     </button>

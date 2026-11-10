@@ -1,0 +1,134 @@
+<section aria-labelledby="photo-import-heading">
+  <h1 id="photo-import-heading" tabindex="-1">Importar libros desde fotografías</h1>
+  <p>
+    Fotografía los lomos o portadas de tus libros para identificarlos y añadirlos a tu biblioteca
+  </p>
+
+  <p class="notice" id="recognition-notice">
+    El reconocimiento todavía no está conectado. Puedes preparar fotografías localmente, pero no
+    analizarlas ni importar libros. No se envían imágenes al servidor ni a servicios externos.
+  </p>
+
+  <section
+    class="photo-input"
+    aria-labelledby="photo-input-heading"
+    aria-describedby="photo-limits photo-camera-help"
+    (dragover)="allowDrop($event)"
+    (drop)="dropFiles($event)"
+  >
+    <h2 id="photo-input-heading">Seleccionar fotografías</h2>
+    <p>Arrastra aquí tus imágenes o utiliza los botones de selección.</p>
+    <p id="photo-limits">
+      Máximo 3 fotografías, de hasta 5 MB (5.242.880 bytes) cada una. Solo JPEG y PNG. HEIC/HEIF de
+      iPhone, WebP, SVG, PDF y GIF no son compatibles; elige o exporta una copia en JPEG o PNG.
+    </p>
+    <input
+      #fileInput
+      type="file"
+      accept="image/jpeg,image/png"
+      multiple
+      hidden
+      aria-label="Seleccionar fotografías JPEG o PNG"
+      (change)="selectFiles($event)"
+    />
+    <input
+      #cameraInput
+      type="file"
+      accept="image/jpeg,image/png"
+      capture="environment"
+      hidden
+      aria-label="Tomar una fotografía JPEG o PNG"
+      (change)="selectFiles($event)"
+    />
+    <div class="actions">
+      <button
+        #chooseButton
+        mat-flat-button
+        type="button"
+        (click)="fileInput.click()"
+        aria-describedby="photo-limits"
+      >
+        Seleccionar fotografías
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="cameraInput.click()"
+        aria-describedby="photo-camera-help"
+      >
+        Tomar fotografía
+      </button>
+    </div>
+    <p id="photo-camera-help">
+      En móviles compatibles se ofrecerá la cámara. En otros dispositivos puede abrirse el selector
+      de archivos. No se activa una cámara continua.
+    </p>
+  </section>
+
+  <div aria-live="polite" aria-atomic="true">
+    <p>{{ photos().length }} de {{ maxPhotos }} fotografías seleccionadas.</p>
+  </div>
+  @if (errors().length) {
+    <div class="error-panel" role="alert">
+      <ul>
+        @for (error of errors(); track $index) {
+          <li>{{ error }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  <p id="photo-rotation-help">
+    La rotación ajusta la vista previa y queda pendiente. El archivo original no se modifica: el
+    giro deberá aplicarse a la imagen antes de un futuro envío al reconocimiento. No se reduce la
+    resolución.
+  </p>
+  <div class="photo-grid">
+    @for (photo of photos(); track photo.id) {
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>{{ photo.file.name }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="preview">
+            <img
+              [src]="photo.previewUrl"
+              [alt]="'Vista previa local de ' + photo.file.name"
+              [style.transform]="'rotate(' + photo.rotationDegrees + 'deg)'"
+              (error)="previewFailed(photo.id)"
+            />
+          </div>
+          <p aria-live="polite">Giro pendiente: {{ photo.rotationDegrees }}°</p>
+        </mat-card-content>
+        <mat-card-actions>
+          <button
+            mat-button
+            type="button"
+            [attr.aria-label]="'Rotar 90 grados a la derecha: ' + photo.file.name"
+            aria-describedby="photo-rotation-help"
+            (click)="rotatePhoto(photo.id)"
+          >
+            Rotar 90°
+          </button>
+          <button
+            mat-button
+            type="button"
+            [attr.aria-label]="'Retirar fotografía: ' + photo.file.name"
+            (click)="removePhoto(photo.id); chooseButton.focus()"
+          >
+            Retirar
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+  </div>
+  <div class="actions">
+    <button mat-flat-button type="button" disabled aria-describedby="recognition-notice">
+      Analizar fotografías
+    </button>
+    <a mat-button routerLink="/books" [queryParams]="catalogParams">Volver al catálogo</a>
+  </div>
+  <p>
+    Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la selección.
+  </p>
+</section>
