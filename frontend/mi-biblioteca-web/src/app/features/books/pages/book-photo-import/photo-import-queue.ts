@@ -3,10 +3,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { RouterLink, Params } from '@angular/router';
 import { PhotoImportWorkflow } from './photo-import-workflow';
+import { PhotoReadingListPanel } from './photo-reading-list-panel';
 
 @Component({
   selector: 'app-photo-import-queue',
-  imports: [MatButtonModule, MatCheckboxModule, RouterLink],
+  imports: [MatButtonModule, MatCheckboxModule, RouterLink, PhotoReadingListPanel],
   template: `
     <section aria-labelledby="final-review-heading">
       <h2 id="final-review-heading">Revisión e incorporación</h2>
@@ -127,6 +128,7 @@ import { PhotoImportWorkflow } from './photo-import-workflow';
         guardan al salir.
       </p>
     </section>
+    <app-photo-reading-list-panel />
   `,
   styles: `
     article {

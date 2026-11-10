@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal, HostListener } from '@angular/core';
 import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
+import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
+import { effect, untracked } from '@angular/core';
 import { PhotoImportQueue } from './photo-import-queue';
 import { BookFormValue } from '../../components/book-form/book-form.helpers';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -41,18 +43,19 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
     MatProgressBarModule,
     PhotoMetadataCandidate,
   ],
-  providers: [PhotoImportWorkflow],
+  providers: [PhotoImportWorkflow, PhotoReadingListWorkflow],
   templateUrl: './book-photo-import.html',
   styleUrl: './book-photo-import.scss',
 })
 export class BookPhotoImport {
   readonly workflow = inject(PhotoImportWorkflow);
+  readonly reading = inject(PhotoReadingListWorkflow);
   canLeave() {
     return this.workflow.canLeave();
   }
   @HostListener('window:beforeunload', ['$event'])
   beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.workflow.pendingWork() || this.workflow.creating() || this.workflow.dialogOpen()) {
+    if (this.workflow.pendingWork() || this.workflow.locked() || this.reading.pending()) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -103,6 +106,11 @@ export class BookPhotoImport {
   );
 
   constructor() {
+    this.reading.setBlocker(() => this.workflow.creating() || this.workflow.dialogOpen());
+    effect(() => {
+      const rows = this.workflow.rows();
+      untracked(() => this.reading.setCandidates(rows));
+    });
     this.destroyRef.onDestroy(() => {
       this.generation++;
       this.analysisRequest?.unsubscribe();

@@ -6,6 +6,7 @@ import { Subject, Observable } from 'rxjs';
 import { BookRequest } from '../../models/book.models';
 import { MetadataDuplicates } from '../../models/book-metadata.models';
 import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
+import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 
 describe('PhotoImportWorkflow (offline, no backend writes)', () => {
   let flow: PhotoImportWorkflow;
@@ -62,6 +63,7 @@ describe('PhotoImportWorkflow (offline, no backend writes)', () => {
     TestBed.configureTestingModule({
       providers: [
         PhotoImportWorkflow,
+        PhotoReadingListWorkflow,
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: MatDialog, useValue: { open } },

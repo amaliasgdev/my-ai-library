@@ -12,6 +12,7 @@ import {
 import { BookRequest } from '../../models/book.models';
 import { MetadataDuplicates } from '../../models/book-metadata.models';
 import { BooksService } from '../../services/books.service';
+import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 
 export type PhotoCandidateState =
   | 'pending'
@@ -62,6 +63,7 @@ const requestDraft = (r: BookRequest): BookFormValue => ({
 /** Page-scoped orchestration. Only confirmed requests may enter the sequential POST queue. */
 @Injectable()
 export class PhotoImportWorkflow {
+  private readonly reading = inject(PhotoReadingListWorkflow);
   private readonly books = inject(BooksService);
   private readonly dialogs = inject(MatDialog);
   private readonly destroy = inject(DestroyRef);
@@ -84,7 +86,7 @@ export class PhotoImportWorkflow {
       ['reviewed', 'possible', 'ready', 'importing', 'error', 'uncertain'].includes(r.state),
     ),
   );
-  readonly locked = computed(() => this.creating() || this.dialogOpen());
+  readonly locked = computed(() => this.creating() || this.dialogOpen() || this.reading.locked());
   readonly summary = computed(() => ({
     imported: this.rows().filter((r) => r.state === 'imported').length,
     existing: this.rows().filter((r) => r.state === 'existing').length,
@@ -535,8 +537,8 @@ export class PhotoImportWorkflow {
       });
   }
   canLeave(): boolean | Observable<boolean> {
-    if (this.creating() || this.dialogOpen()) return false;
-    if (!this.pendingWork()) return true;
+    if (this.creating() || this.dialogOpen() || this.reading.locked()) return false;
+    if (!this.pendingWork() && !this.reading.pending()) return true;
     this.dialogOpen.set(true);
     const ref = this.dialogs.open<PhotoImportConfirmDialog, PhotoImportConfirmation, boolean>(
       PhotoImportConfirmDialog,
@@ -544,7 +546,7 @@ export class PhotoImportWorkflow {
         data: {
           heading: 'Abandonar importación',
           message:
-            'Hay candidatos revisados pendientes o resultados inciertos. Se perderán los borradores y fotografías; las altas ya realizadas no se deshacen.',
+            'Hay candidatos revisados, selecciones de lectura pendientes o resultados inciertos. Se perderán los borradores y fotografías; las altas ya realizadas no se deshacen.',
           titles: [],
         },
       },
