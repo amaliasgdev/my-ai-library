@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ReadingStatusServiceTest {
+    @org.mockito.Spy private BookResponseMapper mapper = new BookResponseMapper();
     @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();

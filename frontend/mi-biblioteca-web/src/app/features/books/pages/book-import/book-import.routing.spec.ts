@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../../../app.routes';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from '../books-catalog/books-catalog';
 import { BookImport } from './book-import';
@@ -27,6 +28,7 @@ describe('ISBN import routing and catalog context', () => {
     http
       .expectOne((req) => req.url === '/api/books/search')
       .flush(testBookPage({ page: 2, size: 50 }));
+    completeMembershipQueries(http);
     harness.detectChanges();
     const context = router.parseUrl(router.url).queryParams;
     const link = Array.from(
@@ -49,6 +51,7 @@ describe('ISBN import routing and catalog context', () => {
     expect(request.request.params.getAll('readingStatus')).toEqual(['READING', 'READ']);
     expect(request.request.params.get('page')).toBe('2');
     request.flush(testBookPage({ page: 2, size: 50 }));
+    completeMembershipQueries(http);
     http.verify();
     harness.fixture.destroy();
   });

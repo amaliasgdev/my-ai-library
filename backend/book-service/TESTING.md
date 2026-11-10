@@ -56,8 +56,76 @@ in the same shell:
 ./mvnw.cmd clean test
 ```
 
+### Reading-list migration fixture
+
+Before running the full suite for the first time on an existing test volume,
+prepare the additional disposable migration database from the repository root:
+
+```powershell
+python scripts/Prepare-ReadingListMigrationDatabase.py
+```
+
+The script verifies the independent test container, loopback port, volume and
+server identity before creating `bookdb_tests_reading_list_migration`, owned by
+the non-administrative `booktest` role. It never drops or overwrites a database.
+The test JVM does not receive bootstrap administrator credentials.
+
+`ReadingListMigrationTest` verifies its fixed destination before each migration
+or cleanup and cleans only `public` in that disposable database. This separate
+database is necessary because historical V10 explicitly targets `public`, so
+using another schema in the shared test database would not isolate its DDL.
+Do not run concurrent suites sharing this fixture. See
+`READING-LIST-PERSISTENCE.md` for coverage and the boundaries of this stage.
+
 Migration, concurrency, filter, repository and cover integration tests write or
 delete data and may commit. They belong exclusively in the disposable test
 cluster. Cover tests use temporary directories or `target/test-covers`, not the
 development cover directory. Do not run a backend with test dependencies or
-destructive migrations against the original database. No V10 is part of this setup.
+destructive migrations against the original database. The full migration history,
+including V10 and V11, is applied only to the guarded isolated test destinations;
+the original and restore-validation databases are never test targets.
+
+## Full reading-list validation (Stage 6)
+
+From repository root, after verifying that the existing isolated container is healthy:
+
+```powershell
+. ./scripts/Use-TestDatabase.ps1
+python scripts/Prepare-ReadingListMigrationDatabase.py
+Set-Location backend/book-service
+.\mvnw.cmd '-Dtest=IsolatedTestDatabaseConnectionTest,IsolatedTestDatabaseInitializerTest' test
+.\mvnw.cmd clean verify
+```
+
+`verify` includes compilation, the full test phase, JAR packaging and the Maven
+verification lifecycle. Do not use skip-tests flags. Do not run another suite or
+an interactive application against these databases concurrently.
+
+The new `ReadingListHttpJourneyTest` starts an embedded HTTP server on loopback
+and a random port with the **test classpath** and registered fail-closed initializer.
+It uses real Java HttpClient requests, independent server transactions and actual
+PostgreSQL commits. Its fixtures are created through POST /api/books and removed
+afterwards; existing Book data is not deleted. It verifies add/membership, duplicate
+and stale-revision conflicts, ordering, status/date changes, withdrawal, Book
+deletion/compaction, repeat GET persistence and OpenAPI. It is not a browser test.
+
+To repeat only that real HTTP journey after the safety checks:
+
+```powershell
+.\mvnw.cmd '-Dtest=ReadingListHttpJourneyTest' test
+```
+
+The random HTTP port is not the Angular development proxy target. Frontend tests
+use HttpTestingController without a live server. Do not point the development
+proxy at a normally started backend as a shortcut for validation.
+
+Migration coverage includes an empty database through V11, compatible V9 ->
+V10 -> V11 with legacy/structured Book fixtures and inventory objects, and V10 ->
+V11 with preservation of Book rows/history/constraints/indexes/sequence. V10
+intentionally removes retired physical-location/inventory data, not bibliographic
+data; dependencies that prevent its restrictive DDL must be resolved explicitly.
+The real database is **not** an approved migration target in this workflow.
+
+See [READING-LIST-VALIDATION.md](READING-LIST-VALIDATION.md) for evidence and
+remaining manual checks. Never run Flyway clean outside the fixed disposable
+migration fixture, delete volumes or restore over an existing database here.

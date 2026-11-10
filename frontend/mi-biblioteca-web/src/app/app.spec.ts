@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { completeMembershipQueries } from './features/reading-list/reading-list-membership.testing';
 import { App } from './app';
 import { provideRouter, Router } from '@angular/router';
 import { routes } from './app.routes';
@@ -14,12 +15,31 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+  afterEach(() => {
+    completeMembershipQueries(TestBed.inject(HttpTestingController));
+    TestBed.inject(HttpTestingController).verify();
+  });
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
+  });
+
+  it('lazy loads the reading list from primary navigation', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const link = compiled.querySelector<HTMLAnchorElement>('nav a[href="/reading-list"]');
+    expect(link).not.toBeNull();
+    link?.click();
+    await fixture.whenStable();
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/reading-list')
+      .flush({ revision: '0', totalItems: 0, items: [] });
+    await fixture.whenStable();
+    expect(compiled.querySelector('h1')?.textContent).toBe('Lista de lectura');
+    expect(TestBed.inject(Router).url).toBe('/reading-list');
   });
 
   it('should render the shell and route the root URL to the catalog', async () => {

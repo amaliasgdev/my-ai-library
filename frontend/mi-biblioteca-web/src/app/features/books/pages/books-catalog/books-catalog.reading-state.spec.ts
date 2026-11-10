@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog';
@@ -48,6 +49,7 @@ describe('BooksCatalog reading state', () => {
 
   afterEach(() => {
     http.expectNone((req) => /start-reading|finish-reading|reading-dates/.test(req.url));
+    completeMembershipQueries(http);
     http.verify();
   });
 
@@ -123,7 +125,7 @@ describe('BooksCatalog reading state', () => {
         .componentInstance as BookCard;
       expect(confirmed.book().startedOn).toBe('2026-01-01');
       expect(confirmed.book().finishedOn).toBe('2026-01-20');
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
 
@@ -140,7 +142,7 @@ describe('BooksCatalog reading state', () => {
       await fixture.whenStable();
       expect(await control.getValueText()).toBe(String(rating));
       expect(firstCard().querySelector('.reading-status')?.textContent).toBe('Por leer');
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
 
@@ -296,7 +298,7 @@ describe('BooksCatalog reading state', () => {
       expect(firstCard().querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
         '/books/1/edit?page=1&size=50',
       );
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
       await selectStatus();
       expect(firstCard().querySelector('[role="alert"]')).toBeNull();
       http
@@ -316,7 +318,7 @@ describe('BooksCatalog reading state', () => {
       await fixture.whenStable();
       expect(await (await selects())[1].getValueText()).toBe('4');
       expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
-      http.expectNone((req) => req.method === 'GET');
+      http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
 
@@ -365,7 +367,7 @@ describe('BooksCatalog reading state', () => {
     expect(fixture.componentInstance.currentSort().sortBy).toBe('author');
     expect(paginator().length).toBe(101);
     expect(paginator().pageIndex).toBe(1);
-    http.expectNone((req) => req.method === 'GET');
+    http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
   });
 
   it('should cancel an older pending GET after write confirmation and reload the current page', async () => {

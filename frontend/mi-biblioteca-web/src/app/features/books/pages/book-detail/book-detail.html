@@ -122,6 +122,12 @@
         </div>
       </article>
       <div class="actions">
+        <app-reading-list-action
+          [membership]="membership"
+          [bookId]="current.id"
+          [title]="current.book.title"
+          [disabled]="deleting()"
+        />
         <a
           mat-button
           [routerLink]="deleting() ? null : ['/books', current.id, 'edit']"
@@ -134,6 +140,7 @@
         </button>
       </div>
       <p role="status" aria-live="polite">{{ deleting() ? 'Eliminando libro…' : '' }}</p>
+      <p role="status" aria-live="polite">{{ membership.message() }}</p>
       @if (deleteError()) {
         <p class="error-panel" role="alert">{{ deleteError() }}</p>
       }

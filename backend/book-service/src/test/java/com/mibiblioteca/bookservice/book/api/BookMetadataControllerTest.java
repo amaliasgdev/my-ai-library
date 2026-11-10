@@ -37,8 +37,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 @WebMvcTest(BookController.class)
-@Import({BookService.class, com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer.class})
+@Import({BookService.class, com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer.class,
+    com.mibiblioteca.bookservice.book.service.BookResponseMapper.class})
 class BookMetadataControllerTest {
+    @MockBean private com.mibiblioteca.bookservice.readinglist.ReadingListService readingList;
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private BookRepository bookRepository;
