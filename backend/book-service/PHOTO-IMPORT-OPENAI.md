@@ -1,5 +1,10 @@
 # Photo import — Stage 6: OpenAI (not activated)
 
+For current isolated ports, offline validation and the gated Windows first-test
+procedure, use [Stage 7 validation](PHOTO-IMPORT-VALIDATION.md). Its explicit
+`gpt-5.4-mini` recommendation supersedes the historical candidate/port examples below;
+neither document authorizes activation. Application defaults are unchanged.
+
 Implemented with **no real API calls, real keys, personal photos or charges** during
 development. Disabled by default. This document describes a later, separately
 authorized test, not an instruction to activate it now.
