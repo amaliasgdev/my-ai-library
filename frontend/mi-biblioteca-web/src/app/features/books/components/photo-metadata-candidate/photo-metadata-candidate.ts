@@ -76,30 +76,47 @@ export class PhotoMetadataCandidate implements OnInit {
     }),
     isbn: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
   });
+  readonly clearWork = computed(() => {
+    const works = this.works();
+    return works?.resolution === 'CLEAR'
+      ? (works.content.find((work) => work.matchKind?.startsWith('EXACT')) ?? null)
+      : null;
+  });
   readonly resolutionStatus = computed(() => {
     if (this.loading()) return 'Buscando';
     if (this.error()) return 'Error';
     if (this.selected()) return 'Coincidencia encontrada · edición elegida';
     const count = this.works()?.content.length ?? 0;
-    if (count > 1) return 'Varias coincidencias';
-    if (count === 1) return 'Coincidencia encontrada · obra propuesta';
+    if (count > 0 && !this.clearWork() && !this.work()) {
+      return count > 1
+        ? 'Varias coincidencias — requiere revisión'
+        : 'Coincidencia aproximada — requiere revisión';
+    }
+    if (count > 0) return 'Coincidencia encontrada · obra propuesta';
     return this.searched() ? 'Sin resultados' : 'Pendiente de búsqueda';
   });
-  readonly proposedCover = computed(
-    () =>
-      this.selected()?.coverUrl ??
-      this.work()?.coverUrl ??
-      this.works()?.content[0]?.coverUrl ??
-      null,
-  );
+  /** Never the first result by position: only a chosen edition/work or a clearly supported one. */
+  readonly proposedCover = computed(() => {
+    const selected = this.selected();
+    if (selected) return selected.coverUrl ?? null;
+    const work = this.work();
+    if (work) return work.coverUrl;
+    return this.clearWork()?.coverUrl ?? null;
+  });
   readonly proposalLabel = computed(() => {
     const edition = this.selectedEdition();
     if (edition)
       return `Edición elegida: ${edition.metadata.title ?? 'Sin título'} · ${edition.editionKey}`;
     if (this.selected()) return `Edición por ISBN: ${this.selected()?.isbn ?? 'Sin ISBN'}`;
-    const work = this.work() ?? this.works()?.content[0];
+    const work = this.work() ?? this.clearWork();
     return work ? `Obra propuesta, sin confirmar: ${work.title} · ${work.workKey}` : '';
   });
+  matchLabel(work: MetadataWork): string {
+    if (work.matchKind === 'EXACT_TEXT') return 'Título exacto de la obra (no confirma identidad)';
+    if (work.matchKind === 'EXACT_EDITION_TITLE')
+      return 'Título exacto de una edición (no confirma identidad)';
+    return 'Coincidencia aproximada — comprobar';
+  }
 
   currentSearchKey(): string {
     return JSON.stringify([this.form.getRawValue(), this.preferredLanguage()]);

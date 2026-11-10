@@ -32,31 +32,55 @@ public class MetadataService {
         if (!smart) return works(client.metadataSearch(title, author, language, new LookupBudget(properties.lookupTimeout())));
         var budget = new LookupBudget(properties.lookupTimeout());
         var result = new java.util.LinkedHashMap<String, Work>();
-        String originalAuthorForMatch = author;
+        String recognizedTitle = title, recognizedAuthor = author;
         boolean truncated = false;
         for (var query : MetadataSearchStrategy.queries(title, author)) {
-            var found = works(client.metadataSearch(query.title(), query.author(), language, budget));
+            Works found;
+            try {
+                found = works(client.metadataSearch(query.title(), query.author(), language, budget));
+            } catch (BookLookupException ex) {
+                // Matches already found remain valid proposals; a first-query failure is still an error.
+                if (result.isEmpty()) throw ex;
+                truncated = true;
+                break;
+            }
             truncated |= found.truncated();
             for (var work : found.content()) {
-                boolean exact = MetadataSearchStrategy.normalize(work.title()).equals(MetadataSearchStrategy.normalize(title))
-                    && (author == null || work.authors().stream().anyMatch(a -> MetadataSearchStrategy.normalize(a)
-                        .equals(MetadataSearchStrategy.normalize(originalAuthorForMatch))));
-                result.putIfAbsent(work.workKey(), new Work(work.workKey(), work.title(), work.authors(), work.coverUrl(),
-                    work.firstPublicationYear(), work.editionCount(), exact ? "EXACT_TEXT" : "APPROXIMATE"));
+                var classified = classify(work, recognizedTitle, recognizedAuthor);
+                result.merge(work.workKey(), classified, (old, current) -> isExact(current) && !isExact(old) ? current : old);
             }
-            if (result.values().stream().anyMatch(w -> relevance(w, query.title(), originalAuthorForMatch) > 1)) break;
+            if (result.values().stream().anyMatch(MetadataService::isExact)) break;
         }
-        String originalTitle = title, originalAuthor = author;
         var ranked = result.values().stream().sorted(java.util.Comparator.comparingInt((Work w) ->
-            relevance(w, originalTitle, originalAuthor)).reversed()).limit(10).toList();
-        return new Works(ranked, truncated || result.size() > 10);
+            relevance(w, recognizedTitle, recognizedAuthor)).reversed()).limit(10).toList();
+        long exact = ranked.stream().filter(MetadataService::isExact).count();
+        String resolution = ranked.isEmpty() ? "NONE" : exact == 1 ? "CLEAR" : "AMBIGUOUS";
+        return new Works(ranked, truncated || result.size() > 10, resolution);
     }
 
-    private int relevance(Work work, String title, String author) {
-        String t = MetadataSearchStrategy.normalize(title), a = MetadataSearchStrategy.normalize(author);
-        int rank = work.matchKind().equals("EXACT_TEXT") ? 100 : 0;
-        for (String word : t.split(" ")) if (!word.isBlank() && MetadataSearchStrategy.normalize(work.title()).contains(word)) rank++;
-        if (!a.isBlank() && work.authors().stream().anyMatch(v -> MetadataSearchStrategy.normalize(v).contains(a.substring(a.lastIndexOf(' ') + 1)))) rank += 10;
+    private static boolean isExact(Work work) {
+        return work.matchKind().startsWith("EXACT");
+    }
+
+    /** Exact needs the whole recognized title (work or best-edition title) and a compatible author. */
+    private static Work classify(Work work, String title, String author) {
+        boolean authorCompatible = author == null || MetadataSearchStrategy.sameAuthor(work.authors(), author);
+        String kind = "APPROXIMATE";
+        if (title != null && authorCompatible) {
+            if (MetadataSearchStrategy.sameTitle(work.title(), title)) kind = "EXACT_TEXT";
+            else if (MetadataSearchStrategy.sameTitle(work.matchedEditionTitle(), title)) kind = "EXACT_EDITION_TITLE";
+        }
+        return new Work(work.workKey(), work.title(), work.authors(), work.coverUrl(), work.firstPublicationYear(),
+            work.editionCount(), kind, work.matchedEditionTitle());
+    }
+
+    /** Ordering only: exact title evidence, then whole-token title similarity, then author. Ties keep provider order. */
+    private static int relevance(Work work, String title, String author) {
+        double similarity = title == null ? 0 : Math.max(MetadataSearchStrategy.similarity(title, work.title()),
+            MetadataSearchStrategy.similarity(title, work.matchedEditionTitle()));
+        int rank = (int) Math.round(similarity * 100);
+        if (isExact(work)) rank += 1000;
+        if (author != null && MetadataSearchStrategy.sameAuthor(work.authors(), author)) rank += 10;
         return rank;
     }
 
@@ -79,8 +103,16 @@ public class MetadataService {
             var cover = doc.path("cover_i");
             String coverUrl = cover.isIntegralNumber() && cover.canConvertToLong() && cover.longValue() > 0
                 ? properties.coversBaseUrl().resolve("/b/id/" + cover.longValue() + "-L.jpg?default=false").toString() : null;
+            // Title of the provider's best matching edition: evidence only, never copied into the confirmed draft.
+            String editionTitle = null;
+            for (var edition : doc.path("editions").path("docs")) {
+                String editionKey = edition.path("key").asText("");
+                if (!editionKey.isEmpty() && !editionKey.matches("/books/OL[0-9]{1,12}M")) continue;
+                editionTitle = optionalText(edition.path("title"));
+                if (editionTitle != null) break;
+            }
             result.add(new Work(key, name, authors, coverUrl, integer(doc.path("first_publish_year"), 2100),
-                integer(doc.path("edition_count"), Integer.MAX_VALUE)));
+                integer(doc.path("edition_count"), Integer.MAX_VALUE), "UNASSESSED", editionTitle));
         }
         return new Works(result, json.path("numFound").asLong(json.path("num_found").asLong(docs.size())) > docs.size());
     }

@@ -54,7 +54,7 @@ class OpenLibraryClientTest {
 
     @Test
     void smartLanguageIsAPreferenceAndEditionQueryIsLiteralEncoded() {
-        server.expect(requestTo("https://openlibrary.org/search.json?title=Dune&author=Herbert&lang=es&fields=key,title,author_name,cover_i,first_publish_year,edition_count&limit=10"))
+        server.expect(requestTo("https://openlibrary.org/search.json?title=Dune&author=Herbert&lang=es&fields=key,title,author_name,cover_i,first_publish_year,edition_count,editions,editions.key,editions.title&limit=10"))
             .andRespond(withSuccess("{\"docs\":[]}", MediaType.APPLICATION_JSON));
         server.expect(requestTo(org.hamcrest.Matchers.containsString("q=key%3A%22%2Fworks%2FOL1W%22%20language%3Aspa")))
             .andRespond(withSuccess("{\"docs\":[]}", MediaType.APPLICATION_JSON));

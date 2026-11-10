@@ -223,6 +223,67 @@ reader usability. Partial index results are proposals, not proof of identity or 
 No real provider calls, API-key access, migrations, dependencies, CRUD/list contract
 changes, original database or backup modifications are part of Stage 10.
 
+## Ranking correction (after the first real batch test)
+
+### Demonstrated causes
+
+Observed with two recognized spines ("Harry Potter y la piedra filosofal" and "... y la
+cámara secreta", both "J.K. Rowling"): both cards showed the same work, and the
+correct work was third in the review list. Code inspection demonstrates four defects;
+no real provider query was made to confirm the provider's own order:
+
+1. **Frontend choice by position.** `proposedCover` and `proposalLabel` fell back to
+   `works.content[0]` when no work had been chosen, so every ambiguous candidate showed
+   the first returned work and its cover. This is the direct cause of the identical cards.
+2. **Local ranking without discriminating evidence.** Relevance counted substring hits
+   of each query word in the work title. The shared saga words matched every work equally
+   and Spanish words matched no English title, so the result was a tie that preserved the
+   provider's order (substring matching also let short words match unrelated text).
+3. **No translated-title evidence was requested.** The search asked only for the work
+   title, so a Spanish edition title could never be compared with the recognized title.
+4. **Premature stop.** Any single shared word ended the alternative-query loop.
+
+### Solution
+
+- The language-aware search additionally requests `editions`, `editions.key` and
+  `editions.title` (documented nested fields). The title of the provider's best matching
+  edition is exposed as `Work.matchedEditionTitle`: evidence only, never copied into the
+  confirmed draft. The legacy title/author call keeps its exact original fields.
+- Normalization strips accents, case, punctuation and spacing. Comparison is by whole
+  tokens, not substrings.
+- `matchKind`: `EXACT_TEXT` (work title equals the whole recognized title),
+  `EXACT_EDITION_TITLE` (best edition title equals it) or `APPROXIMATE`. Exact also requires
+  a compatible author (shared final name token) when an author was recognized.
+  An identical title by an incompatible author is only approximate.
+- Order: exact first, then whole-token Dice similarity of the recognized title against the
+  work and edition titles, then author compatibility. Equal evidence keeps the provider's
+  order and is not presented as a decision. Scores are internal ordering and are never
+  returned or described as probabilities.
+- New `Works.resolution`: `CLEAR` only when exactly one returned work is exact; `AMBIGUOUS`
+  for several exact works or none; `NONE` when empty; absent for the legacy call. The loop
+  now stops only when an exact work exists, otherwise the bounded alternatives continue
+  (still at most four, one shared deadline and pacing gate). If a later alternative fails
+  after matches exist, they are returned with `truncated=true`; a first-query failure
+  remains an error.
+- Cards: `AMBIGUOUS` or absent resolution shows «Varias coincidencias — requiere revisión»
+  (or «Coincidencia aproximada — requiere revisión» for one approximate work), no cover and
+  the Sin portada fallback. Only a `CLEAR` work, a user-chosen work or a chosen edition can
+  supply a cover, labelled as an unconfirmed work or edition. The review list still keeps
+  every match, each with its own cover, and states why it matched. Nothing changes the
+  recognized title or confirms an edition automatically; ISBN lookup and manual data are
+  untouched. No rule is specific to any author, saga or title.
+
+### Limitations
+
+- Evidence exists only if Open Library returns an edition title in the user's language.
+  If it does not, results correctly remain ambiguous and need manual choice.
+- Only the single best nested edition per work is exposed by the provider; a better
+  matching translated edition that is not that edition cannot be seen.
+- The author rule uses the final name token and can accept different authors who share a
+  surname; an exact title with a compatible-looking surname is still not an identity proof.
+- Tests use simulated fixtures; the exact provider response of the reported case remains to
+  be checked manually against real Open Library.
+
 ### Stage 10 changed-file inventory
 
 Created (paths relative to `backend/book-service/`):

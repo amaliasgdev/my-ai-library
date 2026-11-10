@@ -79,13 +79,12 @@
               </p>
               <p>Ediciones: {{ candidate.editionCount ?? 'No indicado' }}</p>
               <p>
-                {{
-                  candidate.matchKind === 'EXACT_TEXT'
-                    ? 'Coincidencia textual exacta (no confirma identidad)'
-                    : 'Coincidencia aproximada — comprobar'
-                }}
+                {{ matchLabel(candidate) }}
                 · {{ candidate.workKey }}
               </p>
+              @if (candidate.matchedEditionTitle) {
+                <p>Título de edición coincidente: {{ candidate.matchedEditionTitle }}</p>
+              }
               <button
                 mat-button
                 type="button"

@@ -215,6 +215,110 @@ describe('Photo import four-step wizard', () => {
     http.expectNone(() => true);
   });
 
+  async function batchSearch(first: Record<string, unknown>) {
+    page.searchAllMetadata();
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    http.expectOne((r) => r.url.endsWith('/metadata-search')).flush(first);
+    await Promise.resolve();
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    http
+      .expectOne((r) => r.url.endsWith('/metadata-search'))
+      .flush({ content: [], truncated: false, resolution: 'NONE' });
+    await Promise.resolve();
+    fixture.detectChanges();
+  }
+  const work = (key: string, title: string, cover: string, matchKind = 'APPROXIMATE') => ({
+    workKey: key,
+    title,
+    authors: ['J. K. Rowling'],
+    coverUrl: cover,
+    firstPublicationYear: 1998,
+    editionCount: 400,
+    matchKind,
+  });
+
+  it('shows no first-result cover for ambiguous matches, keeps them and allows an explicit choice', async () => {
+    analyze();
+    const stone = work(
+      '/works/OL82563W',
+      "Harry Potter and the Philosopher's Stone",
+      'https://c/a.jpg',
+    );
+    const chamber = work(
+      '/works/OL82537W',
+      'Harry Potter and the Chamber of Secrets',
+      'https://c/b.jpg',
+    );
+    await batchSearch({ content: [stone, chamber], truncated: false, resolution: 'AMBIGUOUS' });
+    const editor = page.metadataEditors()[0];
+    expect(editor.resolutionStatus()).toBe('Varias coincidencias — requiere revisión');
+    expect(editor.proposedCover()).toBeNull();
+    expect(editor.proposalLabel()).toBe('');
+    expect(editor.works()?.content).toHaveLength(2);
+    const card = fixture.debugElement.queryAll(By.directive(PhotoCandidateCard))[0].nativeElement;
+    expect(card.querySelector('img')).toBeNull();
+    expect(card.textContent).toContain('Sin portada');
+    expect(card.textContent).toContain('Varias coincidencias — requiere revisión');
+    expect(page.workflow.rows()[0].draft.title).toBe('El último donjuán');
+    expect(page.workflow.rows()[0].draft.coverUrl).toBe('');
+    editor.chooseWork(chamber as never);
+    http
+      .expectOne((r) => r.url.endsWith('/metadata-editions'))
+      .flush({
+        workKey: chamber.workKey,
+        page: 0,
+        content: [],
+        hasNext: false,
+      });
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    fixture.detectChanges();
+    expect(editor.proposedCover()).toBe('https://c/b.jpg');
+    expect(editor.works()?.content).toHaveLength(2);
+    expect(page.workflow.rows()[0].state).toBe('pending');
+    expect(page.workflow.rows().every((row) => !row.request && !row.selected)).toBe(true);
+  });
+
+  it('does not use the first cover for one approximate match and marks the review explicitly', async () => {
+    analyze();
+    await batchSearch({
+      content: [work('/works/OL1W', 'Harry Potter', 'https://c/a.jpg')],
+      truncated: false,
+      resolution: 'AMBIGUOUS',
+    });
+    const editor = page.metadataEditors()[0];
+    expect(editor.resolutionStatus()).toBe('Coincidencia aproximada — requiere revisión');
+    expect(editor.proposedCover()).toBeNull();
+  });
+
+  it('proposes the clearly supported work cover, labelled as an unconfirmed work', async () => {
+    analyze();
+    const stone = work('/works/OL82563W', 'Stone', 'https://c/a.jpg');
+    const chamber = work('/works/OL82537W', 'Chamber', 'https://c/b.jpg', 'EXACT_EDITION_TITLE');
+    await batchSearch({ content: [chamber, stone], truncated: false, resolution: 'CLEAR' });
+    const editor = page.metadataEditors()[0];
+    expect(editor.resolutionStatus()).toBe('Coincidencia encontrada · obra propuesta');
+    expect(editor.proposedCover()).toBe('https://c/b.jpg');
+    expect(editor.proposalLabel()).toContain('/works/OL82537W');
+    const card = fixture.debugElement.queryAll(By.directive(PhotoCandidateCard))[0].nativeElement;
+    expect(card.querySelector('img')?.getAttribute('src')).toBe('https://c/b.jpg');
+    expect(card.textContent).toContain('Obra propuesta · sin confirmar');
+    expect(page.workflow.rows()[0].draft.title).toBe('El último donjuán');
+    expect(page.workflow.rows()[0].draft.coverUrl).toBe('');
+  });
+
+  it('keeps the legacy response without a resolution conservative and manual data selectable', async () => {
+    analyze();
+    await batchSearch({
+      content: [work('/works/OL1W', 'A', 'https://c/a.jpg', 'EXACT_TEXT')],
+      truncated: false,
+    });
+    const editor = page.metadataEditors()[0];
+    expect(editor.proposedCover()).toBeNull();
+    editor.useManual();
+    expect(editor.manual()).toBe(true);
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+  });
+
   it('queries editions globally only on explicit filter submit and retains draft filters across steps', () => {
     analyze();
     const editor = page.metadataEditors()[0];

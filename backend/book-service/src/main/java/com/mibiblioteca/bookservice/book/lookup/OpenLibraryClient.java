@@ -23,10 +23,15 @@ public class OpenLibraryClient {
     private final OpenLibraryPacer pacer = new OpenLibraryPacer();
 
     public JsonNode metadataSearch(String title, String author, LookupBudget budget) {
-        return metadataSearch(title, author, null, budget);
+        return metadataSearch(title, author, null, false, budget);
     }
 
+    /** Language-aware search also requests the best matching edition's title as translated-title evidence. */
     public JsonNode metadataSearch(String title, String author, String language, LookupBudget budget) {
+        return metadataSearch(title, author, language, true, budget);
+    }
+
+    private JsonNode metadataSearch(String title, String author, String language, boolean editionEvidence, LookupBudget budget) {
         var builder = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
             .replacePath("/search.json");
         if (title != null) builder.queryParam("title", "{title}");
@@ -35,7 +40,9 @@ public class OpenLibraryClient {
         if (title != null) values.put("title", title);
         if (author != null) values.put("author", author);
         if (language != null) builder.queryParam("lang", language);
-        URI uri = builder.queryParam("fields", "key,title,author_name,cover_i,first_publish_year,edition_count")
+        String fields = "key,title,author_name,cover_i,first_publish_year,edition_count"
+            + (editionEvidence ? ",editions,editions.key,editions.title" : "");
+        URI uri = builder.queryParam("fields", fields)
             .queryParam("limit", 10).encode().buildAndExpand(values).toUri();
         return request(uri, budget, false, false);
     }

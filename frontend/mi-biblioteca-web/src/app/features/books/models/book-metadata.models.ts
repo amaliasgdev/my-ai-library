@@ -7,7 +7,9 @@ export interface MetadataWork {
   coverUrl: string | null;
   firstPublicationYear: number | null;
   editionCount: number | null;
-  matchKind?: 'EXACT_TEXT' | 'APPROXIMATE' | 'UNASSESSED';
+  matchKind?: 'EXACT_TEXT' | 'EXACT_EDITION_TITLE' | 'APPROXIMATE' | 'UNASSESSED';
+  /** Title of the provider's best matching edition: evidence only, never a confirmed value. */
+  matchedEditionTitle?: string | null;
 }
 export interface MetadataEditionFilters {
   language?: string;
@@ -19,6 +21,8 @@ export interface MetadataEditionFilters {
 export interface MetadataWorks {
   content: MetadataWork[];
   truncated: boolean;
+  /** CLEAR only when exactly one work has whole-title evidence; absent for legacy callers. */
+  resolution?: 'NONE' | 'CLEAR' | 'AMBIGUOUS' | null;
 }
 export type EditionMetadata = Omit<BookLookupResponse, 'isbn'> & { isbn: string | null };
 export interface MetadataEdition {

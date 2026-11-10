@@ -6,12 +6,17 @@ import com.mibiblioteca.bookservice.book.dto.BookLookupResponse;
 public final class MetadataDtos {
     private MetadataDtos() { }
     public record Work(String workKey, String title, List<String> authors, String coverUrl,
-        Integer firstPublicationYear, Integer editionCount, String matchKind) {
+        Integer firstPublicationYear, Integer editionCount, String matchKind, String matchedEditionTitle) {
+        public Work(String key, String title, List<String> authors, String cover, Integer year, Integer count, String matchKind) {
+            this(key, title, authors, cover, year, count, matchKind, null);
+        }
         public Work(String key, String title, List<String> authors, String cover, Integer year, Integer count) {
-            this(key, title, authors, cover, year, count, "UNASSESSED");
+            this(key, title, authors, cover, year, count, "UNASSESSED", null);
         }
     }
-    public record Works(List<Work> content, boolean truncated) { }
+    public record Works(List<Work> content, boolean truncated, String resolution) {
+        public Works(List<Work> content, boolean truncated) { this(content, truncated, null); }
+    }
     public record Edition(String editionKey, List<String> isbns, BookLookupResponse metadata) { }
     public record Editions(String workKey, int page, List<Edition> content, boolean hasNext, boolean partial) {
         public Editions(String workKey, int page, List<Edition> content, boolean hasNext) {
