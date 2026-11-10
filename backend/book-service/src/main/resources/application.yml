@@ -26,6 +26,17 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+photo-import:
+  enabled: false
+  provider: none
+  max-file-size: 5MB
+  max-width: 6000
+  max-height: 6000
+  max-pixels: 20000000
+  max-observations: 25
+  max-concurrent-analyses: 1
+  analysis-timeout: 45s
+
 management:
   endpoints:
     web:

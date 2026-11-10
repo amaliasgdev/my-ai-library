@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../../../app.routes';
 import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
 import { testBookPage } from '../../models/book.testing';
+import { testPhotoCapabilities } from '../../models/book-photo-import.testing';
 import { BookImport } from '../book-import/book-import';
 import { BooksCatalog } from '../books-catalog/books-catalog';
 import { BookPhotoImport } from './book-photo-import';
@@ -37,6 +38,9 @@ describe('Photo import routing', () => {
       '/books/photo-import?genre=%20Terror%20&ratingMin=99&photo=private&isbn=bad',
       BookPhotoImport,
     );
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/book-photo-import/capabilities')
+      .flush(testPhotoCapabilities());
     expect(page.photos()).toEqual([]);
     expect(page.catalogParams).toEqual({ genre: 'Terror' });
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe(
@@ -69,6 +73,7 @@ describe('Photo import routing', () => {
     expect(isbnLink.getAttribute('href')).toContain('/books/import?');
     photoLink.click();
     await harness.fixture.whenStable();
+    http.expectOne('/api/book-photo-import/capabilities').flush(testPhotoCapabilities());
     harness.detectChanges();
     expect(router.url.startsWith('/books/photo-import?')).toBe(true);
     expect(router.parseUrl(router.url).queryParams).toEqual(context);

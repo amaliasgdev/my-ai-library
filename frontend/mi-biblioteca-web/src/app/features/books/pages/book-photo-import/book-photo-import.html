@@ -5,9 +5,21 @@
   </p>
 
   <p class="notice" id="recognition-notice">
-    El reconocimiento todavía no está conectado. Puedes preparar fotografías localmente, pero no
-    analizarlas ni importar libros. No se envían imágenes al servidor ni a servicios externos.
+    @if (availabilityLoading()) {
+      Consultando disponibilidad del reconocimiento…
+    } @else if (available()) {
+      MODO SIMULADO DE DESARROLLO. Los resultados son ejemplos fijos y no identifican los libros de
+      tus fotografías. Solo al pulsar Analizar fotografías se envían al backend local; no se envían
+      a servicios externos. No se crean libros.
+    } @else {
+      El reconocimiento todavía no está conectado o está deshabilitado. Puedes preparar fotografías
+      localmente, pero no analizarlas ni importar libros. No se envían imágenes al seleccionar.
+    }
   </p>
+  @if (availabilityError()) {
+    <p role="alert">No se pudo consultar la disponibilidad. No se permite iniciar análisis.</p>
+    <button mat-button type="button" (click)="loadCapabilities()">Reintentar disponibilidad</button>
+  }
 
   <section
     class="photo-input"
@@ -27,6 +39,7 @@
       type="file"
       accept="image/jpeg,image/png"
       multiple
+      [disabled]="analyzing()"
       hidden
       aria-label="Seleccionar fotografías JPEG o PNG"
       (change)="selectFiles($event)"
@@ -36,6 +49,7 @@
       type="file"
       accept="image/jpeg,image/png"
       capture="environment"
+      [disabled]="analyzing()"
       hidden
       aria-label="Tomar una fotografía JPEG o PNG"
       (change)="selectFiles($event)"
@@ -46,6 +60,7 @@
         mat-flat-button
         type="button"
         (click)="fileInput.click()"
+        [disabled]="analyzing()"
         aria-describedby="photo-limits"
       >
         Seleccionar fotografías
@@ -54,6 +69,7 @@
         mat-stroked-button
         type="button"
         (click)="cameraInput.click()"
+        [disabled]="analyzing()"
         aria-describedby="photo-camera-help"
       >
         Tomar fotografía
@@ -79,9 +95,9 @@
   }
 
   <p id="photo-rotation-help">
-    La rotación ajusta la vista previa y queda pendiente. El archivo original no se modifica: el
-    giro deberá aplicarse a la imagen antes de un futuro envío al reconocimiento. No se reduce la
-    resolución.
+    La rotación ajusta la vista previa y queda pendiente. El archivo original no se modifica: se
+    envía junto al giro solicitado. El servidor aplica primero la orientación EXIF y después este
+    giro una sola vez, y elimina los metadatos. No se reduce la resolución.
   </p>
   <div class="photo-grid">
     @for (photo of photos(); track photo.id) {
@@ -99,6 +115,51 @@
             />
           </div>
           <p aria-live="polite">Giro pendiente: {{ photo.rotationDegrees }}°</p>
+          <p aria-live="polite">{{ analysisLabel(photo) }}</p>
+          @if (photo.analysis === 'analyzing') {
+            <mat-progress-bar
+              mode="indeterminate"
+              [attr.aria-label]="'Analizando ' + photo.file.name"
+            />
+          }
+          @if (photo.message) {
+            <p role="status">{{ photo.message }}</p>
+          }
+          @if (photo.result; as result) {
+            <section
+              class="simulation-result"
+              [attr.aria-label]="'Resultado simulado para ' + photo.file.name"
+            >
+              <h3>Ejemplo simulado — no corresponde a esta fotografía</h3>
+              <p>Proveedor: {{ result.provider }}. No se ha realizado reconocimiento visual.</p>
+              @if (result.incomplete) {
+                <p>Resultado incompleto.</p>
+              }
+              @for (warning of result.warnings; track $index) {
+                <p>{{ warning }}</p>
+              }
+              @if (!result.observations.length) {
+                <p>Sin observaciones en este ejemplo.</p>
+              }
+              @for (observation of result.observations; track $index) {
+                <dl>
+                  <dt>Texto visible de ejemplo</dt>
+                  <dd>{{ observation.visibleText ?? 'Sin texto' }}</dd>
+                  <dt>Título de ejemplo</dt>
+                  <dd>{{ observation.title ?? 'No indicado' }}</dd>
+                  <dt>Autor de ejemplo</dt>
+                  <dd>{{ observation.author ?? 'No indicado' }}</dd>
+                  <dt>ISBN de ejemplo</dt>
+                  <dd>{{ observation.rawIsbn ?? 'No visible' }}</dd>
+                  <dt>Legibilidad</dt>
+                  <dd>{{ legibilityLabel(observation.legibility) }}</dd>
+                </dl>
+                @for (warning of observation.warnings; track $index) {
+                  <p>{{ warning }}</p>
+                }
+              }
+            </section>
+          }
         </mat-card-content>
         <mat-card-actions>
           <button
@@ -107,6 +168,7 @@
             [attr.aria-label]="'Rotar 90 grados a la derecha: ' + photo.file.name"
             aria-describedby="photo-rotation-help"
             (click)="rotatePhoto(photo.id)"
+            [disabled]="analyzing()"
           >
             Rotar 90°
           </button>
@@ -115,19 +177,49 @@
             type="button"
             [attr.aria-label]="'Retirar fotografía: ' + photo.file.name"
             (click)="removePhoto(photo.id); chooseButton.focus()"
+            [disabled]="analyzing()"
           >
             Retirar
           </button>
+          @if (photo.analysis === 'error' || photo.analysis === 'cancelled') {
+            <button
+              mat-button
+              type="button"
+              [disabled]="analyzing() || !available()"
+              [attr.aria-label]="'Reintentar análisis: ' + photo.file.name"
+              (click)="retryPhoto(photo.id)"
+            >
+              Reintentar análisis
+            </button>
+          }
         </mat-card-actions>
       </mat-card>
     }
   </div>
   <div class="actions">
-    <button mat-flat-button type="button" disabled aria-describedby="recognition-notice">
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="!canAnalyze()"
+      (click)="analyze()"
+      aria-describedby="recognition-notice"
+    >
       Analizar fotografías
     </button>
+    @if (analyzing()) {
+      <button mat-stroked-button type="button" (click)="cancelAnalysis()">Cancelar análisis</button>
+    }
     <a mat-button routerLink="/books" [queryParams]="catalogParams">Volver al catálogo</a>
   </div>
+  @if (analysisTotal()) {
+    <p aria-live="polite">
+      {{ analysisCompleted() }} de {{ analysisTotal() }} análisis finalizados.
+    </p>
+  }
+  <p>
+    Cancelar detiene la cola y descarta respuestas tardías; el servidor puede terminar una petición
+    ya enviada.
+  </p>
   <p>
     Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la selección.
   </p>

@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { testPhotoCapabilities } from '../../models/book-photo-import.testing';
 import { BookPhotoImport } from './book-photo-import';
 
 describe('BookPhotoImport local photographs', () => {
@@ -30,6 +31,8 @@ describe('BookPhotoImport local photographs', () => {
     page = fixture.componentInstance;
     root = fixture.nativeElement as HTMLElement;
     http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    http.expectOne('/api/book-photo-import/capabilities').flush(testPhotoCapabilities());
     fixture.detectChanges();
   });
 
