@@ -1,5 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, HostListener } from '@angular/core';
+import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
+import { PhotoImportQueue } from './photo-import-queue';
+import { BookFormValue } from '../../components/book-form/book-form.helpers';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -31,16 +34,37 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 @Component({
   selector: 'app-book-photo-import',
   imports: [
+    PhotoImportQueue,
     RouterLink,
     MatButtonModule,
     MatCardModule,
     MatProgressBarModule,
     PhotoMetadataCandidate,
   ],
+  providers: [PhotoImportWorkflow],
   templateUrl: './book-photo-import.html',
   styleUrl: './book-photo-import.scss',
 })
 export class BookPhotoImport {
+  readonly workflow = inject(PhotoImportWorkflow);
+  canLeave() {
+    return this.workflow.canLeave();
+  }
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    if (this.workflow.pendingWork() || this.workflow.creating() || this.workflow.dialogOpen()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
+  candidateChanged(photoId: number, observationId: string, draft: BookFormValue): void {
+    const photo = this.photos().find((p) => p.id === photoId);
+    if (photo) this.workflow.source(`photo:${photoId}:${observationId}`, photo.file.name, draft);
+  }
+  reviewCandidate(photoId: number, observationId: string, draft: BookFormValue): void {
+    this.candidateChanged(photoId, observationId, draft);
+    this.workflow.review(`photo:${photoId}:${observationId}`);
+  }
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BookPhotoImportService);
   private analysisRequest: Subscription | null = null;
@@ -73,6 +97,7 @@ export class BookPhotoImport {
   readonly canAnalyze = computed(
     () =>
       this.available() &&
+      !this.workflow.locked() &&
       !this.analyzing() &&
       this.photos().some((photo) => photo.analysis !== 'success'),
   );
@@ -132,7 +157,8 @@ export class BookPhotoImport {
   }
 
   private addFiles(files: readonly File[]): void {
-    if (this.destroyRef.destroyed || this.analyzing() || !files.length) return;
+    if (this.destroyRef.destroyed || this.analyzing() || this.workflow.locked() || !files.length)
+      return;
     if (this.photos().length + files.length > MAX_PHOTOS) {
       this.errors.set([
         'Puedes seleccionar un máximo de 3 fotografías. No se ha añadido ninguna de esta selección; retira una fotografía o elige menos archivos.',
@@ -180,7 +206,7 @@ export class BookPhotoImport {
   }
 
   removePhoto(id: number): void {
-    if (this.analyzing()) return;
+    if (this.analyzing() || this.workflow.locked()) return;
     const photo = this.photos().find((item) => item.id === id);
     if (!photo) return;
     URL.revokeObjectURL(photo.previewUrl);
@@ -188,7 +214,7 @@ export class BookPhotoImport {
   }
 
   rotatePhoto(id: number): void {
-    if (this.analyzing()) return;
+    if (this.analyzing() || this.workflow.locked()) return;
     this.photos.update((photos) =>
       photos.map((photo) =>
         photo.id === id
@@ -225,6 +251,7 @@ export class BookPhotoImport {
     const photo = this.photos().find((item) => item.id === id);
     if (
       !this.available() ||
+      this.workflow.locked() ||
       this.analyzing() ||
       this.destroyRef.destroyed ||
       !photo ||
@@ -289,6 +316,15 @@ export class BookPhotoImport {
                   message: 'El servidor devolvió un resultado incompatible con el modo simulado.',
                 },
           );
+          if (valid)
+            for (const observation of result.observations) {
+              this.candidateChanged(photo.id, observation.id, {
+                ...emptyPhotoDraft(),
+                title: observation.title ?? '',
+                author: observation.author ?? '',
+                isbn: observation.rawIsbn ?? '',
+              });
+            }
           this.analysisCompleted.update((value) => value + 1);
         },
         error: (error: unknown) => {

@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, input, OnInit, signal, output } from '@angular/core';
+import { BookFormValue } from '../book-form/book-form.helpers';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -34,6 +35,29 @@ import { BooksService } from '../../services/books.service';
 export class PhotoMetadataCandidate implements OnInit {
   readonly observation = input.required<PhotoObservation>();
   readonly simulated = input(true);
+  readonly locked = input(false);
+  readonly reviewRequested = output<BookFormValue>();
+  readonly identificationChanged = output<BookFormValue>();
+
+  draft(): BookFormValue {
+    const metadata = this.selected();
+    const value = this.form.getRawValue();
+    return {
+      title: metadata?.title ?? value.title,
+      author: metadata?.author ?? value.author,
+      isbn: metadata ? (metadata.isbn ?? '') : value.isbn,
+      description: '',
+      coverUrl: metadata?.coverUrl ?? '',
+      publisher: metadata?.publisher ?? '',
+      publicationYear: metadata?.publicationYear ?? null,
+      pageCount: metadata?.pageCount ?? null,
+      language: metadata?.language ?? '',
+      genres: [...(metadata?.genres ?? [])],
+    };
+  }
+  requestReview(): void {
+    if (!this.locked()) this.reviewRequested.emit(this.draft());
+  }
   private readonly books = inject(BooksService);
   private readonly destroyRef = inject(DestroyRef);
   private request: Subscription | null = null;
@@ -103,10 +127,11 @@ export class PhotoMetadataCandidate implements OnInit {
     this.duplicates.set(null);
     this.duplicateState.set('idle');
     this.manual.set(false);
+    this.identificationChanged.emit(this.draft());
   }
 
   search(): void {
-    if (this.loading() || this.destroyRef.destroyed) return;
+    if (this.locked() || this.loading() || this.destroyRef.destroyed) return;
     this.invalidate();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -137,6 +162,7 @@ export class PhotoMetadataCandidate implements OnInit {
             if (generation !== this.generation) return;
             this.loading.set(false);
             this.selected.set(metadata);
+            this.identificationChanged.emit(this.draft());
             this.checkDuplicates(isbn, metadata.title ?? title, metadata.author ?? author);
           },
           error: (error: unknown) => {
@@ -149,7 +175,7 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   searchText(): void {
-    if (this.loading() || this.destroyRef.destroyed) return;
+    if (this.locked() || this.loading() || this.destroyRef.destroyed) return;
     const { title, author } = this.form.getRawValue();
     if (this.form.invalid || (!title.trim() && !author.trim())) {
       this.error.set('Indica título o autor válidos.');
@@ -171,6 +197,7 @@ export class PhotoMetadataCandidate implements OnInit {
     this.error.set(null);
     this.loading.set(true);
     this.manual.set(false);
+    this.identificationChanged.emit(this.draft());
     this.request = this.books
       .searchMetadata(title, author)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -190,7 +217,7 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   chooseWork(work: MetadataWork): void {
-    if (this.loading()) return;
+    if (this.locked() || this.loading()) return;
     this.selected.set(null);
     this.selectedEdition.set(null);
     this.work.set(work);
@@ -201,7 +228,7 @@ export class PhotoMetadataCandidate implements OnInit {
 
   loadEditions(page: number): void {
     const work = this.work();
-    if (!work || this.loading() || page < 0 || page > 9) return;
+    if (this.locked() || !work || this.loading() || page < 0 || page > 9) return;
     this.request?.unsubscribe();
     const generation = ++this.generation;
     this.loading.set(true);
@@ -209,6 +236,7 @@ export class PhotoMetadataCandidate implements OnInit {
     this.editions.set(null);
     this.selected.set(null);
     this.selectedEdition.set(null);
+    this.identificationChanged.emit(this.draft());
     this.duplicateRequest?.unsubscribe();
     this.duplicates.set(null);
     this.duplicateState.set('idle');
@@ -230,9 +258,10 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   chooseEdition(edition: MetadataEdition): void {
-    if (this.loading()) return;
+    if (this.locked() || this.loading()) return;
     this.selectedEdition.set(edition);
     this.selected.set(edition.metadata);
+    this.identificationChanged.emit(this.draft());
     this.manual.set(false);
     this.checkDuplicates(
       '',
@@ -242,10 +271,12 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   selectIsbn(isbn: string): void {
+    if (this.locked()) return;
     const edition = this.selectedEdition();
     if (!edition || (isbn !== '' && !edition.isbns.includes(isbn))) return;
     const selected = { ...edition.metadata, isbn: isbn || null };
     this.selected.set(selected);
+    this.identificationChanged.emit(this.draft());
     this.checkDuplicates(
       isbn,
       selected.title ?? this.form.controls.title.value,
@@ -254,6 +285,7 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   useManual(): void {
+    if (this.locked()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

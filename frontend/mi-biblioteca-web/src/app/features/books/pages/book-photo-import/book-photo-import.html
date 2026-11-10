@@ -10,10 +10,12 @@
     } @else if (available()) {
       MODO SIMULADO DE DESARROLLO. Los resultados son ejemplos fijos y no identifican los libros de
       tus fotografías. Solo al pulsar Analizar fotografías se envían al backend local; no se envían
-      a servicios externos. No se crean libros.
+      a servicios externos. El análisis no crea libros: las altas requieren revisión de datos reales
+      y confirmación explícita.
     } @else {
       El reconocimiento todavía no está conectado o está deshabilitado. Puedes preparar fotografías
-      localmente, pero no analizarlas ni importar libros. No se envían imágenes al seleccionar.
+      localmente, pero no analizarlas. Puedes añadir manualmente candidatos y revisarlos. No se
+      envían imágenes al seleccionar.
     }
   </p>
   @if (availabilityError()) {
@@ -39,7 +41,7 @@
       type="file"
       accept="image/jpeg,image/png"
       multiple
-      [disabled]="analyzing()"
+      [disabled]="analyzing() || workflow.locked()"
       hidden
       aria-label="Seleccionar fotografías JPEG o PNG"
       (change)="selectFiles($event)"
@@ -49,7 +51,7 @@
       type="file"
       accept="image/jpeg,image/png"
       capture="environment"
-      [disabled]="analyzing()"
+      [disabled]="analyzing() || workflow.locked()"
       hidden
       aria-label="Tomar una fotografía JPEG o PNG"
       (change)="selectFiles($event)"
@@ -60,7 +62,7 @@
         mat-flat-button
         type="button"
         (click)="fileInput.click()"
-        [disabled]="analyzing()"
+        [disabled]="analyzing() || workflow.locked()"
         aria-describedby="photo-limits"
       >
         Seleccionar fotografías
@@ -69,7 +71,7 @@
         mat-stroked-button
         type="button"
         (click)="cameraInput.click()"
-        [disabled]="analyzing()"
+        [disabled]="analyzing() || workflow.locked()"
         aria-describedby="photo-camera-help"
       >
         Tomar fotografía
@@ -160,6 +162,9 @@
                 <app-photo-metadata-candidate
                   [observation]="observation"
                   [simulated]="result.simulated"
+                  [locked]="workflow.locked()"
+                  (identificationChanged)="candidateChanged(photo.id, observation.id, $event)"
+                  (reviewRequested)="reviewCandidate(photo.id, observation.id, $event)"
                 />
               }
             </section>
@@ -172,7 +177,7 @@
             [attr.aria-label]="'Rotar 90 grados a la derecha: ' + photo.file.name"
             aria-describedby="photo-rotation-help"
             (click)="rotatePhoto(photo.id)"
-            [disabled]="analyzing()"
+            [disabled]="analyzing() || workflow.locked()"
           >
             Rotar 90°
           </button>
@@ -181,7 +186,7 @@
             type="button"
             [attr.aria-label]="'Retirar fotografía: ' + photo.file.name"
             (click)="removePhoto(photo.id); chooseButton.focus()"
-            [disabled]="analyzing()"
+            [disabled]="analyzing() || workflow.locked()"
           >
             Retirar
           </button>
@@ -189,7 +194,7 @@
             <button
               mat-button
               type="button"
-              [disabled]="analyzing() || !available()"
+              [disabled]="analyzing() || workflow.locked() || !available()"
               [attr.aria-label]="'Reintentar análisis: ' + photo.file.name"
               (click)="retryPhoto(photo.id)"
             >
@@ -200,6 +205,7 @@
       </mat-card>
     }
   </div>
+  <app-photo-import-queue [catalogParams]="catalogParams" />
   <div class="actions">
     <button
       mat-flat-button
