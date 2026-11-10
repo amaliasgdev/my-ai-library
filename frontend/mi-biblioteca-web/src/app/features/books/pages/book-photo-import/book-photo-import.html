@@ -244,6 +244,39 @@
     </mat-step>
     <mat-step label="Resultados">
       <h2>Libros identificados</h2>
+      <mat-form-field
+        ><mat-label>Idioma preferido de búsqueda</mat-label
+        ><mat-select
+          [value]="preferredLanguage()"
+          [disabled]="batchSearching()"
+          (selectionChange)="preferredLanguage.set($event.value)"
+        >
+          <mat-option value="es">Español</mat-option><mat-option value="en">Inglés</mat-option
+          ><mat-option value="all">Todos los idiomas</mat-option
+          ><mat-option value="fr">Francés</mat-option><mat-option value="de">Alemán</mat-option
+          ><mat-option value="it">Italiano</mat-option><mat-option value="pt">Portugués</mat-option>
+        </mat-select></mat-form-field
+      >
+      <p>Es una preferencia, no excluye obras en otros idiomas. No altera los datos reconocidos.</p>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="batchSearching() || workflow.locked() || analyzing()"
+        (click)="searchAllMetadata()"
+      >
+        Buscar metadatos de todos los libros
+      </button>
+      @if (batchSearching()) {
+        <button mat-button type="button" (click)="stopMetadataBatch()">
+          Detener búsqueda por lote
+        </button>
+      }
+      @if (batchTotal()) {
+        <p role="status">
+          Bibliografía: {{ batchCompleted() }} de {{ batchTotal() }} búsquedas finalizadas. No se
+          crean libros ni se consultan todas las ediciones.
+        </p>
+      }
       <p role="status">
         Candidatos: {{ candidateSummary().total }} · Pendientes: {{ candidateSummary().pending }} ·
         Revisados: {{ candidateSummary().reviewed }} · Posibles duplicados:
@@ -307,6 +340,16 @@
             @for (row of group.candidates; track row.id) {
               <app-photo-candidate-card
                 [row]="row"
+                [metadataStatus]="
+                  metadataEditor(row.id)?.resolutionStatus() ?? 'Pendiente de búsqueda'
+                "
+                [proposedCover]="metadataEditor(row.id)?.proposedCover() ?? null"
+                [proposalLabel]="metadataEditor(row.id)?.proposalLabel() ?? ''"
+                [coverKind]="
+                  metadataEditor(row.id)?.selected()
+                    ? 'Edición elegida'
+                    : 'Obra propuesta · sin confirmar'
+                "
                 [locked]="workflow.locked()"
                 [legibility]="observationLegibility(row.id)"
                 [batchDuplicate]="batchDuplicates().has(row.id)"
@@ -344,7 +387,14 @@
           Añadir manualmente un libro omitido
         </button>
         <button mat-button type="button" (click)="goToStep(0)">Volver a fotografías</button>
-        <button mat-flat-button type="button" (click)="goToStep(3)">Continuar a importación</button>
+        @if (candidateSummary().pending) {
+          <button mat-flat-button type="button" (click)="reviewBooks()">Revisar libros</button>
+        }
+        @if (hasReady()) {
+          <button mat-flat-button type="button" (click)="goToStep(3)">
+            Continuar a importación
+          </button>
+        }
       </div>
     </mat-step>
     <mat-step label="Revisión">
@@ -390,6 +440,10 @@
               </mat-expansion-panel>
               <app-photo-metadata-candidate
                 [observation]="observation"
+                [candidateId]="'photo:' + photo.id + ':' + observation.id"
+                [preferredLanguage]="preferredLanguage()"
+                [batchBusy]="batchSearching()"
+                (searchSettled)="metadataSettled('photo:' + photo.id + ':' + observation.id)"
                 [simulated]="result.simulated"
                 [locked]="candidateLocked('photo:' + photo.id + ':' + observation.id)"
                 (identificationChanged)="candidateChanged(photo.id, observation.id, $event)"
@@ -446,7 +500,11 @@
           Siguiente candidato pendiente
         </button>
         <button mat-button type="button" (click)="goToStep(1)">Volver a resultados</button>
-        <button mat-flat-button type="button" (click)="goToStep(3)">Continuar a importación</button>
+        @if (hasReady()) {
+          <button mat-flat-button type="button" (click)="goToStep(3)">
+            Continuar a importación
+          </button>
+        }
       </div>
     </mat-step>
     <mat-step label="Importación">

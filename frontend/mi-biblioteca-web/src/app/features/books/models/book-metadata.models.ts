@@ -7,6 +7,14 @@ export interface MetadataWork {
   coverUrl: string | null;
   firstPublicationYear: number | null;
   editionCount: number | null;
+  matchKind?: 'EXACT_TEXT' | 'APPROXIMATE' | 'UNASSESSED';
+}
+export interface MetadataEditionFilters {
+  language?: string;
+  title?: string;
+  publisher?: string;
+  year?: string;
+  isbn?: string;
 }
 export interface MetadataWorks {
   content: MetadataWork[];
@@ -23,6 +31,7 @@ export interface MetadataEditions {
   page: number;
   content: MetadataEdition[];
   hasNext: boolean;
+  partial?: boolean;
 }
 export interface MetadataDuplicates {
   originalIsbn: string | null;

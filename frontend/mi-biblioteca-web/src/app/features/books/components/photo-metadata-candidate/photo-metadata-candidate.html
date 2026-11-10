@@ -1,5 +1,5 @@
 <section aria-label="Resolución bibliográfica de la observación">
-  <fieldset [disabled]="locked()" style="border: 0; padding: 0; min-width: 0">
+  <fieldset [disabled]="locked() || batchBusy()" style="border: 0; padding: 0; min-width: 0">
     <h4>Identificación y coincidencias bibliográficas</h4>
     @if (simulated()) {
       <p class="notice">
@@ -57,97 +57,170 @@
       @if (results.truncated) {
         <p>Se muestran hasta 10 obras. Acota el título y el autor para ver otras coincidencias.</p>
       }
-      @for (candidate of results.content; track candidate.workKey) {
-        <article>
-          @if (candidate.coverUrl && !failedCovers().has(candidate.coverUrl)) {
-            <img
-              [src]="candidate.coverUrl"
-              alt="Portada de referencia de la obra"
-              loading="lazy"
-              (error)="coverFailed(candidate.coverUrl)"
-            />
-          } @else {
-            <span>Sin portada</span>
-          }
-          <div>
-            <h5>{{ candidate.title }}</h5>
-            <p>{{ candidate.authors.join('; ') || 'Autor no indicado' }}</p>
-            <p>
-              Obra · Primera publicación: {{ candidate.firstPublicationYear ?? 'Desconocida' }} (no
-              es el año de edición).
-            </p>
-            <p>Ediciones: {{ candidate.editionCount ?? 'No indicado' }}</p>
-            <button mat-button type="button" [disabled]="loading()" (click)="chooseWork(candidate)">
-              Ver ediciones y comprobar catálogo: {{ candidate.title }}
-            </button>
-          </div>
-        </article>
+      <div class="metadata-grid">
+        @for (candidate of visibleWorks(); track candidate.workKey) {
+          <article>
+            @if (candidate.coverUrl && !failedCovers().has(candidate.coverUrl)) {
+              <img
+                [src]="candidate.coverUrl"
+                alt="Portada de referencia de la obra"
+                loading="lazy"
+                (error)="coverFailed(candidate.coverUrl)"
+              />
+            } @else {
+              <span>Sin portada</span>
+            }
+            <div>
+              <h5>{{ candidate.title }}</h5>
+              <p>{{ candidate.authors.join('; ') || 'Autor no indicado' }}</p>
+              <p>
+                Obra · Primera publicación:
+                {{ candidate.firstPublicationYear ?? 'Desconocida' }} (no es el año de edición).
+              </p>
+              <p>Ediciones: {{ candidate.editionCount ?? 'No indicado' }}</p>
+              <p>
+                {{
+                  candidate.matchKind === 'EXACT_TEXT'
+                    ? 'Coincidencia textual exacta (no confirma identidad)'
+                    : 'Coincidencia aproximada — comprobar'
+                }}
+                · {{ candidate.workKey }}
+              </p>
+              <button
+                mat-button
+                type="button"
+                [disabled]="loading()"
+                (click)="chooseWork(candidate)"
+              >
+                Ver ediciones y comprobar catálogo: {{ candidate.title }}
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+      @if (results.content.length > 3) {
+        <button mat-button type="button" (click)="showAllWorks.set(!showAllWorks())">
+          {{ showAllWorks() ? 'Mostrar solo las primeras' : 'Ver más obras' }}
+        </button>
       }
     }
     @if (work(); as selectedWork) {
-      <h4>Ediciones de {{ selectedWork.title }}</h4>
-    }
-    @if (editions(); as results) {
-      @if (!results.content.length) {
-        <p>No se encontraron ediciones utilizables. Puedes continuar con datos manuales.</p>
-      }
-      @for (edition of results.content; track edition.editionKey) {
-        <article>
-          @if (edition.metadata.coverUrl && !failedCovers().has(edition.metadata.coverUrl!)) {
-            <img
-              [src]="edition.metadata.coverUrl"
-              alt="Portada de la edición"
-              loading="lazy"
-              (error)="coverFailed(edition.metadata.coverUrl!)"
-            />
-          } @else {
-            <span>Sin portada</span>
+      <mat-expansion-panel
+        [expanded]="editionPanelOpen()"
+        (opened)="editionPanelOpen.set(true)"
+        (closed)="editionPanelOpen.set(false)"
+      >
+        <mat-expansion-panel-header
+          ><mat-panel-title
+            >Elegir edición de {{ selectedWork.title }}</mat-panel-title
+          ></mat-expansion-panel-header
+        >
+        <form [formGroup]="editionFilters" (ngSubmit)="filterEditions()">
+          <mat-form-field
+            ><mat-label>Idioma de la edición</mat-label
+            ><mat-select formControlName="language">
+              <mat-option value="all">Todos los idiomas</mat-option
+              ><mat-option value="es">Español</mat-option><mat-option value="en">Inglés</mat-option
+              ><mat-option value="fr">Francés</mat-option><mat-option value="de">Alemán</mat-option
+              ><mat-option value="it">Italiano</mat-option
+              ><mat-option value="pt">Portugués</mat-option>
+            </mat-select></mat-form-field
+          >
+          <mat-form-field
+            ><mat-label>Título de edición</mat-label
+            ><input matInput formControlName="title" maxlength="255"
+          /></mat-form-field>
+          <mat-form-field
+            ><mat-label>Editorial</mat-label
+            ><input matInput formControlName="publisher" maxlength="255"
+          /></mat-form-field>
+          <mat-form-field
+            ><mat-label>Año de edición</mat-label
+            ><input matInput formControlName="year" maxlength="4"
+          /></mat-form-field>
+          <mat-form-field
+            ><mat-label>ISBN conocido</mat-label
+            ><input matInput formControlName="isbn" maxlength="20"
+          /></mat-form-field>
+          <button mat-stroked-button type="submit" [disabled]="loading() || editionFilters.invalid">
+            Buscar edición en toda la obra
+          </button>
+          <button mat-button type="button" [disabled]="loading()" (click)="browseEditions()">
+            Explorar páginas sin filtros
+          </button>
+        </form>
+        <p>
+          La búsqueda consulta el índice completo de la obra, no solo esta página. Open Library
+          ofrece una mejor edición por consulta: resultados parciales, no exhaustivos. Cambia los
+          filtros para buscar otras. La exploración sin filtros recorre como máximo 100 ediciones.
+        </p>
+        @if (editions(); as results) {
+          @if (!results.content.length) {
+            <p>No se encontraron ediciones utilizables. Puedes continuar con datos manuales.</p>
           }
-          <div>
-            <h5>{{ edition.metadata.title ?? 'Título desconocido' }}</h5>
-            <p>
-              Autor de edición:
-              {{ edition.metadata.author ?? 'No disponible; no se infiere de la obra' }}
-            </p>
-            <p>
-              Editorial: {{ edition.metadata.publisher ?? 'Desconocida' }} · Año de edición:
-              {{ edition.metadata.publicationYear ?? 'Desconocido' }}
-            </p>
-            <p>
-              Idioma: {{ edition.metadata.language ?? 'Desconocido' }} · Páginas:
-              {{ edition.metadata.pageCount ?? 'Desconocidas' }}
-            </p>
-            <p>ISBN disponibles: {{ edition.isbns.join(', ') || 'Ninguno' }}</p>
-            <button
-              mat-button
-              type="button"
-              [disabled]="loading()"
-              (click)="chooseEdition(edition)"
-            >
-              Elegir edición y comprobar catálogo: {{ edition.editionKey }}
-            </button>
+          <div class="metadata-grid">
+            @for (edition of visibleEditions(); track edition.editionKey) {
+              <article>
+                @if (edition.metadata.coverUrl && !failedCovers().has(edition.metadata.coverUrl!)) {
+                  <img
+                    [src]="edition.metadata.coverUrl"
+                    alt="Portada de la edición"
+                    loading="lazy"
+                    (error)="coverFailed(edition.metadata.coverUrl!)"
+                  />
+                } @else {
+                  <span>Sin portada</span>
+                }
+                <div>
+                  <h5>{{ edition.metadata.title ?? 'Título desconocido' }}</h5>
+                  <p>
+                    Autor de edición:
+                    {{ edition.metadata.author ?? 'No disponible; no se infiere de la obra' }}
+                  </p>
+                  <p>
+                    Editorial: {{ edition.metadata.publisher ?? 'Desconocida' }} · Año de edición:
+                    {{ edition.metadata.publicationYear ?? 'Desconocido' }}
+                  </p>
+                  <p>
+                    Idioma: {{ edition.metadata.language ?? 'Desconocido' }} · Páginas:
+                    {{ edition.metadata.pageCount ?? 'Desconocidas' }}
+                  </p>
+                  <p>ISBN disponibles: {{ edition.isbns.join(', ') || 'Ninguno' }}</p>
+                  <button
+                    mat-button
+                    type="button"
+                    [disabled]="loading()"
+                    (click)="chooseEdition(edition)"
+                  >
+                    Elegir edición y comprobar catálogo: {{ edition.editionKey }}
+                  </button>
+                </div>
+              </article>
+            }
           </div>
-        </article>
-      }
-      <div class="actions">
-        <button
-          mat-button
-          type="button"
-          [disabled]="loading() || results.page === 0"
-          (click)="loadEditions(results.page - 1)"
-        >
-          Ediciones anteriores
-        </button>
-        <span>Página {{ results.page + 1 }} (máximo 10)</span>
-        <button
-          mat-button
-          type="button"
-          [disabled]="loading() || !results.hasNext"
-          (click)="loadEditions(results.page + 1)"
-        >
-          Ediciones siguientes
-        </button>
-      </div>
+          @if (!filteredEditions()) {
+            <div class="actions">
+              <button
+                mat-button
+                type="button"
+                [disabled]="loading() || results.page === 0"
+                (click)="loadEditions(results.page - 1)"
+              >
+                Ediciones anteriores
+              </button>
+              <span>Página {{ results.page + 1 }} (máximo 10)</span>
+              <button
+                mat-button
+                type="button"
+                [disabled]="loading() || !results.hasNext"
+                (click)="loadEditions(results.page + 1)"
+              >
+                Ediciones siguientes
+              </button>
+            </div>
+          }
+        }
+      </mat-expansion-panel>
     }
     @if (selected(); as metadata) {
       <section class="selection" aria-label="Datos bibliográficos elegidos">

@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, input, OnInit, signal, output } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  input,
+  OnInit,
+  signal,
+  output,
+  computed,
+} from '@angular/core';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { BookFormValue } from '../book-form/book-form.helpers';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -28,6 +38,7 @@ import { BooksService } from '../../services/books.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatExpansionModule,
   ],
   templateUrl: './photo-metadata-candidate.html',
   styleUrl: './photo-metadata-candidate.scss',
@@ -36,6 +47,99 @@ export class PhotoMetadataCandidate implements OnInit {
   readonly observation = input.required<PhotoObservation>();
   readonly simulated = input(true);
   readonly locked = input(false);
+  readonly candidateId = input('');
+  readonly batchBusy = input(false);
+  readonly preferredLanguage = input('es');
+  readonly searchSettled = output<void>();
+  readonly lastSearchKey = signal<string | null>(null);
+  readonly searched = signal(false);
+  readonly editionPanelOpen = signal(false);
+  readonly filteredEditions = signal(false);
+  readonly showAllWorks = signal(false);
+  readonly visibleWorks = computed(() =>
+    this.showAllWorks() ? (this.works()?.content ?? []) : (this.works()?.content ?? []).slice(0, 3),
+  );
+  readonly visibleEditions = computed(() =>
+    [...(this.editions()?.content ?? [])].sort(
+      (a, b) =>
+        Number(b.metadata.language === this.preferredLanguage()) -
+        Number(a.metadata.language === this.preferredLanguage()),
+    ),
+  );
+  readonly editionFilters = new FormGroup({
+    language: new FormControl('es', { nonNullable: true }),
+    title: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
+    publisher: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
+    year: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.pattern(/^[0-9]{0,4}$/)],
+    }),
+    isbn: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
+  });
+  readonly resolutionStatus = computed(() => {
+    if (this.loading()) return 'Buscando';
+    if (this.error()) return 'Error';
+    if (this.selected()) return 'Coincidencia encontrada · edición elegida';
+    const count = this.works()?.content.length ?? 0;
+    if (count > 1) return 'Varias coincidencias';
+    if (count === 1) return 'Coincidencia encontrada · obra propuesta';
+    return this.searched() ? 'Sin resultados' : 'Pendiente de búsqueda';
+  });
+  readonly proposedCover = computed(
+    () =>
+      this.selected()?.coverUrl ??
+      this.work()?.coverUrl ??
+      this.works()?.content[0]?.coverUrl ??
+      null,
+  );
+  readonly proposalLabel = computed(() => {
+    const edition = this.selectedEdition();
+    if (edition)
+      return `Edición elegida: ${edition.metadata.title ?? 'Sin título'} · ${edition.editionKey}`;
+    if (this.selected()) return `Edición por ISBN: ${this.selected()?.isbn ?? 'Sin ISBN'}`;
+    const work = this.work() ?? this.works()?.content[0];
+    return work ? `Obra propuesta, sin confirmar: ${work.title} · ${work.workKey}` : '';
+  });
+
+  currentSearchKey(): string {
+    return JSON.stringify([this.form.getRawValue(), this.preferredLanguage()]);
+  }
+  needsSearch(): boolean {
+    const value = this.form.getRawValue();
+    return (
+      !this.locked() &&
+      !this.loading() &&
+      !this.manual() &&
+      !this.selected() &&
+      this.form.valid &&
+      (!!normalizedMetadataIsbn(value.isbn) || !!value.title.trim() || !!value.author.trim()) &&
+      this.lastSearchKey() !== this.currentSearchKey()
+    );
+  }
+  stopSearch(): void {
+    this.generation++;
+    this.request?.unsubscribe();
+    this.duplicateRequest?.unsubscribe();
+    if (this.duplicateState() === 'loading') this.duplicateState.set('unknown');
+    this.loading.set(false);
+    this.notice.set('Búsqueda detenida. Se conservan las coincidencias anteriores.');
+  }
+  private settled(success: boolean): void {
+    this.loading.set(false);
+    this.searched.set(true);
+    if (success) this.lastSearchKey.set(this.currentSearchKey());
+    this.searchSettled.emit();
+  }
+  filterEditions(): void {
+    if (this.editionFilters.invalid || this.loading() || this.locked()) return;
+    this.filteredEditions.set(true);
+    this.loadEditions(0);
+  }
+  browseEditions(): void {
+    if (this.loading() || this.locked()) return;
+    this.filteredEditions.set(false);
+    this.loadEditions(0);
+  }
   readonly reviewRequested = output<BookFormValue>();
   readonly identificationChanged = output<BookFormValue>();
 
@@ -56,7 +160,8 @@ export class PhotoMetadataCandidate implements OnInit {
     };
   }
   requestReview(): void {
-    if (!this.locked()) this.reviewRequested.emit(this.draft());
+    if (!this.locked() && !this.batchBusy() && !this.loading())
+      this.reviewRequested.emit(this.draft());
   }
   private readonly books = inject(BooksService);
   private readonly destroyRef = inject(DestroyRef);
@@ -112,6 +217,8 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   private invalidate(): void {
+    this.lastSearchKey.set(null);
+    this.searched.set(false);
     this.duplicateCriteria = null;
     this.generation++;
     this.request?.unsubscribe();
@@ -160,15 +267,24 @@ export class PhotoMetadataCandidate implements OnInit {
         .subscribe({
           next: (metadata) => {
             if (generation !== this.generation) return;
-            this.loading.set(false);
             this.selected.set(metadata);
             this.identificationChanged.emit(this.draft());
             this.checkDuplicates(isbn, metadata.title ?? title, metadata.author ?? author);
+            this.settled(true);
           },
           error: (error: unknown) => {
             if (generation !== this.generation) return;
-            this.loading.set(false);
+            if (
+              error instanceof HttpErrorResponse &&
+              error.status === 404 &&
+              (title.trim() || author.trim())
+            ) {
+              this.loading.set(false);
+              this.searchText();
+              return;
+            }
             this.error.set(this.message(error) + ' Puedes buscar por título y autor.');
+            this.settled(false);
           },
         });
     } else this.searchText();
@@ -199,28 +315,30 @@ export class PhotoMetadataCandidate implements OnInit {
     this.manual.set(false);
     this.identificationChanged.emit(this.draft());
     this.request = this.books
-      .searchMetadata(title, author)
+      .searchMetadata(title, author, this.preferredLanguage())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (works) => {
           if (generation !== this.generation) return;
           this.works.set(works);
-          this.loading.set(false);
+          this.settled(true);
         },
         error: (error: unknown) => {
           if (generation !== this.generation) return;
-          this.loading.set(false);
           this.error.set(this.message(error));
+          this.settled(false);
         },
       });
     this.checkDuplicates(this.form.controls.isbn.value, title, author);
   }
 
   chooseWork(work: MetadataWork): void {
-    if (this.locked() || this.loading()) return;
+    if (this.locked() || this.loading() || this.batchBusy()) return;
     this.selected.set(null);
     this.selectedEdition.set(null);
     this.work.set(work);
+    this.editionPanelOpen.set(true);
+    this.editionFilters.controls.language.setValue(this.preferredLanguage());
     this.manual.set(false);
     this.loadEditions(0);
     this.checkDuplicates('', work.title, work.authors.join('; '));
@@ -241,7 +359,11 @@ export class PhotoMetadataCandidate implements OnInit {
     this.duplicates.set(null);
     this.duplicateState.set('idle');
     this.request = this.books
-      .metadataEditions(work.workKey, page)
+      .metadataEditions(
+        work.workKey,
+        page,
+        this.filteredEditions() ? this.editionFilters.getRawValue() : undefined,
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (editions) => {
@@ -258,8 +380,9 @@ export class PhotoMetadataCandidate implements OnInit {
   }
 
   chooseEdition(edition: MetadataEdition): void {
-    if (this.locked() || this.loading()) return;
+    if (this.locked() || this.loading() || this.batchBusy()) return;
     this.selectedEdition.set(edition);
+    this.editionPanelOpen.set(false);
     this.selected.set(edition.metadata);
     this.identificationChanged.emit(this.draft());
     this.manual.set(false);

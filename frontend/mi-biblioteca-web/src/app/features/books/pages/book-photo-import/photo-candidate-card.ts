@@ -25,12 +25,12 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
     <mat-card appearance="outlined" [attr.data-state]="row().state">
       <mat-card-content>
         <div class="compact-book">
-          @if (row().draft.coverUrl && failedCover() !== row().draft.coverUrl) {
+          @if (coverUrl() && failedCover() !== coverUrl()) {
             <img
-              [src]="row().draft.coverUrl"
+              [src]="coverUrl()"
               alt="Portada bibliográfica"
               loading="lazy"
-              (error)="failedCover.set(row().draft.coverUrl)"
+              (error)="failedCover.set(coverUrl())"
             />
           } @else {
             <div class="cover-fallback">Sin portada</div>
@@ -40,6 +40,15 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
             <p>{{ row().draft.author || 'Autor sin identificar' }}</p>
             <p>Legibilidad: {{ legibility() }}</p>
             <p class="state" role="status">{{ status() }}</p>
+            @if (row().state === 'pending') {
+              <p role="status">{{ metadataStatus() }}</p>
+            }
+            @if (proposalLabel()) {
+              <p>{{ proposalLabel() }}</p>
+            }
+            @if (proposedCover() && !row().draft.coverUrl) {
+              <p>{{ coverKind() }}</p>
+            }
           </div>
         </div>
         @if (batchDuplicate()) {
@@ -143,6 +152,11 @@ export class PhotoCandidateCard {
   readonly locked = input(false);
   readonly legibility = input('No indicada');
   readonly batchDuplicate = input(false);
+  readonly metadataStatus = input('Pendiente de búsqueda');
+  readonly proposedCover = input<string | null>(null);
+  readonly coverKind = input('Obra propuesta · sin confirmar');
+  readonly proposalLabel = input('');
+  readonly coverUrl = computed(() => this.row().draft.coverUrl || this.proposedCover());
   readonly review = output<string>();
   readonly discard = output<string>();
   readonly failedCover = signal<string | null>(null);

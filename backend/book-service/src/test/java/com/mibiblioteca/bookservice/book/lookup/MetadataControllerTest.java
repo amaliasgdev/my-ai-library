@@ -35,6 +35,28 @@ class MetadataControllerTest {
     }
 
     @Test
+    void supportsOptionalSmartPreferenceAndGlobalEditionFilters() throws Exception {
+        when(service.search("Title", "Author", "es", true)).thenReturn(new MetadataDtos.Works(List.of(), false));
+        mvc.perform(get("/api/books/metadata-search").param("title", "Title").param("author", "Author").param("smart", "true").param("language", "es"))
+            .andExpect(status().isOk());
+        verify(service).search("Title", "Author", "es", true);
+        when(service.filteredEditions("/works/OL1W", "es", null, "Pub", null, null))
+            .thenReturn(new MetadataDtos.Editions("/works/OL1W", 0, List.of(), false, true));
+        mvc.perform(get("/api/books/metadata-editions").param("workKey", "/works/OL1W").param("language", "es").param("publisher", "Pub"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.partial").value(true));
+    }
+
+    @Test
+    void rejectsRepeatedNewScalarsAndFilteredPagination() throws Exception {
+        mvc.perform(get("/api/books/metadata-search").param("smart", "true", "false")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/books/metadata-search").param("smart", "yes")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/books/metadata-search").param("language", "es", "en")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/books/metadata-editions").param("language", "es").param("page", "1")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/books/metadata-editions").param("title", "a", "b")).andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
+    }
+
+    @Test
     void safeProviderErrorsPropagateRetryAfterAndNeverRetry() throws Exception {
         when(service.search(any(), any())).thenThrow(new BookLookupException(HttpStatus.SERVICE_UNAVAILABLE,
             "Book provider unavailable", "External book provider is temporarily rate limited", "60"));

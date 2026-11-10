@@ -27,8 +27,9 @@ export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
 
-  searchMetadata(title: string, author: string): Observable<MetadataWorks> {
+  searchMetadata(title: string, author: string, language?: string): Observable<MetadataWorks> {
     let params = new HttpParams();
+    if (language !== undefined) params = params.set('smart', true).set('language', language);
     if (title.trim()) params = params.set('title', title.trim());
     if (author.trim()) params = params.set('author', author.trim());
     return this.http.get<MetadataWorks>(`${this.apiConfig.apiBaseUrl}/books/metadata-search`, {
@@ -36,9 +37,17 @@ export class BooksService {
     });
   }
 
-  metadataEditions(workKey: string, page = 0): Observable<MetadataEditions> {
+  metadataEditions(
+    workKey: string,
+    page = 0,
+    filters?: Record<string, string>,
+  ): Observable<MetadataEditions> {
+    let params = new HttpParams().set('workKey', workKey).set('page', page);
+    for (const [key, value] of Object.entries(filters ?? {})) {
+      if (value.trim()) params = params.set(key, value.trim());
+    }
     return this.http.get<MetadataEditions>(`${this.apiConfig.apiBaseUrl}/books/metadata-editions`, {
-      params: new HttpParams().set('workKey', workKey).set('page', page),
+      params,
     });
   }
 

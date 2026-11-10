@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal, HostListener } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+  HostListener,
+  viewChildren,
+} from '@angular/core';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
 import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 import { effect, untracked } from '@angular/core';
@@ -50,12 +60,81 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
     MatStepperModule,
     MatExpansionModule,
     PhotoCandidateCard,
+    MatSelectModule,
+    MatFormFieldModule,
   ],
   providers: [PhotoImportWorkflow, PhotoReadingListWorkflow],
   templateUrl: './book-photo-import.html',
   styleUrl: './book-photo-import.scss',
 })
 export class BookPhotoImport {
+  readonly metadataEditors = viewChildren(PhotoMetadataCandidate);
+  readonly preferredLanguage = signal('es');
+  readonly batchSearching = signal(false);
+  readonly batchCompleted = signal(0);
+  readonly batchTotal = signal(0);
+  readonly metadataBusy = computed(() => this.metadataEditors().some((editor) => editor.loading()));
+  private batchQueue: string[] = [];
+  private batchCurrent: string | null = null;
+  private batchGeneration = 0;
+  readonly hasReady = computed(() => this.workflow.rows().some((row) => row.state === 'ready'));
+  metadataEditor(id: string): PhotoMetadataCandidate | undefined {
+    return this.metadataEditors().find((editor) => editor.candidateId() === id);
+  }
+  searchAllMetadata(): void {
+    if (this.batchSearching() || this.workflow.locked() || this.analyzing() || this.metadataBusy())
+      return;
+    this.batchQueue = this.metadataEditors()
+      .filter((editor) => {
+        const row = this.workflow.rows().find((row) => row.id === editor.candidateId());
+        return row?.state === 'pending' && !row.request && editor.needsSearch();
+      })
+      .map((editor) => editor.candidateId());
+    this.batchTotal.set(this.batchQueue.length);
+    this.batchCompleted.set(0);
+    this.batchSearching.set(true);
+    this.nextMetadata();
+  }
+  private nextMetadata(): void {
+    if (!this.batchSearching() || this.destroyRef.destroyed) return;
+    const id = this.batchQueue.shift();
+    if (!id) {
+      this.batchCurrent = null;
+      this.batchSearching.set(false);
+      return;
+    }
+    const editor = this.metadataEditor(id);
+    const row = this.workflow.rows().find((row) => row.id === id);
+    if (!editor || !editor.needsSearch() || row?.state !== 'pending' || row.request) {
+      this.batchCompleted.update((n) => n + 1);
+      this.nextMetadata();
+      return;
+    }
+    this.batchCurrent = id;
+    editor.search();
+  }
+  metadataSettled(id: string): void {
+    if (!this.batchSearching() || this.batchCurrent !== id) return;
+    this.batchCurrent = null;
+    this.batchCompleted.update((n) => n + 1);
+    const generation = this.batchGeneration;
+    queueMicrotask(() => {
+      if (generation === this.batchGeneration) this.nextMetadata();
+    });
+  }
+  stopMetadataBatch(): void {
+    this.batchGeneration++;
+    if (this.batchCurrent) this.metadataEditor(this.batchCurrent)?.stopSearch();
+    this.batchQueue = [];
+    this.batchCurrent = null;
+    this.batchSearching.set(false);
+  }
+  reviewBooks(): void {
+    const row = this.workflow
+      .rows()
+      .find((row) => ['pending', 'reviewed', 'possible', 'error'].includes(row.state));
+    if (row) this.openCandidate(row.id);
+  }
   readonly step = signal(0);
   readonly activeCandidate = signal<string | null>(null);
   readonly activeRow = computed(
@@ -196,6 +275,7 @@ export class BookPhotoImport {
   });
   readonly canAnalyze = computed(
     () =>
+      !this.batchSearching() &&
       this.available() &&
       (!this.realProvider() || this.openaiConsent()) &&
       !this.workflow.locked() &&
@@ -210,6 +290,7 @@ export class BookPhotoImport {
       untracked(() => this.reading.setCandidates(rows));
     });
     this.destroyRef.onDestroy(() => {
+      this.stopMetadataBatch();
       this.generation++;
       this.analysisRequest?.unsubscribe();
       for (const photo of this.photos()) URL.revokeObjectURL(photo.previewUrl);
@@ -315,6 +396,7 @@ export class BookPhotoImport {
   }
 
   removePhoto(id: number): void {
+    if (this.batchSearching()) return;
     if (this.analyzing() || this.workflow.locked()) return;
     const photo = this.photos().find((item) => item.id === id);
     if (!photo) return;
@@ -323,6 +405,7 @@ export class BookPhotoImport {
   }
 
   rotatePhoto(id: number): void {
+    if (this.batchSearching()) return;
     if (this.analyzing() || this.workflow.locked()) return;
     this.openaiConsent.set(false);
     this.photos.update((photos) =>

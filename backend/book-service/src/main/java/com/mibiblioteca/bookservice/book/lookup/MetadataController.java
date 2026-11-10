@@ -22,20 +22,30 @@ public class MetadataController {
     @GetMapping("/metadata-search")
     @Parameter(name = "title", in = ParameterIn.QUERY, schema = @Schema(type = "string", maxLength = 255))
     @Parameter(name = "author", in = ParameterIn.QUERY, schema = @Schema(type = "string", maxLength = 255))
-    @Operation(summary = "Search Open Library works by title and/or author", description = "At most 10 works. Text only; no image transfer or persistence. Work firstPublicationYear is not an edition year. No work ISBN is assigned. No automatic retries.")
+    @Parameter(name = "language", in = ParameterIn.QUERY, description = "ISO 639-1 preference, or all. Not an exclusion filter.")
+    @Parameter(name = "smart", in = ParameterIn.QUERY, schema = @Schema(type = "boolean"), description = "Opt-in: up to four alternatives within one lookup deadline")
+    @Operation(summary = "Search Open Library works by title and/or author", description = "At most 10 works. Optional smart=true tries up to four literal/normalized/broader queries within the configured total budget, stopping on useful results. language is an ISO 639-1 preference or all, not an exclusion filter. matchKind distinguishes exact text from approximate matches, never identity or probability. Text only; no persistence, work ISBN or inferred edition year. Provider errors are not empty results; no automatic error retries.")
     @ApiResponse(responseCode = "200", description = "Multiple or empty work results; truncated signals more works")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "502", ref = "#/components/responses/BookProviderBadGateway")
     @ApiResponse(responseCode = "503", ref = "#/components/responses/BookProviderUnavailable")
     @ApiResponse(responseCode = "504", ref = "#/components/responses/BookProviderTimeout")
     public Works search(@Parameter(hidden = true) @RequestParam MultiValueMap<String, String> params) {
-        return service.search(scalar(params, "title"), scalar(params, "author"));
+        String smart = scalar(params, "smart");
+        if (smart != null && !smart.equals("true") && !smart.equals("false")) throw MetadataService.invalid("Invalid smart flag");
+        if (smart == null && !params.containsKey("language")) return service.search(scalar(params, "title"), scalar(params, "author"));
+        return service.search(scalar(params, "title"), scalar(params, "author"), scalar(params, "language"), "true".equals(smart));
     }
 
     @GetMapping("/metadata-editions")
     @Parameter(name = "workKey", in = ParameterIn.QUERY, required = true, schema = @Schema(type = "string", pattern = "/works/OL[0-9]{1,12}W"))
     @Parameter(name = "page", in = ParameterIn.QUERY, schema = @Schema(type = "integer", minimum = "0", maximum = "9", defaultValue = "0"))
-    @Operation(summary = "List editions belonging to an Open Library work", description = "workKey must match /works/OL[0-9]{1,12}W, never a URL. page=0..9, fixed size 10, no arbitrary upstream traversal. Edition metadata and valid ISBNs are separate; no ISBN selected automatically.")
+    @Parameter(name = "language", in = ParameterIn.QUERY, description = "Optional edition language filter, ISO 639-1 or all")
+    @Parameter(name = "title", in = ParameterIn.QUERY, description = "Optional indexed edition title")
+    @Parameter(name = "publisher", in = ParameterIn.QUERY, description = "Optional indexed publisher")
+    @Parameter(name = "year", in = ParameterIn.QUERY, description = "Optional edition publication year")
+    @Parameter(name = "isbn", in = ParameterIn.QUERY, description = "Optional checksum-valid ISBN")
+    @Operation(summary = "List editions belonging to an Open Library work", description = "Without filters: page=0..9, fixed size 10. With language/title/publisher/year/isbn: page 0 only, search the whole work index and hydrate at most one best edition, verified against supplied filters; partial=true, hasNext=false do not imply exhaustive results. At most two provider requests in one deadline. Work keys never accept URLs. Edition metadata and valid ISBNs are separate; no ISBN selected automatically or work first-publication year substituted.")
     @ApiResponse(responseCode = "200", description = "Bounded edition page with hasNext")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "502", ref = "#/components/responses/BookProviderBadGateway")
@@ -44,6 +54,11 @@ public class MetadataController {
     public Editions editions(@Parameter(hidden = true) @RequestParam MultiValueMap<String, String> params) {
         String rawPage = scalar(params, "page");
         if (rawPage != null && !rawPage.matches("[0-9]")) throw MetadataService.invalid("page must be 0..9");
+        if (java.util.List.of("language", "title", "publisher", "year", "isbn").stream().anyMatch(params::containsKey)) {
+            if (rawPage != null && !rawPage.equals("0")) throw MetadataService.invalid("Filtered editions support page 0 only; results are partial");
+            return service.filteredEditions(scalar(params, "workKey"), scalar(params, "language"), scalar(params, "title"),
+                scalar(params, "publisher"), scalar(params, "year"), scalar(params, "isbn"));
+        }
         return service.editions(scalar(params, "workKey"), rawPage == null ? 0 : Integer.parseInt(rawPage));
     }
 

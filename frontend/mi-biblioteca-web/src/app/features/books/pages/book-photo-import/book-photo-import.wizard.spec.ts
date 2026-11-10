@@ -100,6 +100,152 @@ describe('Photo import four-step wizard', () => {
     http.expectNone(() => true);
   });
 
+  it('resolves a batch sequentially, retains partial results, skips current searches and never writes', async () => {
+    analyze();
+    page.searchAllMetadata();
+    expect(page.batchTotal()).toBe(2);
+    expect(page.batchSearching()).toBe(true);
+    const first = http.expectOne((r) => r.url.endsWith('/metadata-search'));
+    expect(first.request.params.get('smart')).toBe('true');
+    expect(first.request.params.get('language')).toBe('es');
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    first.flush({
+      content: [
+        {
+          workKey: '/works/OL1W',
+          title: 'Obra propuesta',
+          authors: ['Autor'],
+          coverUrl: 'https://example.org/cover.jpg',
+          editionCount: 400,
+        },
+      ],
+      truncated: false,
+    });
+    await Promise.resolve();
+    expect(page.batchCompleted()).toBe(1);
+    const second = http.expectOne((r) => r.url.endsWith('/metadata-search'));
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    second.flush({}, { status: 503, statusText: 'Unavailable' });
+    await Promise.resolve();
+    expect(page.batchSearching()).toBe(false);
+    expect(page.batchCompleted()).toBe(2);
+    expect(page.metadataEditors()[0].works()?.content).toHaveLength(1);
+    expect(page.metadataEditors()[1].resolutionStatus()).toBe('Error');
+    expect(page.workflow.rows()[0].draft.title).toBe('El último donjuán');
+    expect(page.workflow.rows().every((row) => !row.selected && !row.request)).toBe(true);
+    page.searchAllMetadata();
+    expect(page.batchTotal()).toBe(1);
+    const retry = http.expectOne((r) => r.url.endsWith('/metadata-search'));
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    retry.flush({ content: [], truncated: false });
+    await Promise.resolve();
+    page.searchAllMetadata();
+    expect(page.batchTotal()).toBe(0);
+    http.expectNone(() => true);
+  });
+
+  it('stops the metadata queue without discarding previous matches or issuing queued requests', async () => {
+    analyze();
+    page.searchAllMetadata();
+    const active = http.expectOne((r) => r.url.endsWith('/metadata-search'));
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    page.goToStep(0);
+    fixture.detectChanges();
+    expect(active.cancelled).toBe(false);
+    page.stopMetadataBatch();
+    expect(active.cancelled).toBe(true);
+    await Promise.resolve();
+    expect(page.batchSearching()).toBe(false);
+    expect(page.metadataEditors()[1].searched()).toBe(false);
+    http.expectNone(() => true);
+  });
+
+  it('can stop between rows and preserves found works without selecting an edition', async () => {
+    analyze();
+    page.searchAllMetadata();
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    http
+      .expectOne((r) => r.url.endsWith('/metadata-search'))
+      .flush({
+        content: [{ workKey: '/works/OL1W', title: 'Obra', authors: [], coverUrl: null }],
+        truncated: false,
+      });
+    page.stopMetadataBatch();
+    await Promise.resolve();
+    expect(page.metadataEditors()[0].works()?.content).toHaveLength(1);
+    expect(page.metadataEditors()[0].selectedEdition()).toBeNull();
+    expect(page.batchCompleted()).toBe(1);
+    http.expectNone(() => true);
+  });
+
+  it('does not overlap an individual search or search discarded and confirmed rows', () => {
+    analyze();
+    const editor = page.metadataEditors()[0];
+    editor.searchText();
+    const active = http.expectOne((r) => r.url.endsWith('/metadata-search'));
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    page.searchAllMetadata();
+    expect(page.batchSearching()).toBe(false);
+    active.flush({ content: [], truncated: false });
+    page.workflow.discard(page.workflow.rows()[1].id);
+    editor.lastSearchKey.set(null);
+    page.workflow.rows.update((rows) =>
+      rows.map((row, index) => (index === 0 ? { ...row, state: 'ready' } : row)),
+    );
+    page.searchAllMetadata();
+    expect(page.batchTotal()).toBe(0);
+    http.expectNone(() => true);
+  });
+
+  it('searches again only after query or language changes, preserving the evidence', async () => {
+    analyze();
+    page.searchAllMetadata();
+    for (let i = 0; i < 2; i++) {
+      http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+      http
+        .expectOne((r) => r.url.endsWith('/metadata-search'))
+        .flush({ content: [], truncated: false });
+      await Promise.resolve();
+    }
+    page.preferredLanguage.set('en');
+    fixture.detectChanges();
+    expect(page.metadataEditors()[0].needsSearch()).toBe(true);
+    expect(page.photos()[0].result?.observations[0].title).toBe('El último donjuán');
+    expect(page.metadataEditors()[0].form.controls.title.value).toBe('El último donjuán');
+    http.expectNone(() => true);
+  });
+
+  it('queries editions globally only on explicit filter submit and retains draft filters across steps', () => {
+    analyze();
+    const editor = page.metadataEditors()[0];
+    editor.chooseWork({
+      workKey: '/works/OL1W',
+      title: 'Title',
+      authors: [],
+      coverUrl: null,
+      firstPublicationYear: 1900,
+      editionCount: 400,
+    });
+    http
+      .expectOne((r) => r.url.endsWith('/metadata-editions'))
+      .flush({ workKey: '/works/OL1W', page: 0, content: [], hasNext: true });
+    http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
+    editor.editionFilters.controls.publisher.setValue('Salamandra');
+    editor.editionFilters.controls.year.setValue('2001');
+    page.goToStep(1);
+    page.goToStep(2);
+    http.expectNone(() => true);
+    editor.filterEditions();
+    const request = http.expectOne((r) => r.url.endsWith('/metadata-editions'));
+    expect(request.request.params.get('language')).toBe('es');
+    expect(request.request.params.get('publisher')).toBe('Salamandra');
+    expect(request.request.params.get('year')).toBe('2001');
+    request.flush({ workKey: '/works/OL1W', page: 0, content: [], hasNext: false });
+    expect(editor.selectedEdition()).toBeNull();
+    expect(editor.filteredEditions()).toBe(true);
+    expect(editor.editionFilters.controls.publisher.value).toBe('Salamandra');
+  });
+
   it('keeps stable editors, independent drafts and an in-flight bibliography request across steps', () => {
     analyze();
     const editorElement = fixture.debugElement.queryAll(By.directive(PhotoMetadataCandidate))[0];

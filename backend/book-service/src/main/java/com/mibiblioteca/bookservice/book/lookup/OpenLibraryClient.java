@@ -23,6 +23,10 @@ public class OpenLibraryClient {
     private final OpenLibraryPacer pacer = new OpenLibraryPacer();
 
     public JsonNode metadataSearch(String title, String author, LookupBudget budget) {
+        return metadataSearch(title, author, null, budget);
+    }
+
+    public JsonNode metadataSearch(String title, String author, String language, LookupBudget budget) {
         var builder = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
             .replacePath("/search.json");
         if (title != null) builder.queryParam("title", "{title}");
@@ -30,9 +34,25 @@ public class OpenLibraryClient {
         var values = new java.util.HashMap<String, String>();
         if (title != null) values.put("title", title);
         if (author != null) values.put("author", author);
+        if (language != null) builder.queryParam("lang", language);
         URI uri = builder.queryParam("fields", "key,title,author_name,cover_i,first_publish_year,edition_count")
             .queryParam("limit", 10).encode().buildAndExpand(values).toUri();
         return request(uri, budget, false, false);
+    }
+
+    public JsonNode filteredEdition(String workKey, String query, String language, LookupBudget budget) {
+        if (workKey == null || !workKey.matches("/works/OL[0-9]{1,12}W")) throw invalidResponse();
+        var builder = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
+            .replacePath("/search.json").queryParam("q", "{query}")
+            .queryParam("fields", "key,editions,editions.key").queryParam("limit", 1);
+        if (language != null) builder.queryParam("lang", language);
+        return request(builder.encode().buildAndExpand(java.util.Map.of("query",
+            "key:\"" + workKey + "\"" + (query.isEmpty() ? "" : " " + query))).toUri(), budget, false, false);
+    }
+
+    public JsonNode metadataEdition(String key, LookupBudget budget) {
+        if (!key.matches("/books/OL[0-9]{1,12}M")) throw invalidResponse();
+        return request(properties.baseUrl().resolve(key + ".json"), budget, false, false);
     }
 
     public JsonNode metadataEditions(String workKey, int page, LookupBudget budget) {

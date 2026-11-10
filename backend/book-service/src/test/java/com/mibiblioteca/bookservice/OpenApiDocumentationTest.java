@@ -96,6 +96,12 @@ class OpenApiDocumentationTest {
         }
         assertThat(document.path("components").path("schemas").path("Work").path("properties").has("isbn")).isFalse();
         assertThat(document.path("components").path("schemas").path("Work").path("properties").has("firstPublicationYear")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("matchKind")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Editions").path("properties").has("partial")).isTrue();
+        var searchParams = document.path("paths").path("/api/books/metadata-search").path("get").path("parameters");
+        assertThat(searchParams.toString()).contains("\"smart\"", "\"language\"");
+        var editionParams = document.path("paths").path("/api/books/metadata-editions").path("get").path("parameters");
+        assertThat(editionParams.toString()).contains("\"language\"", "\"publisher\"", "\"year\"", "\"isbn\"");
     }
 
     @Test

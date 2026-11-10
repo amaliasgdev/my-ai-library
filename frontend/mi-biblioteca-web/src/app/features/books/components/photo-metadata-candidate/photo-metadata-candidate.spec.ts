@@ -169,15 +169,26 @@ describe('PhotoMetadataCandidate', () => {
     http.expectNone(isLookup);
   });
 
-  it('allows explicit title search after ISBN lookup not found', () => {
+  it('uses one text fallback after definitive ISBN absence, preserving the original ISBN', () => {
     page.form.controls.isbn.setValue('0132350882');
     page.search();
     http.expectOne(isDuplicate).flush(duplicates);
     http.expectOne(isLookup).flush({}, { status: 404, statusText: 'Not Found' });
-    expect(page.error()).toContain('No se encontró');
-    page.searchText();
+    expect(page.error()).toBeNull();
+    expect(page.loading()).toBe(true);
     http.expectOne(isSearch).flush({ content: [], truncated: false });
     http.expectOne(isDuplicate).flush(duplicates);
+    expect(page.form.controls.isbn.value).toBe('0132350882');
+    http.expectNone(isLookup);
+  });
+
+  it('does not issue text queries after ISBN absence without any text evidence', () => {
+    page.form.setValue({ title: '', author: '', isbn: '0132350882' });
+    page.search();
+    http.expectOne(isDuplicate).flush(duplicates);
+    http.expectOne(isLookup).flush({}, { status: 404, statusText: 'Not Found' });
+    expect(page.error()).toContain('No se encontró');
+    http.expectNone(isSearch);
   });
 
   it('editing invalidates results, duplicate checks and active requests without another HTTP call', () => {
