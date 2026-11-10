@@ -15,6 +15,34 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(10)
 class PhotoRecognitionServiceTest {
     @Test
+    void realProviderUsesSameEngineAndNeverFallsBackToMock() {
+        var defaults = PhotoTestSupport.properties(true);
+        var props = new PhotoImportProperties(true, "openai", defaults.maxFileSize(), defaults.maxWidth(),
+            defaults.maxHeight(), defaults.maxPixels(), defaults.maxObservations(), defaults.maxConcurrentAnalyses(), defaults.analysisTimeout());
+        var realCalls = new AtomicInteger();
+        var mockCalls = new AtomicInteger();
+        BookPhotoRecognitionProvider real = new BookPhotoRecognitionProvider() {
+            public String id() { return "openai"; }
+            public boolean simulated() { return false; }
+            public ProviderResult recognize(PhotoImage image) {
+                realCalls.incrementAndGet();
+                assertThat(image.mediaType()).isEqualTo("image/png");
+                throw new PhotoImportException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "PHOTO_CREDENTIALS", "Provider access invalid", null);
+            }
+        };
+        BookPhotoRecognitionProvider mock = new MockBookPhotoRecognitionProvider() {
+            @Override public ProviderResult recognize(PhotoImage image) { mockCalls.incrementAndGet(); return super.recognize(image); }
+        };
+        var service = new PhotoRecognitionService(props, new PhotoSanitizer(props), List.of(real, mock), PhotoTestSupport.environment());
+        try {
+            assertThat(service.capabilities().mode()).isEqualTo("REAL");
+            assertThatThrownBy(() -> service.recognize(CoverTestImages.png(), 0))
+                .isInstanceOfSatisfying(PhotoImportException.class, ex -> assertThat(ex.code()).isEqualTo("PHOTO_CREDENTIALS"));
+            assertThat(realCalls).hasValue(1); assertThat(mockCalls).hasValue(0);
+        } finally { service.destroy(); }
+    }
+    @Test
     void disabledCapabilitiesAndRequestNeverInvokeProvider() {
         var props = PhotoTestSupport.properties(false);
         var service = new PhotoRecognitionService(props, new PhotoSanitizer(props), List.of(), PhotoTestSupport.environment());

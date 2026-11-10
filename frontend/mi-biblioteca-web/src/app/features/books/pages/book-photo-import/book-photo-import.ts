@@ -9,6 +9,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
@@ -42,6 +43,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
     MatCardModule,
     MatProgressBarModule,
     PhotoMetadataCandidate,
+    MatCheckboxModule,
   ],
   providers: [PhotoImportWorkflow, PhotoReadingListWorkflow],
   templateUrl: './book-photo-import.html',
@@ -83,15 +85,21 @@ export class BookPhotoImport {
   readonly availabilityLoading = signal(false);
   readonly availabilityError = signal(false);
   readonly analyzing = signal(false);
+  readonly openaiConsent = signal(false);
+  readonly realProvider = computed(
+    () =>
+      this.capabilities()?.provider === 'openai' &&
+      this.capabilities()?.mode === 'REAL' &&
+      this.capabilities()?.simulated === false,
+  );
   readonly analysisTotal = signal(0);
   readonly analysisCompleted = signal(0);
   readonly available = computed(() => {
     const config = this.capabilities();
     return (
       config?.enabled === true &&
-      config.mode === 'SIMULATED' &&
-      config.provider === 'mock' &&
-      config.simulated === true &&
+      ((config.mode === 'SIMULATED' && config.provider === 'mock' && config.simulated === true) ||
+        this.realProvider()) &&
       config.maxFileBytes > 0 &&
       config.maxObservations > 0 &&
       Array.isArray(config.allowedFormats)
@@ -100,6 +108,7 @@ export class BookPhotoImport {
   readonly canAnalyze = computed(
     () =>
       this.available() &&
+      (!this.realProvider() || this.openaiConsent()) &&
       !this.workflow.locked() &&
       !this.analyzing() &&
       this.photos().some((photo) => photo.analysis !== 'success'),
@@ -125,12 +134,14 @@ export class BookPhotoImport {
     this.availabilityLoading.set(true);
     this.availabilityError.set(false);
     this.capabilities.set(null);
+    this.openaiConsent.set(false);
     this.service
       .capabilities()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (config) => {
           this.capabilities.set(config);
+          this.workflow.simulated.set(config.simulated !== false);
           this.availabilityLoading.set(false);
         },
         error: () => {
@@ -210,6 +221,7 @@ export class BookPhotoImport {
       return;
     }
     this.photos.update((photos) => [...photos, ...added]);
+    this.openaiConsent.set(false);
     this.errors.set([]);
   }
 
@@ -223,6 +235,7 @@ export class BookPhotoImport {
 
   rotatePhoto(id: number): void {
     if (this.analyzing() || this.workflow.locked()) return;
+    this.openaiConsent.set(false);
     this.photos.update((photos) =>
       photos.map((photo) =>
         photo.id === id
@@ -259,6 +272,7 @@ export class BookPhotoImport {
     const photo = this.photos().find((item) => item.id === id);
     if (
       !this.available() ||
+      (this.realProvider() && !this.openaiConsent()) ||
       this.workflow.locked() ||
       this.analyzing() ||
       this.destroyRef.destroyed ||
@@ -276,6 +290,7 @@ export class BookPhotoImport {
   }
 
   private startQueue(photos: readonly LocalPhoto[]): void {
+    this.openaiConsent.set(false);
     this.analyzing.set(true);
     this.analysisTotal.set(photos.length);
     this.analysisCompleted.set(0);
@@ -309,8 +324,8 @@ export class BookPhotoImport {
         next: (result) => {
           if (generation !== this.generation) return;
           const valid =
-            result?.simulated === true &&
-            result.provider === 'mock' &&
+            result?.simulated === config.simulated &&
+            result.provider === config.provider &&
             Array.isArray(result.observations) &&
             result.observations.length <= config.maxObservations &&
             Array.isArray(result.warnings);
@@ -321,7 +336,8 @@ export class BookPhotoImport {
               : {
                   analysis: 'error',
                   result: null,
-                  message: 'El servidor devolvió un resultado incompatible con el modo simulado.',
+                  message:
+                    'El servidor devolvió un resultado incompatible con el proveedor seleccionado.',
                 },
           );
           if (valid)
@@ -338,8 +354,25 @@ export class BookPhotoImport {
         error: (error: unknown) => {
           if (generation !== this.generation) return;
           const status = error instanceof HttpErrorResponse ? error.status : 0;
-          const message =
-            status === 413
+          const code =
+            error instanceof HttpErrorResponse && typeof error.error?.code === 'string'
+              ? (error.error.code as string)
+              : '';
+          const providerMessages: Record<string, string> = {
+            PHOTO_CREDENTIALS:
+              'OpenAI no ha aceptado las credenciales o el acceso. Revisa la configuración del backend.',
+            PHOTO_QUOTA: 'La cuota de OpenAI está agotada. No se ha reintentado el análisis.',
+            PHOTO_RATE_LIMIT:
+              'OpenAI ha limitado las solicitudes. Reintenta solo de forma explícita más tarde.',
+            PHOTO_PROVIDER_CONFIGURATION:
+              'El modelo o la configuración de OpenAI no son compatibles o no están disponibles.',
+            PHOTO_PROVIDER_REFUSED: 'OpenAI ha rechazado el análisis de esta fotografía.',
+            PHOTO_PROVIDER_INCOMPLETE:
+              'OpenAI devolvió una respuesta incompleta. No se han aceptado datos truncados.',
+          };
+          const message = Object.hasOwn(providerMessages, code)
+            ? providerMessages[code]
+            : status === 413
               ? 'La fotografía supera el tamaño permitido.'
               : status === 415
                 ? 'El formato de la fotografía no es compatible.'
@@ -384,7 +417,9 @@ export class BookPhotoImport {
       idle: 'Sin analizar',
       queued: 'En cola',
       analyzing: 'Analizando…',
-      success: 'Ejemplo simulado recibido',
+      success: photo.result?.simulated
+        ? 'Ejemplo simulado recibido'
+        : 'Reconocimiento recibido; requiere revisión',
       error: 'Error de análisis',
       cancelled: 'Cancelado',
     }[photo.analysis];

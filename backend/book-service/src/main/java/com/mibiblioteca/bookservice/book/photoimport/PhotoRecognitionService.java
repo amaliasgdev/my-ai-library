@@ -35,18 +35,22 @@ public class PhotoRecognitionService implements DisposableBean {
         slots = new Semaphore(properties.maxConcurrentAnalyses());
         if (properties.enabled()) {
             String[] profiles = environment.getActiveProfiles();
-            if (!"mock".equals(properties.provider()) || profiles.length == 0
-                || !Arrays.stream(profiles).allMatch(p -> p.equals("dev") || p.equals("test"))) {
+            if ("mock".equals(properties.provider()) && (profiles.length == 0
+                || !Arrays.stream(profiles).allMatch(p -> p.equals("dev") || p.equals("test")))) {
                 throw new IllegalArgumentException("Photo import mock requires explicit dev/test profiles only and provider=mock");
             }
-            provider = providers.stream().filter(p -> p.id().equals("mock") && p.simulated()).findFirst()
+            if (!Set.of("mock", "openai").contains(properties.provider())) {
+                throw new IllegalArgumentException("Photo provider must be explicitly mock or openai");
+            }
+            provider = providers.stream().filter(p -> p.id().equals(properties.provider())
+                && p.simulated() == "mock".equals(properties.provider())).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Configured photo provider is unavailable"));
         } else provider = null;
     }
 
     public Capabilities capabilities() {
         return new Capabilities(properties.enabled(), provider == null ? "none" : provider.id(),
-            provider == null ? "DISABLED" : "SIMULATED", provider != null && provider.simulated(),
+            provider == null ? "DISABLED" : provider.simulated() ? "SIMULATED" : "REAL", provider != null && provider.simulated(),
             List.of("image/jpeg", "image/png"), properties.maxFileSize().toBytes(), properties.maxWidth(),
             properties.maxHeight(), properties.maxPixels(), properties.maxObservations(),
             properties.maxConcurrentAnalyses(), properties.analysisTimeout().toMillis());

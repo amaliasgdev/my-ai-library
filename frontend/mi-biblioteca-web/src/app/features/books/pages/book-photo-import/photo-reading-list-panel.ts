@@ -13,7 +13,11 @@ import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
       <h2 id="photo-reading-list-heading">Añadir a mi lista de lectura</h2>
       <p>
         Acción opcional y posterior al catálogo. No modifica estados ni fechas. El reconocimiento
-        sigue siendo simulado.
+        {{
+          flow.simulated()
+            ? 'sigue siendo simulado.'
+            : 'se ha realizado mediante OpenAI y requiere revisión.'
+        }}
       </p>
       <p>
         Los libros existentes requieren confirmar su identidad. Consulta la pertenencia por lote

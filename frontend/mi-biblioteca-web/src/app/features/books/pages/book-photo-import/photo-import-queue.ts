@@ -12,8 +12,13 @@ import { PhotoReadingListPanel } from './photo-reading-list-panel';
     <section aria-labelledby="final-review-heading">
       <h2 id="final-review-heading">Revisión e incorporación</h2>
       <p>
-        Reconocimiento simulado. Confirma los datos reales en cada revisión; los ejemplos nunca se
-        importan automáticamente. Las fotografías originales no se utilizan como portadas.
+        {{
+          flow.simulated()
+            ? 'Reconocimiento simulado.'
+            : 'Reconocimiento mediante OpenAI; puede contener errores.'
+        }}
+        Confirma los datos reales en cada revisión; los candidatos nunca se importan
+        automáticamente. Las fotografías originales no se utilizan como portadas.
       </p>
       <button
         mat-stroked-button

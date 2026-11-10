@@ -1,7 +1,7 @@
 export interface PhotoImportCapabilities {
   enabled: boolean;
   provider: string;
-  mode: 'DISABLED' | 'SIMULATED';
+  mode: 'DISABLED' | 'SIMULATED' | 'REAL';
   simulated: boolean;
   allowedFormats: string[];
   maxFileBytes: number;

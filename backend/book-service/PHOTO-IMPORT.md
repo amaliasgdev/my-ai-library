@@ -1,5 +1,9 @@
 # Photo recognition — Stage 2
 
+Historical Stage 2 description. Stage 6 adds an explicitly enabled real OpenAI
+adapter; see [PHOTO-IMPORT-OPENAI.md](PHOTO-IMPORT-OPENAI.md) for current modes,
+privacy, configuration and the separately authorized first-test procedure.
+
 This stage contains **no real recognition provider**. The mock always returns the
 same fictional demonstration, unrelated to the uploaded photograph. No external
 requests, metadata lookup, Book creation or reading-list changes are performed.

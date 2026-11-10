@@ -13,11 +13,11 @@ import { BookRequest } from '../../models/book.models';
     <h2 mat-dialog-title>Revisar datos reales del libro</h2>
     <mat-dialog-content>
       <p>
-        El reconocimiento es simulado: sus ejemplos no corresponden a la fotografía. Comprueba los
-        datos del libro real. Confirmar no crea ningún libro.
+        El reconocimiento puede contener errores. Si es simulado, sus ejemplos no corresponden a la
+        fotografía. Comprueba los datos del libro real. Confirmar no crea ningún libro.
       </p>
       <mat-checkbox [checked]="realConfirmed()" (change)="realConfirmed.set($event.checked)"
-        >Confirmo que estos son los datos del libro real, no un ejemplo simulado</mat-checkbox
+        >Confirmo que he contrastado estos datos con el libro real</mat-checkbox
       >
       <app-book-form
         [initialDraft]="data"

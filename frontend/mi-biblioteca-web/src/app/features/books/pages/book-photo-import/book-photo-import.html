@@ -7,6 +7,12 @@
   <p class="notice" id="recognition-notice">
     @if (availabilityLoading()) {
       Consultando disponibilidad del reconocimiento…
+    } @else if (available() && realProvider()) {
+      RECONOCIMIENTO REAL MEDIANTE OPENAI. Las fotografías se enviarán a OpenAI para identificar los
+      libros. El análisis puede generar un coste de API. El backend elimina metadatos EXIF/GPS antes
+      del envío. store=false no significa retención cero. Seleccionar fotografías no inicia ningún
+      envío. Los resultados pueden contener errores y requieren revisión y confirmación antes de
+      crear libros.
     } @else if (available()) {
       MODO SIMULADO DE DESARROLLO. Los resultados son ejemplos fijos y no identifican los libros de
       tus fotografías. Solo al pulsar Analizar fotografías se envían al backend local; no se envían
@@ -130,10 +136,15 @@
           @if (photo.result; as result) {
             <section
               class="simulation-result"
-              [attr.aria-label]="'Resultado simulado para ' + photo.file.name"
+              [attr.aria-label]="'Resultado de reconocimiento para ' + photo.file.name"
             >
-              <h3>Ejemplo simulado — no corresponde a esta fotografía</h3>
-              <p>Proveedor: {{ result.provider }}. No se ha realizado reconocimiento visual.</p>
+              @if (result.simulated) {
+                <h3>Ejemplo simulado — no corresponde a esta fotografía</h3>
+                <p>Proveedor: {{ result.provider }}. No se ha realizado reconocimiento visual.</p>
+              } @else {
+                <h3>Reconocimiento mediante OpenAI — comprueba cada observación</h3>
+                <p>Lecturas propuestas, no datos bibliográficos confirmados.</p>
+              }
               @if (result.incomplete) {
                 <p>Resultado incompleto.</p>
               }
@@ -141,17 +152,23 @@
                 <p>{{ warning }}</p>
               }
               @if (!result.observations.length) {
-                <p>Sin observaciones en este ejemplo.</p>
+                <p>
+                  {{
+                    result.simulated
+                      ? 'Sin observaciones en este ejemplo.'
+                      : 'No se han identificado libros en este resultado.'
+                  }}
+                </p>
               }
               @for (observation of result.observations; track $index) {
                 <dl>
-                  <dt>Texto visible de ejemplo</dt>
+                  <dt>Texto visible (evidencia)</dt>
                   <dd>{{ observation.visibleText ?? 'Sin texto' }}</dd>
-                  <dt>Título de ejemplo</dt>
+                  <dt>Título propuesto</dt>
                   <dd>{{ observation.title ?? 'No indicado' }}</dd>
-                  <dt>Autor de ejemplo</dt>
+                  <dt>Autor propuesto</dt>
                   <dd>{{ observation.author ?? 'No indicado' }}</dd>
-                  <dt>ISBN de ejemplo</dt>
+                  <dt>ISBN visible propuesto</dt>
                   <dd>{{ observation.rawIsbn ?? 'No visible' }}</dd>
                   <dt>Legibilidad</dt>
                   <dd>{{ legibilityLabel(observation.legibility) }}</dd>
@@ -194,7 +211,12 @@
             <button
               mat-button
               type="button"
-              [disabled]="analyzing() || workflow.locked() || !available()"
+              [disabled]="
+                analyzing() ||
+                workflow.locked() ||
+                !available() ||
+                (realProvider() && !openaiConsent())
+              "
               [attr.aria-label]="'Reintentar análisis: ' + photo.file.name"
               (click)="retryPhoto(photo.id)"
             >
@@ -206,6 +228,16 @@
     }
   </div>
   <app-photo-import-queue [catalogParams]="catalogParams" />
+  @if (available() && realProvider()) {
+    <mat-checkbox
+      [checked]="openaiConsent()"
+      [disabled]="analyzing() || workflow.locked()"
+      (change)="openaiConsent.set($event.checked)"
+    >
+      Autorizo el envío de las fotografías pendientes a OpenAI y acepto el posible coste de este
+      análisis. Después pulsaré Analizar fotografías o Reintentar análisis.
+    </mat-checkbox>
+  }
   <div class="actions">
     <button
       mat-flat-button
@@ -228,7 +260,8 @@
   }
   <p>
     Cancelar detiene la cola y descarta respuestas tardías; el servidor puede terminar una petición
-    ya enviada.
+    ya enviada y generar coste en OpenAI. No se reintenta automáticamente; cada nuevo análisis real
+    requiere autorización.
   </p>
   <p>
     Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la selección.

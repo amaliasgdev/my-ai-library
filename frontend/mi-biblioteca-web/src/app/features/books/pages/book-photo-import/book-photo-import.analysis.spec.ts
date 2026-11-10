@@ -66,6 +66,119 @@ describe('BookPhotoImport simulated sequential analysis', () => {
     fixture.detectChanges();
   }
 
+  function enableOpenai(): void {
+    http
+      .expectOne(capabilitiesUrl)
+      .flush({ ...simulated, mode: 'REAL', provider: 'openai', simulated: false });
+    fixture.detectChanges();
+  }
+  const realResult = () => ({
+    ...testPhotoResult('Libro leído'),
+    provider: 'openai',
+    simulated: false,
+  });
+
+  it('shows real-provider privacy and cost and sends only after authorization plus analysis action', () => {
+    enableOpenai();
+    select(2);
+    expect(page.available()).toBe(true);
+    expect(root.textContent).toContain(
+      'Las fotografías se enviarán a OpenAI para identificar los libros. El análisis puede generar un coste de API',
+    );
+    expect(root.textContent).not.toContain('MODO SIMULADO');
+    page.analyze();
+    http.expectNone(url);
+    const consent = root.querySelector('mat-checkbox input') as HTMLInputElement;
+    consent.click();
+    fixture.detectChanges();
+    http.expectNone(url);
+    expect(page.canAnalyze()).toBe(true);
+    page.analyze();
+    expect(page.openaiConsent()).toBe(false);
+    http.expectOne(url).flush(realResult());
+    http.expectOne(url).flush(realResult());
+    fixture.detectChanges();
+    expect(page.photos().every((p) => p.analysis === 'success')).toBe(true);
+    expect(root.textContent).toContain('Reconocimiento mediante OpenAI');
+    expect(root.textContent).not.toContain('El reconocimiento es simulado');
+    expect(root.textContent).not.toContain('sigue siendo simulado');
+    http.expectNone((r) => r.url === '/api/books' || r.url === '/api/reading-list/items');
+  });
+
+  it('requires renewed consent for manual OpenAI retries after timeout and never retries automatically', () => {
+    enableOpenai();
+    select(1);
+    page.openaiConsent.set(true);
+    page.analyze();
+    http.expectOne(url).flush({ detail: 'PRIVATE' }, { status: 504, statusText: 'Timeout' });
+    expect(page.photos()[0].analysis).toBe('error');
+    page.retryPhoto(page.photos()[0].id);
+    http.expectNone(url);
+    page.openaiConsent.set(true);
+    page.retryPhoto(page.photos()[0].id);
+    http.expectOne(url).flush(realResult());
+    expect(page.openaiConsent()).toBe(false);
+  });
+
+  it.each([
+    'PHOTO_CREDENTIALS',
+    'PHOTO_QUOTA',
+    'PHOTO_RATE_LIMIT',
+    'PHOTO_PROVIDER_CONFIGURATION',
+    'PHOTO_PROVIDER_REFUSED',
+    'PHOTO_PROVIDER_INCOMPLETE',
+  ])(
+    'uses a safe message for real-provider code %s without displaying provider details',
+    (code) => {
+      enableOpenai();
+      select(1);
+      page.openaiConsent.set(true);
+      page.analyze();
+      http
+        .expectOne(url)
+        .flush(
+          { code, detail: 'SECRET PRIVATE UPSTREAM BODY' },
+          { status: 502, statusText: 'Provider failure' },
+        );
+      fixture.detectChanges();
+      expect(page.photos()[0].analysis).toBe('error');
+      expect(page.photos()[0].message).toContain('OpenAI');
+      expect(root.textContent).not.toContain('SECRET');
+      http.expectNone(url);
+    },
+  );
+
+  it('cancels real-provider queues and ignores late responses without another paid request', () => {
+    enableOpenai();
+    select(2);
+    const late = new Subject<PhotoRecognitionResponse>();
+    const recognize = vi
+      .spyOn(TestBed.inject(BookPhotoImportService), 'recognize')
+      .mockReturnValue(late);
+    page.openaiConsent.set(true);
+    page.analyze();
+    page.cancelAnalysis();
+    late.next(realResult());
+    late.complete();
+    expect(page.photos().every((p) => p.result === null && p.analysis === 'cancelled')).toBe(true);
+    page.analyze();
+    expect(recognize).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects mock results from a real provider and clears authorization after changing photos', () => {
+    enableOpenai();
+    select(1);
+    page.openaiConsent.set(true);
+    page.rotatePhoto(page.photos()[0].id);
+    expect(page.openaiConsent()).toBe(false);
+    page.analyze();
+    http.expectNone(url);
+    page.openaiConsent.set(true);
+    page.analyze();
+    http.expectOne(url).flush(testPhotoResult());
+    expect(page.photos()[0].analysis).toBe('error');
+  });
+
   it('does not upload images while capabilities are pending or disabled', () => {
     select();
     page.analyze();

@@ -99,13 +99,15 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    void documentsPhotoRecognitionWithoutPersistenceOrRealProvider() throws Exception {
+    void documentsExplicitPhotoProvidersWithoutPersistenceOrCredentials() throws Exception {
         var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         var paths = document.path("paths");
         assertThat(paths.path("/api/book-photo-import/capabilities").has("get")).isTrue();
         var analyze = paths.path("/api/book-photo-import/recognize").path("post");
-        assertThat(analyze.path("description").asText()).contains("EXIF", "simulated", "No Book creation");
+        assertThat(paths.path("/api/book-photo-import/capabilities").path("get").path("description").asText())
+            .contains("SIMULATED", "REAL", "OpenAI");
+        assertThat(analyze.path("description").asText()).contains("EXIF", "OpenAI", "store=false", "No Book creation", "provider cost");
         assertThat(analyze.path("requestBody").path("content").has("multipart/form-data")).isTrue();
         var multipart = analyze.path("requestBody").path("content").path("multipart/form-data").path("schema");
         if (multipart.has("$ref")) {

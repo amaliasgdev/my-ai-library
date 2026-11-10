@@ -73,6 +73,7 @@ export class PhotoImportWorkflow {
   private generation = 0;
   private manualId = 0;
   readonly rows = signal<PhotoImportCandidate[]>([]);
+  readonly simulated = signal(true);
   readonly creating = signal(false);
   readonly stopped = signal(false);
   readonly dialogOpen = signal(false);
@@ -344,8 +345,7 @@ export class PhotoImportWorkflow {
     this.confirm(
       {
         heading: 'Importar libros seleccionados',
-        message:
-          'Se crearán individualmente los libros reales revisados. El reconocimiento es simulado; ningún ejemplo debe importarse sin verificar. Posibles duplicados aceptados se indican a continuación. No se añadirán a la lista de lectura.',
+        message: `Se crearán individualmente los libros reales revisados. ${this.simulated() ? 'El reconocimiento es simulado; ningún ejemplo debe importarse sin verificar.' : 'OpenAI puede equivocarse: verifica los datos reales.'} Posibles duplicados aceptados se indican a continuación. No se añadirán a la lista de lectura.`,
         titles: queue.map(
           (r) =>
             `${r.request!.title} — ${r.request!.author}${r.approvedMatches ? ' (posible duplicado aceptado)' : ''}${!r.request!.isbn ? ' (sin ISBN)' : ''}`,

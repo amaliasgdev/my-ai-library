@@ -27,8 +27,13 @@ spring:
     locations: classpath:db/migration
 
 photo-import:
-  enabled: false
-  provider: none
+  enabled: ${PHOTO_IMPORT_ENABLED:false}
+  provider: ${PHOTO_IMPORT_PROVIDER:none}
+  model: ${PHOTO_IMPORT_MODEL:gpt-5-mini}
+  connect-timeout: ${PHOTO_IMPORT_CONNECT_TIMEOUT:5s}
+  request-timeout: ${PHOTO_IMPORT_REQUEST_TIMEOUT:40s}
+  max-output-tokens: ${PHOTO_IMPORT_MAX_OUTPUT_TOKENS:6000}
+  max-response-bytes: ${PHOTO_IMPORT_MAX_RESPONSE_BYTES:1048576}
   max-file-size: 5MB
   max-width: 6000
   max-height: 6000
