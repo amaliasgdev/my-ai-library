@@ -10,6 +10,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatStepperModule } from '@angular/material/stepper';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { batchDuplicateIds, PhotoCandidateCard } from './photo-candidate-card';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
@@ -44,12 +47,96 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
     MatProgressBarModule,
     PhotoMetadataCandidate,
     MatCheckboxModule,
+    MatStepperModule,
+    MatExpansionModule,
+    PhotoCandidateCard,
   ],
   providers: [PhotoImportWorkflow, PhotoReadingListWorkflow],
   templateUrl: './book-photo-import.html',
   styleUrl: './book-photo-import.scss',
 })
 export class BookPhotoImport {
+  readonly step = signal(0);
+  readonly activeCandidate = signal<string | null>(null);
+  readonly activeRow = computed(
+    () => this.workflow.rows().find((row) => row.id === this.activeCandidate()) ?? null,
+  );
+  hasObservation(id: string): boolean {
+    return this.photos().some((photo) =>
+      photo.result?.observations.some(
+        (observation) => `photo:${photo.id}:${observation.id}` === id,
+      ),
+    );
+  }
+  observationLegibility(id: string): string {
+    for (const photo of this.photos()) {
+      const observation = photo.result?.observations.find(
+        (observation) => `photo:${photo.id}:${observation.id}` === id,
+      );
+      if (observation) return this.legibilityLabel(observation.legibility);
+    }
+    return 'No indicada';
+  }
+  candidateLocked(id: string): boolean {
+    return (
+      this.workflow.locked() ||
+      this.workflow
+        .rows()
+        .some(
+          (row) =>
+            row.id === id &&
+            ['imported', 'uncertain', 'discarded', 'importing'].includes(row.state),
+        )
+    );
+  }
+  readonly batchDuplicates = computed(() => batchDuplicateIds(this.workflow.rows()));
+  readonly candidateSummary = computed(() => {
+    const rows = this.workflow.rows();
+    return {
+      total: rows.length,
+      pending: rows.filter((row) =>
+        ['pending', 'reviewed', 'possible', 'error'].includes(row.state),
+      ).length,
+      reviewed: rows.filter((row) => ['ready', 'existing', 'imported'].includes(row.state)).length,
+      duplicates: rows.filter(
+        (row) =>
+          this.batchDuplicates().has(row.id) ||
+          row.state === 'possible' ||
+          row.state === 'existing',
+      ).length,
+    };
+  });
+  readonly resultGroups = computed(() => {
+    const rows = this.workflow.rows();
+    const assigned = new Set<string>();
+    const groups = this.photos().map((photo) => {
+      const candidates = rows.filter((row) => row.id.startsWith(`photo:${photo.id}:`));
+      candidates.forEach((row) => assigned.add(row.id));
+      return { name: photo.file.name, photo, candidates };
+    });
+    const other = rows.filter((row) => !assigned.has(row.id));
+    return { groups, other };
+  });
+  goToStep(index: number): void {
+    if (index >= 0 && index <= 3) this.step.set(index);
+  }
+  openCandidate(id: string): void {
+    if (this.workflow.locked()) return;
+    this.activeCandidate.set(id);
+    this.step.set(2);
+  }
+  nextCandidate(): void {
+    if (this.workflow.locked()) return;
+    const rows = this.workflow.rows();
+    const current = rows.findIndex((row) => row.id === this.activeCandidate());
+    const ordered = [...rows.slice(current + 1), ...rows.slice(0, current + 1)];
+    const next = ordered.find(
+      (row) =>
+        ['pending', 'reviewed', 'possible', 'error'].includes(row.state) &&
+        row.id !== this.activeCandidate(),
+    );
+    this.activeCandidate.set(next?.id ?? null);
+  }
   readonly workflow = inject(PhotoImportWorkflow);
   readonly reading = inject(PhotoReadingListWorkflow);
   canLeave() {
@@ -67,7 +154,9 @@ export class BookPhotoImport {
     if (photo) this.workflow.source(`photo:${photoId}:${observationId}`, photo.file.name, draft);
   }
   reviewCandidate(photoId: number, observationId: string, draft: BookFormValue): void {
-    this.candidateChanged(photoId, observationId, draft);
+    // The workflow owns confirmed corrections; reopening must not restore older visual metadata.
+    const row = this.workflow.rows().find((row) => row.id === `photo:${photoId}:${observationId}`);
+    if (!row?.request) this.candidateChanged(photoId, observationId, draft);
     this.workflow.review(`photo:${photoId}:${observationId}`);
   }
   private readonly destroyRef = inject(DestroyRef);
@@ -304,6 +393,7 @@ export class BookPhotoImport {
     const photo = queue.shift();
     if (!photo) {
       this.analyzing.set(false);
+      this.step.set(1);
       return;
     }
     const config = this.capabilities()!;

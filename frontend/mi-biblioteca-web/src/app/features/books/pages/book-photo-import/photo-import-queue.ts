@@ -10,7 +10,7 @@ import { PhotoReadingListPanel } from './photo-reading-list-panel';
   imports: [MatButtonModule, MatCheckboxModule, RouterLink, PhotoReadingListPanel],
   template: `
     <section aria-labelledby="final-review-heading">
-      <h2 id="final-review-heading">Revisión e incorporación</h2>
+      <h2 id="final-review-heading">Confirmar importación</h2>
       <p>
         {{
           flow.simulated()
@@ -35,77 +35,83 @@ import { PhotoReadingListPanel } from './photo-reading-list-panel';
       <button mat-button type="button" [disabled]="flow.locked()" (click)="flow.selectAll(false)">
         Deseleccionar todos
       </button>
+      <p>
+        Revisa los candidatos pendientes en Resultados. Solo los revisados y preparados pueden
+        seleccionarse.
+      </p>
       @for (row of flow.rows(); track row.id) {
-        <article>
-          <h3>{{ row.draft.title || 'Libro sin título' }}</h3>
-          <p>Origen: {{ row.source }}</p>
-          <p aria-live="polite">{{ flow.label(row.state) }}. {{ row.message }}</p>
-          <mat-checkbox
-            [checked]="row.selected"
-            [disabled]="flow.locked() || row.state !== 'ready'"
-            (change)="flow.select(row.id, $event.checked)"
-            >Seleccionar {{ row.draft.title || 'candidato' }}</mat-checkbox
-          >
-          @if (row.state !== 'imported' && row.state !== 'uncertain' && row.state !== 'discarded') {
-            <button
-              mat-button
-              type="button"
-              [disabled]="flow.locked()"
-              (click)="flow.review(row.id)"
+        @if (row.state !== 'pending' && row.state !== 'discarded') {
+          <article>
+            <h3>{{ row.draft.title || 'Libro sin título' }}</h3>
+            <p>Origen: {{ row.source }}</p>
+            <p aria-live="polite">{{ flow.label(row.state) }}. {{ row.message }}</p>
+            <mat-checkbox
+              [checked]="row.selected"
+              [disabled]="flow.locked() || row.state !== 'ready'"
+              (change)="flow.select(row.id, $event.checked)"
+              >Seleccionar {{ row.draft.title || 'candidato' }}</mat-checkbox
             >
-              Revisar datos: {{ row.draft.title || 'candidato' }}
-            </button>
-          }
-          @if (row.state === 'possible') {
-            @for (match of row.duplicates?.matches ?? []; track match.id) {
-              <p>
-                Posible duplicado: {{ match.title }} · {{ match.author }} ·
-                {{ match.isbn ?? 'Sin ISBN' }}
-              </p>
+            @if (row.state !== 'imported' && row.state !== 'uncertain') {
+              <button
+                mat-button
+                type="button"
+                [disabled]="flow.locked()"
+                (click)="flow.review(row.id)"
+              >
+                Revisar datos: {{ row.draft.title || 'candidato' }}
+              </button>
             }
-            <button
-              mat-button
-              type="button"
-              [disabled]="flow.locked()"
-              (click)="flow.approvePossible(row.id)"
-            >
-              He revisado las coincidencias; es otro libro o edición
-            </button>
-          }
-          @if (row.state === 'uncertain') {
-            <button
-              mat-button
-              type="button"
-              [disabled]="flow.locked()"
-              (click)="flow.reconcile(row.id)"
-            >
-              Consultar resultado en catálogo
-            </button>
-            <button
-              mat-button
-              type="button"
-              [disabled]="flow.locked() || !row.duplicates"
-              (click)="flow.authorizeRetry(row.id)"
-            >
-              Autorizar nuevo intento con advertencia
-            </button>
-          }
-          @if (row.state !== 'imported' && row.state !== 'uncertain' && row.state !== 'discarded') {
-            <button
-              mat-button
-              type="button"
-              [disabled]="flow.locked()"
-              (click)="flow.discard(row.id)"
-            >
-              Descartar {{ row.draft.title || 'candidato' }}
-            </button>
-          }
-          @if (row.bookId) {
-            <a mat-button [routerLink]="['/books', row.bookId]" [queryParams]="catalogParams()"
-              >Abrir detalle del libro {{ row.bookId }}</a
-            >
-          }
-        </article>
+            @if (row.state === 'possible') {
+              @for (match of row.duplicates?.matches ?? []; track match.id) {
+                <p>
+                  Posible duplicado: {{ match.title }} · {{ match.author }} ·
+                  {{ match.isbn ?? 'Sin ISBN' }}
+                </p>
+              }
+              <button
+                mat-button
+                type="button"
+                [disabled]="flow.locked()"
+                (click)="flow.approvePossible(row.id)"
+              >
+                He revisado las coincidencias; es otro libro o edición
+              </button>
+            }
+            @if (row.state === 'uncertain') {
+              <button
+                mat-button
+                type="button"
+                [disabled]="flow.locked()"
+                (click)="flow.reconcile(row.id)"
+              >
+                Consultar resultado en catálogo
+              </button>
+              <button
+                mat-button
+                type="button"
+                [disabled]="flow.locked() || !row.duplicates"
+                (click)="flow.authorizeRetry(row.id)"
+              >
+                Autorizar nuevo intento con advertencia
+              </button>
+            }
+            @if (row.state !== 'imported' && row.state !== 'uncertain') {
+              <button
+                mat-button
+                type="button"
+                [disabled]="flow.locked()"
+                (click)="flow.discard(row.id)"
+              >
+                Descartar {{ row.draft.title || 'candidato' }}
+              </button>
+            }
+            @if (row.bookId) {
+              <a mat-button [routerLink]="['/books', row.bookId]" [queryParams]="catalogParams()"
+                >Abrir detalle del libro {{ row.bookId }}</a
+              >
+            }
+          </article>
+        }
       }
       <button
         mat-flat-button
@@ -129,11 +135,13 @@ import { PhotoReadingListPanel } from './photo-reading-list-panel';
         Resultados inciertos: {{ flow.summary().uncertain }}
       </p>
       <p>
-        Puedes revisar los pendientes o seleccionar más fotografías arriba. Los borradores no se
-        guardan al salir.
+        Puedes revisar los pendientes o seleccionar más imágenes en Fotografías. Los borradores no
+        se guardan al salir.
       </p>
     </section>
-    <app-photo-reading-list-panel />
+    @if (flow.summary().imported || flow.summary().existing) {
+      <app-photo-reading-list-panel />
+    }
   `,
   styles: `
     article {

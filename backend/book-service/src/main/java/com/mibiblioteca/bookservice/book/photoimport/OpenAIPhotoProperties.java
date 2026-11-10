@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /** Contains no credentials, including in generated toString/binding diagnostics. */
 @ConfigurationProperties("photo-import")
 public record OpenAIPhotoProperties(
-    @DefaultValue("gpt-5-mini") String model,
+    @DefaultValue("gpt-5.4-mini") String model,
     @DefaultValue("5s") Duration connectTimeout,
     @DefaultValue("40s") Duration requestTimeout,
     @DefaultValue("6000") int maxOutputTokens,

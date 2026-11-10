@@ -41,6 +41,16 @@ public class OpenAIPhotoRecognitionClient implements BookPhotoRecognitionProvide
         uncertainty in warnings and set incomplete=true if any books may have been missed or the
         observation limit prevents a complete result. An image without identifiable books returns
         observations=[] with an explanatory warning, not invented books. Respect all schema limits.
+        Write all warnings in Spanish, while preserving visibleText in its original language.
+        Segment each physical spine/cover before transcribing: text from an adjacent spine belongs
+        to that other book, not this one. Keep title and author in separate fields; do not append
+        an author's name to a title or join fragments from neighbouring books to form a name.
+        Do not complete hidden or cropped words from familiarity with an author or a series.
+        If a title or author is only partially readable, explicitly say which field is incomplete
+        in a Spanish warning; preserve only supported fragments or null, never guessed completion.
+        Do not emit the same physical region twice as separate observations. However, two distinct
+        physical copies may have identical titles/authors: retain both when separately visible and
+        explain any uncertainty about their physical separation in Spanish warnings.
         """;
     private final OpenAIPhotoProperties config;
     private final PhotoImportProperties limits;

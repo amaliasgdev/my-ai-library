@@ -238,10 +238,10 @@ describe('BookPhotoImport simulated sequential analysis', () => {
       'Ejemplo uno',
       'Ejemplo dos',
     ]);
-    const cards = root.querySelectorAll('mat-card');
-    expect(cards[0].textContent).toContain('1.jpg');
+    const cards = root.querySelectorAll('app-photo-candidate-card');
+    expect(cards[0].closest('section')?.getAttribute('aria-label')).toContain('1.jpg');
     expect(cards[0].textContent).toContain('Ejemplo uno');
-    expect(cards[1].textContent).toContain('2.jpg');
+    expect(cards[1].closest('section')?.getAttribute('aria-label')).toContain('2.jpg');
     expect(cards[1].textContent).toContain('Ejemplo dos');
     expect(root.textContent).toContain('MODO SIMULADO');
     expect(root.textContent).toContain('no corresponde a esta fotografía');

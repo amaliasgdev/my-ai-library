@@ -3,7 +3,9 @@
 For current isolated ports, offline validation and the gated Windows first-test
 procedure, use [Stage 7 validation](PHOTO-IMPORT-VALIDATION.md). Its explicit
 `gpt-5.4-mini` recommendation supersedes the historical candidate/port examples below;
-neither document authorizes activation. Application defaults are unchanged.
+neither document authorizes activation. Stage 8 explicitly updates the configurable
+model default to `gpt-5.4-mini`; enabled=false/provider=none remain unchanged.
+See [Stage 8 UX and recognition](PHOTO-IMPORT-UX.md) for the current wizard and prompt.
 
 Implemented with **no real API calls, real keys, personal photos or charges** during
 development. Disabled by default. This document describes a later, separately
@@ -79,7 +81,7 @@ human bibliographic review remains mandatory.
 | --- | --- | --- |
 | PHOTO_IMPORT_ENABLED | false | Explicit activation |
 | PHOTO_IMPORT_PROVIDER | none | none while disabled; mock or openai when enabled |
-| PHOTO_IMPORT_MODEL | gpt-5-mini | Compatible Responses/vision/strict schema model; configurable |
+| PHOTO_IMPORT_MODEL | gpt-5.4-mini | Compatible Responses/vision/strict schema model; configurable |
 | OPENAI_API_KEY | absent | Private backend environment only, mandatory for enabled openai |
 | PHOTO_IMPORT_CONNECT_TIMEOUT | 5s | Positive, at most 30s |
 | PHOTO_IMPORT_REQUEST_TIMEOUT | 40s | Positive, at most 120s; engine deadline still applies |

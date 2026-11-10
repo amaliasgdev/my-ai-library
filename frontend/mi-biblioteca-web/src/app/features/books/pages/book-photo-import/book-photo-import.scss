@@ -39,7 +39,7 @@ h1 {
 
 .photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 18rem));
   gap: 1rem;
 }
 
@@ -69,7 +69,7 @@ mat-card-actions {
 }
 
 .preview {
-  aspect-ratio: 1;
+  height: 9rem;
   margin-block-start: 1rem;
   overflow: hidden;
   background: var(--mat-sys-surface-container);
@@ -80,6 +80,35 @@ mat-card-actions {
     object-fit: contain;
     image-orientation: from-image;
   }
+}
+
+.candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+.evidence-photo {
+  height: 18rem;
+  overflow: hidden;
+  margin-block: 1rem;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-orientation: from-image;
+  }
+}
+
+.literal-evidence {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+[hidden] {
+  display: none;
 }
 
 @media (max-width: 36rem) {
