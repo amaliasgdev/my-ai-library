@@ -84,6 +84,21 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void documentsBibliographicWorksEditionsAndAdvisoryDuplicates() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (String endpoint : new String[] {"metadata-search", "metadata-editions", "metadata-duplicates"}) {
+            var route = document.path("paths").path("/api/books/" + endpoint);
+            assertThat(route.has("get")).isTrue();
+            assertThat(route.has("post")).isFalse();
+            assertThat(route.path("get").path("responses").has("400")).isTrue();
+            assertThat(route.path("get").path("parameters").isArray()).isTrue();
+        }
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("isbn")).isFalse();
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("firstPublicationYear")).isTrue();
+    }
+
+    @Test
     void documentsPhotoRecognitionWithoutPersistenceOrRealProvider() throws Exception {
         var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());

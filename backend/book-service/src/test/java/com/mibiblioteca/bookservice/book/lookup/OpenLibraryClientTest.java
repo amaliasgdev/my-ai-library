@@ -42,6 +42,35 @@ class OpenLibraryClientTest {
     }
 
     @Test
+    void metadataUsesBoundedTextQueriesAndClosedWorkPath() {
+        server.expect(requestTo("https://openlibrary.org/search.json?title=Dune%20%26%20Co&author=Frank&fields=key,title,author_name,cover_i,first_publish_year,edition_count&limit=10"))
+            .andRespond(withSuccess("{\"docs\":[]}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://openlibrary.org/works/OL1W/editions.json?limit=10&offset=20"))
+            .andRespond(withSuccess("{\"entries\":[],\"size\":0}", MediaType.APPLICATION_JSON));
+        client.metadataSearch("Dune & Co", "Frank", budget());
+        client.metadataEditions("/works/OL1W", 2, budget());
+        server.verify();
+    }
+
+    @Test
+    void retryAfterBlocksOtherOperationsWithoutAnUpstreamRetry() {
+        server.expect(requestTo("https://openlibrary.org/isbn/9780132350884.json"))
+            .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", "60"));
+        assertFailure(() -> client.edition("9780132350884", budget()), 503);
+        assertFailure(() -> client.metadataSearch("Title", null, budget()), 503);
+        assertFailure(() -> client.metadataEditions("/works/OL1W", 0, budget()), 503);
+        server.verify();
+    }
+
+    @Test
+    void rejectsOversizedUpstreamBodyAndDoesNotRetry() {
+        server.expect(requestTo("https://openlibrary.org/isbn/9780132350884.json"))
+            .andRespond(withSuccess("{\"padding\":\"" + "a".repeat(2097152) + "\"}", MediaType.APPLICATION_JSON));
+        assertFailure(() -> client.edition("9780132350884", budget()), 502);
+        server.verify();
+    }
+
+    @Test
     void shouldUseCurrentIsbnApiAndConfiguredHeaders() {
         server.expect(requestTo("https://openlibrary.org/isbn/9780132350884.json"))
             .andExpect(header("User-Agent", "MyAILibrary")).andExpect(header("Accept", "application/json"))

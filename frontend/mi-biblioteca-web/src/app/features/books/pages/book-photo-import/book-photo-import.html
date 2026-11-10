@@ -157,6 +157,10 @@
                 @for (warning of observation.warnings; track $index) {
                   <p>{{ warning }}</p>
                 }
+                <app-photo-metadata-candidate
+                  [observation]="observation"
+                  [simulated]="result.simulated"
+                />
               }
             </section>
           }

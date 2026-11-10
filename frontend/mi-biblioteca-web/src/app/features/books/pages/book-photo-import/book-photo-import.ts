@@ -12,6 +12,7 @@ import {
   PhotoRecognitionResponse,
 } from '../../models/book-photo-import.models';
 import { BookPhotoImportService } from '../../services/book-photo-import.service';
+import { PhotoMetadataCandidate } from '../../components/photo-metadata-candidate/photo-metadata-candidate';
 
 interface LocalPhoto {
   readonly id: number;
@@ -29,7 +30,13 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 @Component({
   selector: 'app-book-photo-import',
-  imports: [RouterLink, MatButtonModule, MatCardModule, MatProgressBarModule],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatProgressBarModule,
+    PhotoMetadataCandidate,
+  ],
   templateUrl: './book-photo-import.html',
   styleUrl: './book-photo-import.scss',
 })
