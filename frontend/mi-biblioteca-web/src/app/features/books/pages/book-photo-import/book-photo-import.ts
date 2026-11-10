@@ -10,7 +10,12 @@ import {
 } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
+import {
+  PhotoImportWorkflow,
+  MANUAL_SOURCE,
+  emptyPhotoDraft,
+  isManualCandidate,
+} from './photo-import-workflow';
 import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 import { effect, untracked } from '@angular/core';
 import { PhotoImportQueue } from './photo-import-queue';
@@ -77,6 +82,7 @@ export class BookPhotoImport {
   private batchQueue: string[] = [];
   private batchCurrent: string | null = null;
   private batchGeneration = 0;
+  private manualCount = 0;
   readonly hasReady = computed(() => this.workflow.rows().some((row) => row.state === 'ready'));
   metadataEditor(id: string): PhotoMetadataCandidate | undefined {
     return this.metadataEditors().find((editor) => editor.candidateId() === id);
@@ -141,6 +147,7 @@ export class BookPhotoImport {
     () => this.workflow.rows().find((row) => row.id === this.activeCandidate()) ?? null,
   );
   hasObservation(id: string): boolean {
+    if (this.workflow.manualCandidates().some((manual) => manual.id === id)) return true;
     return this.photos().some((photo) =>
       photo.result?.observations.some(
         (observation) => `photo:${photo.id}:${observation.id}` === id,
@@ -228,6 +235,15 @@ export class BookPhotoImport {
       event.returnValue = '';
     }
   }
+  isManual = isManualCandidate;
+  manualChanged(id: string, draft: BookFormValue): void {
+    this.workflow.source(id, MANUAL_SOURCE, draft);
+  }
+  reviewManual(id: string, draft: BookFormValue): void {
+    // As for photographs, confirmed corrections owned by the workflow win over visual metadata.
+    if (!this.workflow.rows().find((row) => row.id === id)?.request) this.manualChanged(id, draft);
+    this.workflow.review(id);
+  }
   candidateChanged(photoId: number, observationId: string, draft: BookFormValue): void {
     const photo = this.photos().find((p) => p.id === photoId);
     if (photo) this.workflow.source(`photo:${photoId}:${observationId}`, photo.file.name, draft);
@@ -288,6 +304,25 @@ export class BookPhotoImport {
     effect(() => {
       const rows = this.workflow.rows();
       untracked(() => this.reading.setCandidates(rows));
+    });
+    effect(() => {
+      // A newly added manual candidate lives in Resultados, wherever the dialog was opened from.
+      const count = this.workflow.manualCandidates().length;
+      untracked(() => {
+        if (count > this.manualCount) this.step.set(1);
+        this.manualCount = count;
+      });
+    });
+    effect(() => {
+      // Explicit "Añadir y buscar": one search once its editor exists and no batch/search is running.
+      const id = this.workflow.searchRequest();
+      if (!id || this.batchSearching()) return;
+      const editor = this.metadataEditor(id);
+      if (!editor) return;
+      untracked(() => {
+        this.workflow.searchRequest.set(null);
+        editor.search();
+      });
     });
     this.destroyRef.onDestroy(() => {
       this.stopMetadataBatch();

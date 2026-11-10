@@ -48,6 +48,7 @@ export class PhotoMetadataCandidate implements OnInit {
   readonly simulated = input(true);
   readonly locked = input(false);
   readonly candidateId = input('');
+  readonly userEntered = input(false);
   readonly batchBusy = input(false);
   readonly preferredLanguage = input('es');
   readonly searchSettled = output<void>();

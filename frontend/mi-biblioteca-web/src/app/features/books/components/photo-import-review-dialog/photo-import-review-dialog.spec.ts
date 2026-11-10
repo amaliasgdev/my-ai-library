@@ -23,6 +23,18 @@ describe('PhotoImportReviewDialog uses the existing CRUD form', () => {
     const form = fixture.debugElement.query(By.directive(BookForm)).componentInstance as BookForm;
     return { fixture, form, close, dialog: fixture.componentInstance };
   }
+  it('does not require a genre and never invents a placeholder genre', () => {
+    const { fixture, form, close, dialog } = create();
+    dialog.realConfirmed.set(true);
+    fixture.detectChanges();
+    expect(form.form.controls.genres.length).toBe(0);
+    expect(form.form.controls.genres.valid).toBe(true);
+    expect(fixture.nativeElement.querySelector('#genre-input[required]')).toBeNull();
+    form.submit();
+    expect(close).toHaveBeenCalledOnce();
+    expect(close.mock.calls[0][0].genres).toEqual([]);
+    expect(fixture.nativeElement.textContent).not.toContain('Sin género');
+  });
   it('requires explicit real-data confirmation, supports null ISBN, and never writes', () => {
     const { fixture, form, close, dialog } = create();
     form.submit();

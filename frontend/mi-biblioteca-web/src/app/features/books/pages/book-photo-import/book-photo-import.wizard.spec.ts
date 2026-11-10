@@ -319,6 +319,194 @@ describe('Photo import four-step wizard', () => {
     http.expectOne((r) => r.url.endsWith('/metadata-duplicates')).flush(duplicates);
   });
 
+  describe('manually added candidates', () => {
+    const manualInput = { title: 'Dune', author: 'Frank Herbert', isbn: '', search: false };
+    const isSearch = (r: { url: string }) => r.url.endsWith('/metadata-search');
+    const isDuplicates = (r: { url: string }) => r.url.endsWith('/metadata-duplicates');
+    const settle = () => {
+      fixture.detectChanges();
+      fixture.detectChanges();
+    };
+    const manualEditor = () =>
+      page.metadataEditors().find((editor) => editor.candidateId().startsWith('manual:'));
+
+    it('appears beside photograph candidates, labelled, without a photograph, OpenAI or Book writes', () => {
+      analyze();
+      const before = structuredClone(page.workflow.rows());
+      page.workflow.addManualCandidate(manualInput);
+      settle();
+      expect(page.workflow.rows().slice(0, 3)).toEqual(before);
+      const row = page.workflow.rows()[3];
+      expect(row.id.startsWith('manual:')).toBe(true);
+      expect(page.resultGroups().other.map((r) => r.id)).toEqual([row.id]);
+      const cards = fixture.debugElement.queryAll(By.directive(PhotoCandidateCard));
+      expect(cards).toHaveLength(4);
+      expect(cards[3].nativeElement.textContent).toContain('Introducido manualmente');
+      expect(cards[3].nativeElement.textContent).toContain('Pendiente de búsqueda');
+      expect(cards[0].nativeElement.textContent).not.toContain('Introducido manualmente');
+      expect(manualEditor()?.form.getRawValue()).toEqual({
+        title: 'Dune',
+        author: 'Frank Herbert',
+        isbn: '',
+      });
+      expect(page.photos()).toHaveLength(1);
+      http.expectNone(() => true);
+    });
+
+    it('moves to Resultados when a manual candidate is added from the Importación step', () => {
+      analyze();
+      page.goToStep(3);
+      page.workflow.addManualCandidate(manualInput);
+      settle();
+      expect(page.step()).toBe(1);
+      http.expectNone(() => true);
+    });
+
+    it('adds and searches on request: one bibliographic search, never recognition or creation', () => {
+      analyze();
+      page.workflow.addManualCandidate({ ...manualInput, search: true });
+      settle();
+      const search = http.expectOne(isSearch);
+      expect(search.request.params.get('title')).toBe('Dune');
+      expect(search.request.params.get('author')).toBe('Frank Herbert');
+      http.expectOne(isDuplicates).flush(duplicates);
+      search.flush({ content: [], truncated: false, resolution: 'NONE' });
+      expect(manualEditor()?.resolutionStatus()).toBe('Sin resultados');
+      expect(page.workflow.searchRequest()).toBeNull();
+      http.expectNone((r) => r.url.endsWith('/recognize') || r.method === 'POST');
+    });
+
+    it('adds without searching and resolves later only on explicit search', () => {
+      analyze();
+      page.workflow.addManualCandidate(manualInput);
+      settle();
+      http.expectNone(() => true);
+      manualEditor()?.search();
+      const search = http.expectOne(isSearch);
+      http.expectOne(isDuplicates).flush(duplicates);
+      search.flush({ content: [], truncated: false, resolution: 'NONE' });
+      expect(page.workflow.rows()[3].state).toBe('pending');
+      http.expectNone(() => true);
+    });
+
+    it('can start from an ISBN-bearing manual candidate using the existing lookup path', () => {
+      analyze();
+      page.workflow.addManualCandidate({ ...manualInput, isbn: '0132350882', search: true });
+      settle();
+      const lookup = http.expectOne((r) => r.url.endsWith('/isbn-lookup'));
+      expect(lookup.request.params.get('isbn')).toBe('0132350882');
+      http.expectOne(isDuplicates).flush(duplicates);
+      lookup.flush({
+        isbn: '9780132350884',
+        title: 'Dune',
+        author: 'Frank Herbert',
+        publisher: null,
+        publicationYear: null,
+        pageCount: null,
+        language: null,
+        genres: [],
+        coverUrl: null,
+      });
+      expect(manualEditor()?.selected()?.isbn).toBe('9780132350884');
+      http.expectOne(isDuplicates).flush(duplicates);
+      expect(page.workflow.rows()[3].draft.isbn).toBe('9780132350884');
+      expect(page.workflow.rows()[3].request).toBeNull();
+    });
+
+    it('takes part in the sequential batch search without extra requests', async () => {
+      analyze();
+      page.workflow.addManualCandidate(manualInput);
+      settle();
+      page.searchAllMetadata();
+      expect(page.batchTotal()).toBe(3);
+      for (let index = 0; index < 3; index++) {
+        const search = http.expectOne(isSearch);
+        http.expectOne(isDuplicates).flush(duplicates);
+        search.flush({ content: [], truncated: false, resolution: 'NONE' });
+        await Promise.resolve();
+      }
+      expect(page.batchCompleted()).toBe(3);
+      expect(page.batchSearching()).toBe(false);
+      expect(manualEditor()?.searched()).toBe(true);
+      page.searchAllMetadata();
+      expect(page.batchTotal()).toBe(0);
+      http.expectNone(() => true);
+    });
+
+    it('keeps edition choice explicit and requests review without confirming or creating', () => {
+      analyze();
+      page.workflow.addManualCandidate({ ...manualInput, search: true });
+      settle();
+      const search = http.expectOne(isSearch);
+      http.expectOne(isDuplicates).flush(duplicates);
+      const dune = {
+        workKey: '/works/OL1W',
+        title: 'Dune',
+        authors: ['Frank Herbert'],
+        coverUrl: 'https://c/dune.jpg',
+        firstPublicationYear: 1965,
+        editionCount: 3,
+        matchKind: 'EXACT_TEXT',
+      };
+      search.flush({ content: [dune], truncated: false, resolution: 'CLEAR' });
+      const editor = manualEditor();
+      expect(editor?.selectedEdition()).toBeNull();
+      editor?.chooseWork(dune as never);
+      http
+        .expectOne((r) => r.url.endsWith('/metadata-editions'))
+        .flush({
+          workKey: dune.workKey,
+          page: 0,
+          hasNext: false,
+          content: [
+            {
+              editionKey: '/books/OL9M',
+              isbns: ['9780132350884'],
+              metadata: {
+                isbn: null,
+                title: 'Dune (edición)',
+                author: 'Frank Herbert',
+                publisher: 'Pub',
+                publicationYear: 2001,
+                pageCount: 400,
+                language: 'es',
+                genres: [],
+                coverUrl: null,
+              },
+            },
+          ],
+        });
+      http.expectOne(isDuplicates).flush(duplicates);
+      expect(page.workflow.rows()[3].draft.title).toBe('Dune');
+      editor?.chooseEdition(editor.editions()!.content[0] as never);
+      http.expectOne(isDuplicates).flush(duplicates);
+      expect(page.workflow.rows()[3].draft.title).toBe('Dune (edición)');
+      expect(page.workflow.rows()[3].draft.isbn).toBe('');
+      const review = vi.spyOn(page.workflow, 'review').mockImplementation(() => undefined);
+      editor?.requestReview();
+      expect(review).toHaveBeenCalledWith(page.workflow.rows()[3].id);
+      expect(page.workflow.rows()[3].request).toBeNull();
+      expect(page.workflow.rows()[3].state).toBe('pending');
+      http.expectNone((r) => r.method === 'POST');
+    });
+
+    it('opens the review step for the manual editor and keeps review confirmation mandatory', () => {
+      analyze();
+      const id = page.workflow.addManualCandidate(manualInput);
+      settle();
+      page.openCandidate(id);
+      settle();
+      const sections = fixture.debugElement
+        .queryAll(By.directive(PhotoMetadataCandidate))
+        .map((editor) => (editor.nativeElement.parentElement as HTMLElement).hidden);
+      expect(sections).toEqual([true, true, true, false]);
+      expect(page.activeRow()?.id).toBe(id);
+      page.workflow.selectAll(true);
+      expect(page.workflow.selectedCount()).toBe(0);
+      http.expectNone(() => true);
+    });
+  });
+
   it('queries editions globally only on explicit filter submit and retains draft filters across steps', () => {
     analyze();
     const editor = page.metadataEditors()[0];

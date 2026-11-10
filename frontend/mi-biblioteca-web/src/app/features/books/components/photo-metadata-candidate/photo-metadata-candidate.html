@@ -7,10 +7,17 @@
         consultan Open Library con texto, nunca con la imagen.
       </p>
     }
-    <p>
-      Evidencia original — texto: {{ observation().visibleText ?? 'No visible' }}; ISBN:
-      {{ observation().rawIsbn ?? 'No visible' }}.
-    </p>
+    @if (userEntered()) {
+      <p>
+        Candidato introducido manualmente: no tiene fotografía ni evidencia visual. Título, autor e
+        ISBN son los datos que escribiste.
+      </p>
+    } @else {
+      <p>
+        Evidencia original — texto: {{ observation().visibleText ?? 'No visible' }}; ISBN:
+        {{ observation().rawIsbn ?? 'No visible' }}.
+      </p>
+    }
     <form [formGroup]="form" (ngSubmit)="search()">
       <mat-form-field
         ><mat-label>Título propuesto</mat-label

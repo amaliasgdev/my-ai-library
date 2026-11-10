@@ -5,7 +5,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { Subject, Observable } from 'rxjs';
 import { BookRequest } from '../../models/book.models';
 import { MetadataDuplicates } from '../../models/book-metadata.models';
-import { PhotoImportWorkflow, emptyPhotoDraft } from './photo-import-workflow';
+import { PhotoImportWorkflow, MANUAL_SOURCE, emptyPhotoDraft } from './photo-import-workflow';
+import { ManualCandidateDialog } from '../../components/manual-candidate-dialog/manual-candidate-dialog';
 import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 
 describe('PhotoImportWorkflow (offline, no backend writes)', () => {
@@ -350,13 +351,105 @@ describe('PhotoImportWorkflow (offline, no backend writes)', () => {
     expect(flow.rows()[0].state).toBe('discarded');
     expect(flow.summary().discarded).toBe(1);
   });
-  it('supports manually adding a missed book without recognition or external HTTP', () => {
+  it('adds a manual candidate through the simple dialog without HTTP, recognition or Book creation', () => {
     flow.addManual();
-    expect(flow.rows()[0].source).toContain('manualmente');
-    expect(flow.rows()[0].state).toBe('pending');
+    expect(open).toHaveBeenCalledWith(ManualCandidateDialog, expect.anything());
+    expect(flow.dialogOpen()).toBe(true);
+    closed.next({ title: 'Dune', author: 'Frank Herbert', isbn: '', search: false });
+    closed.complete();
+    expect(flow.dialogOpen()).toBe(false);
+    const [row] = flow.rows();
+    expect(row.source).toBe(MANUAL_SOURCE);
+    expect(row.id.startsWith('manual:')).toBe(true);
+    expect(row.state).toBe('pending');
+    expect(row.draft).toEqual({ ...emptyPhotoDraft(), title: 'Dune', author: 'Frank Herbert' });
+    expect(row.draft.genres).toEqual([]);
+    expect(row.request).toBeNull();
+    expect(flow.manualCandidates()[0].observation).toMatchObject({
+      title: 'Dune',
+      author: 'Frank Herbert',
+      rawIsbn: null,
+      visibleText: null,
+    });
+    expect(flow.searchRequest()).toBeNull();
+    flow.selectAll(true);
+    expect(flow.selectedCount()).toBe(0);
+    http.expectNone(() => true);
+  });
+
+  it('requests a bibliographic search only when the dialog asks for it', () => {
+    flow.addManual();
+    closed.next({ title: 'Dune', author: 'Herbert', isbn: '9780132350884', search: true });
+    closed.complete();
+    expect(flow.searchRequest()).toBe(flow.rows()[0].id);
+    expect(flow.manualCandidates()[0].observation.rawIsbn).toBe('9780132350884');
+    expect(flow.rows()[0].draft.isbn).toBe('9780132350884');
+    http.expectNone(() => true);
+  });
+
+  it('creates nothing when the manual dialog is cancelled and keeps photograph candidates', () => {
+    flow.source('photo:1:a', 'photo.jpg', { ...emptyPhotoDraft(), title: 'Photo book' });
+    flow.addManual();
     closed.next(undefined);
     closed.complete();
+    expect(flow.dialogOpen()).toBe(false);
+    expect(flow.manualCandidates()).toEqual([]);
+    expect(flow.rows().map((row) => row.id)).toEqual(['photo:1:a']);
+    flow.addManual();
+    closed.next({ title: 'Manual', author: 'Author', isbn: '', search: false });
+    closed.complete();
+    expect(flow.rows().map((row) => row.id)).toEqual(['photo:1:a', 'manual:1']);
+    expect(flow.rows()[0].draft.title).toBe('Photo book');
     http.expectNone(() => true);
+  });
+
+  it('does not open the manual dialog while another write or dialog is active', () => {
+    flow.addManual();
+    flow.addManual();
+    expect(open).toHaveBeenCalledTimes(1);
+    closed.next(undefined);
+    closed.complete();
+  });
+
+  it('imports a reviewed manual candidate without genres or ISBN only after explicit confirmation', () => {
+    flow.addManual();
+    closed.next({ title: 'Real book', author: 'Real author', isbn: '', search: false });
+    closed.complete();
+    const id = flow.rows()[0].id;
+    flow.selectAll(true);
+    flow.importSelected();
+    http.expectNone(posts);
+    flow.review(id);
+    closed.next(request);
+    closed.complete();
+    http.expectOne(dup).flush(clear);
+    expect(flow.rows()[0].state).toBe('ready');
+    expect(flow.rows()[0].request?.genres).toEqual([]);
+    expect(flow.rows()[0].request?.isbn).toBeNull();
+    flow.selectAll(true);
+    start();
+    http.expectOne(dup).flush(clear);
+    const post = http.expectOne(posts);
+    expect(post.request.body).toEqual(request);
+    expect((post.request.body as BookRequest).genres).toEqual([]);
+    post.flush({ ...request, id: 9, readingStatus: 'TO_READ', rating: null });
+    expect(flow.rows()[0].state).toBe('imported');
+    expect(flow.rows()[0].bookId).toBe(9);
+  });
+
+  it('keeps the exact-ISBN and possible-duplicate protections for manual candidates', () => {
+    flow.addManual();
+    closed.next({ title: 'Real book', author: 'Real author', isbn: '', search: false });
+    closed.complete();
+    const id = flow.rows()[0].id;
+    flow.review(id);
+    closed.next(request);
+    closed.complete();
+    http.expectOne(dup).flush(possible);
+    expect(flow.rows()[0].state).toBe('possible');
+    flow.selectAll(true);
+    expect(flow.selectedCount()).toBe(0);
+    http.expectNone(posts);
   });
   it('warns before abandoning reviewed pending work and blocks navigation during writes', () => {
     expect(flow.canLeave()).toBe(true);

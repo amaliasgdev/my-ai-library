@@ -361,11 +361,22 @@
         </section>
       }
       @if (resultGroups().other.length) {
-        <h3>Candidatos manuales o de fotografías retiradas</h3>
+        <h3>Candidatos introducidos manualmente u originados en fotografías retiradas</h3>
         <div class="candidate-grid">
           @for (row of resultGroups().other; track row.id) {
             <app-photo-candidate-card
               [row]="row"
+              [manual]="isManual(row.id)"
+              [metadataStatus]="
+                metadataEditor(row.id)?.resolutionStatus() ?? 'Pendiente de búsqueda'
+              "
+              [proposedCover]="metadataEditor(row.id)?.proposedCover() ?? null"
+              [proposalLabel]="metadataEditor(row.id)?.proposalLabel() ?? ''"
+              [coverKind]="
+                metadataEditor(row.id)?.selected()
+                  ? 'Edición elegida'
+                  : 'Obra propuesta · sin confirmar'
+              "
               [locked]="workflow.locked()"
               [batchDuplicate]="batchDuplicates().has(row.id)"
               (review)="openCandidate($event)"
@@ -452,6 +463,24 @@
             </section>
           }
         }
+      }
+      @for (manual of workflow.manualCandidates(); track manual.id) {
+        <section [hidden]="activeCandidate() !== manual.id">
+          <h3>{{ manual.observation.title }}</h3>
+          <p>Origen: introducido manualmente · sin fotografía</p>
+          <app-photo-metadata-candidate
+            [observation]="manual.observation"
+            [candidateId]="manual.id"
+            [userEntered]="true"
+            [preferredLanguage]="preferredLanguage()"
+            [batchBusy]="batchSearching()"
+            [simulated]="false"
+            [locked]="candidateLocked(manual.id)"
+            (searchSettled)="metadataSettled(manual.id)"
+            (identificationChanged)="manualChanged(manual.id, $event)"
+            (reviewRequested)="reviewManual(manual.id, $event)"
+          />
+        </section>
       }
       @if (activeRow(); as row) {
         <p role="status">{{ workflow.label(row.state) }}. {{ row.message }}</p>

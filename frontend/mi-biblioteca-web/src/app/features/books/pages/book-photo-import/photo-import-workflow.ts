@@ -6,6 +6,11 @@ import { BookFormValue } from '../../components/book-form/book-form.helpers';
 import { validConfirmedBookRequest } from '../../components/book-form/book-form.factory';
 import { PhotoImportReviewDialog } from '../../components/photo-import-review-dialog/photo-import-review-dialog';
 import {
+  ManualCandidateDialog,
+  ManualCandidateResult,
+} from '../../components/manual-candidate-dialog/manual-candidate-dialog';
+import { PhotoObservation } from '../../models/book-photo-import.models';
+import {
   PhotoImportConfirmDialog,
   PhotoImportConfirmation,
 } from '../../components/photo-import-confirm-dialog/photo-import-confirm-dialog';
@@ -38,6 +43,13 @@ export interface PhotoImportCandidate {
   bookId: number | null;
   message: string | null;
 }
+/** A candidate typed by the user: no photograph, no recognition, no Book until explicitly imported. */
+export interface ManualCandidate {
+  readonly id: string;
+  readonly observation: PhotoObservation;
+}
+export const MANUAL_SOURCE = 'Añadido manualmente';
+export const isManualCandidate = (id: string): boolean => id.startsWith('manual:');
 export const emptyPhotoDraft = (): BookFormValue => ({
   title: '',
   author: '',
@@ -72,6 +84,9 @@ export class PhotoImportWorkflow {
   private dialogRef: MatDialogRef<unknown> | null = null;
   private generation = 0;
   private manualId = 0;
+  readonly manualCandidates = signal<readonly ManualCandidate[]>([]);
+  /** Id of a manual candidate whose bibliographic search was explicitly requested in the dialog. */
+  readonly searchRequest = signal<string | null>(null);
   readonly rows = signal<PhotoImportCandidate[]>([]);
   readonly simulated = signal(true);
   readonly creating = signal(false);
@@ -147,9 +162,64 @@ export class PhotoImportWorkflow {
   }
   addManual(): void {
     if (this.locked()) return;
+    this.dialogOpen.set(true);
+    const ref = this.dialogs.open<ManualCandidateDialog, void, ManualCandidateResult>(
+      ManualCandidateDialog,
+      { width: '34rem', maxWidth: '95vw' },
+    );
+    this.dialogRef = ref;
+    ref
+      .afterClosed()
+      .pipe(take(1))
+      .subscribe((result) => {
+        if (this.destroy.destroyed || this.dialogRef !== ref) return;
+        this.dialogRef = null;
+        this.dialogOpen.set(false);
+        if (result) this.addManualCandidate(result);
+      });
+  }
+  /** Adds a page-local candidate only: no Book is created and no recognition/provider call is made. */
+  addManualCandidate(value: ManualCandidateResult): string {
     const id = `manual:${++this.manualId}`;
-    this.source(id, 'Añadido manualmente', emptyPhotoDraft());
-    this.review(id);
+    const draft = {
+      ...emptyPhotoDraft(),
+      title: value.title,
+      author: value.author,
+      isbn: value.isbn,
+    };
+    this.manualCandidates.update((list) => [
+      ...list,
+      {
+        id,
+        observation: {
+          id,
+          visibleText: null,
+          title: value.title,
+          author: value.author,
+          rawIsbn: value.isbn || null,
+          legibility: 'CLEAR',
+          warnings: [],
+        },
+      },
+    ]);
+    this.rows.update((rows) => [
+      ...rows,
+      {
+        id,
+        source: MANUAL_SOURCE,
+        draft,
+        request: null,
+        state: 'pending',
+        selected: false,
+        revision: 0,
+        duplicates: null,
+        approvedMatches: null,
+        bookId: null,
+        message: null,
+      },
+    ]);
+    if (value.search) this.searchRequest.set(id);
+    return id;
   }
   review(id: string): void {
     const row = this.row(id);

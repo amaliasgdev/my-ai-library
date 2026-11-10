@@ -38,7 +38,11 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
           <div>
             <h3>{{ row().draft.title || 'Título sin identificar' }}</h3>
             <p>{{ row().draft.author || 'Autor sin identificar' }}</p>
-            <p>Legibilidad: {{ legibility() }}</p>
+            @if (manual()) {
+              <p class="state">Introducido manualmente · sin fotografía</p>
+            } @else {
+              <p>Legibilidad: {{ legibility() }}</p>
+            }
             <p class="state" role="status">{{ status() }}</p>
             @if (row().state === 'pending') {
               <p role="status">{{ metadataStatus() }}</p>
@@ -151,6 +155,7 @@ export class PhotoCandidateCard {
   readonly row = input.required<PhotoImportCandidate>();
   readonly locked = input(false);
   readonly legibility = input('No indicada');
+  readonly manual = input(false);
   readonly batchDuplicate = input(false);
   readonly metadataStatus = input('Pendiente de búsqueda');
   readonly proposedCover = input<string | null>(null);
