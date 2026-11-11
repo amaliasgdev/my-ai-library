@@ -171,7 +171,9 @@ describe('GenreFilterSelect catalog multi-select', () => {
     host.loading.set(false);
     host.error.set(true);
     await stabilize();
-    expect(fixture.nativeElement.querySelector('.genre-error')?.getAttribute('role')).toBe('alert');
+    expect(
+      fixture.nativeElement.querySelector('.genre-error [role="alert"]')?.textContent,
+    ).toContain('No se pudieron cargar los géneros');
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLButtonElement>('.genre-error button')!
       .click();

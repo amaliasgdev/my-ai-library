@@ -18,16 +18,19 @@
 </mat-form-field>
 
 @if (optionsLoading()) {
-  <p class="genre-status" role="status">Cargando géneros…</p>
+  <app-inline-feedback variant="info" [announce]="false"> Cargando géneros… </app-inline-feedback>
 } @else if (optionsError()) {
-  <p class="genre-error" role="alert">
-    No se pudieron cargar los géneros.
-    <button mat-button type="button" (click)="retryOptions.emit()">Reintentar</button>
-  </p>
+  <app-inline-feedback
+    variant="error"
+    class="genre-error"
+    actionLabel="Reintentar"
+    (action)="retryOptions.emit()"
+    >No se pudieron cargar los géneros.</app-inline-feedback
+  >
 }
 
 @if (notice()) {
-  <p class="genre-notice" role="alert">{{ notice() }}</p>
+  <app-inline-feedback variant="warning" class="genre-notice">{{ notice() }}</app-inline-feedback>
 }
 
 @if (selected().length > 0 || genreUnassigned()) {

@@ -37,6 +37,7 @@ import {
 } from '../../models/book-photo-import.models';
 import { BookPhotoImportService } from '../../services/book-photo-import.service';
 import { PhotoMetadataCandidate } from '../../components/photo-metadata-candidate/photo-metadata-candidate';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 interface LocalPhoto {
   readonly id: number;
@@ -67,6 +68,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
     PhotoCandidateCard,
     MatSelectModule,
     MatFormFieldModule,
+    InlineFeedback,
   ],
   providers: [PhotoImportWorkflow, PhotoReadingListWorkflow],
   templateUrl: './book-photo-import.html',

@@ -18,6 +18,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import {
   BookResponse,
   BookUpdateAction,
@@ -66,6 +67,7 @@ const datePair: ValidatorFn = (control: AbstractControl): ValidationErrors | nul
     MatFormFieldModule,
     MatInputModule,
     MatDatepickerModule,
+    InlineFeedback,
   ],
   providers: [
     provideNativeDateAdapter({

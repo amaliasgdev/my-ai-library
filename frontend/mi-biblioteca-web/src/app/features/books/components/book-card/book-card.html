@@ -19,7 +19,7 @@
         {{ compactAction ? progressLabels[compactAction] : '' }}
       </p>
       @if (updateError()) {
-        <p class="update-error" role="alert">{{ updateError() }}</p>
+        <app-inline-feedback variant="error">{{ updateError() }}</app-inline-feedback>
       }
     </mat-card-content>
     <mat-card-actions class="compact-actions">
@@ -251,7 +251,7 @@
       @let action = pendingAction();
       <p role="status" aria-live="polite">{{ action ? progressLabels[action] : '' }}</p>
       @if (updateError()) {
-        <p class="update-error" role="alert">{{ updateError() }}</p>
+        <app-inline-feedback variant="error">{{ updateError() }}</app-inline-feedback>
       }
     </mat-card-content>
     @if (membership(); as list) {

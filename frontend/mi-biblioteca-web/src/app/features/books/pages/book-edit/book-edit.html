@@ -6,13 +6,10 @@
   @let current = state();
   @switch (current.status) {
     @case ('loading') {
-      <div class="loading">
-        <mat-spinner diameter="40" aria-label="Cargando libro" />
-        <p role="status" aria-live="polite">Cargando libro…</p>
-      </div>
+      <app-loading-state message="Cargando libro…" />
     }
     @case ('error') {
-      <p class="error-panel" role="alert">{{ current.message }}</p>
+      <app-inline-feedback variant="error">{{ current.message }}</app-inline-feedback>
     }
     @case ('loaded') {
       <section class="cover-section" aria-labelledby="cover-heading">
@@ -64,23 +61,21 @@
             </button>
           }
         </div>
-        <p role="status" aria-live="polite">
-          {{
-            coverOperation() === 'uploading'
-              ? 'Subiendo portada…'
-              : coverOperation() === 'deleting'
-                ? 'Eliminando portada…'
-                : coverOperation() === 'reloading'
-                  ? 'Actualizando información del libro…'
-                  : ''
-          }}
-        </p>
+        @if (coverOperation() === 'uploading') {
+          <app-inline-feedback variant="info">Subiendo portada…</app-inline-feedback>
+        } @else if (coverOperation() === 'deleting') {
+          <app-inline-feedback variant="info">Eliminando portada…</app-inline-feedback>
+        } @else if (coverOperation() === 'reloading') {
+          <app-inline-feedback variant="info">
+            Actualizando información del libro…
+          </app-inline-feedback>
+        }
         @if (coverError()) {
-          <p class="error-panel" role="alert">{{ coverError() }}</p>
+          <app-inline-feedback variant="error">{{ coverError() }}</app-inline-feedback>
         }
       </section>
       @if (generalError()) {
-        <p class="error-panel" role="alert">{{ generalError() }}</p>
+        <app-inline-feedback variant="error">{{ generalError() }}</app-inline-feedback>
       }
       <app-book-form
         [initialBook]="initialBook()"

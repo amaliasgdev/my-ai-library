@@ -5,17 +5,17 @@
   </p>
 
   @if (analyzing()) {
-    <p role="status">
+    <app-inline-feedback variant="info">
       Analizando fotografías: {{ analysisCompleted() }} de {{ analysisTotal() }} finalizadas.
-    </p>
+    </app-inline-feedback>
     <button mat-button type="button" (click)="cancelAnalysis()">
       Detener análisis de fotografías
     </button>
   }
   @if (workflow.creating() || reading.pending()) {
-    <p role="status">
+    <app-inline-feedback variant="warning">
       Hay una operación de importación o lista de lectura en curso. Cambiar de paso no la cancela.
-    </p>
+    </app-inline-feedback>
     <button mat-button type="button" (click)="goToStep(3)">Ver progreso de importación</button>
   }
   <mat-stepper
@@ -27,7 +27,7 @@
     <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
     <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
     <mat-step label="Fotografías">
-      <p class="notice" id="recognition-notice">
+      <app-inline-feedback variant="neutral" [announce]="false" id="recognition-notice">
         @if (availabilityLoading()) {
           Consultando disponibilidad del reconocimiento…
         } @else if (available() && realProvider()) {
@@ -46,12 +46,15 @@
           fotografías localmente, pero no analizarlas. Puedes añadir manualmente candidatos y
           revisarlos. No se envían imágenes al seleccionar.
         }
-      </p>
+      </app-inline-feedback>
       @if (availabilityError()) {
-        <p role="alert">No se pudo consultar la disponibilidad. No se permite iniciar análisis.</p>
-        <button mat-button type="button" (click)="loadCapabilities()">
-          Reintentar disponibilidad
-        </button>
+        <app-inline-feedback
+          variant="error"
+          actionLabel="Reintentar disponibilidad"
+          (action)="loadCapabilities()"
+          >No se pudo consultar la disponibilidad. No se permite iniciar
+          análisis.</app-inline-feedback
+        >
       }
 
       <section
@@ -119,13 +122,13 @@
         <p>{{ photos().length }} de {{ maxPhotos }} fotografías seleccionadas.</p>
       </div>
       @if (errors().length) {
-        <div class="error-panel" role="alert">
+        <app-inline-feedback variant="error">
           <ul>
             @for (error of errors(); track $index) {
               <li>{{ error }}</li>
             }
           </ul>
-        </div>
+        </app-inline-feedback>
       }
 
       <p id="photo-rotation-help">
@@ -327,8 +330,14 @@
                   [style.transform]="'rotate(' + group.photo.rotationDegrees + 'deg)'"
                 />
               </div>
-              @for (warning of result.warnings; track $index) {
-                <p>{{ warning }}</p>
+              @if (result.warnings.length) {
+                <app-inline-feedback variant="warning">
+                  <ul>
+                    @for (warning of result.warnings; track $index) {
+                      <li>{{ warning }}</li>
+                    }
+                  </ul>
+                </app-inline-feedback>
               }
             </mat-expansion-panel>
           } @else {
@@ -445,8 +454,14 @@
                   Texto visible (evidencia): {{ observation.visibleText ?? 'Sin texto' }}
                 </p>
                 <p>ISBN visible propuesto: {{ observation.rawIsbn ?? 'No visible' }}</p>
-                @for (warning of observation.warnings; track $index) {
-                  <p>{{ warning }}</p>
+                @if (observation.warnings.length) {
+                  <app-inline-feedback variant="warning">
+                    <ul>
+                      @for (warning of observation.warnings; track $index) {
+                        <li>{{ warning }}</li>
+                      }
+                    </ul>
+                  </app-inline-feedback>
                 }
               </mat-expansion-panel>
               <app-photo-metadata-candidate

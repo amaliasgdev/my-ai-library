@@ -103,7 +103,7 @@ describe('Reading list catalog/detail integration', () => {
     flushMembership(true);
     page.membership.add(42);
     http.expectNone('/api/reading-list/items');
-    expect(harness.routeNativeElement!.textContent).toContain('Libro añadido');
+    expect(document.body.textContent).toContain('Libro añadido a la lista de lectura.');
   });
 
   it.each([409, 500, 0])(

@@ -12,6 +12,7 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-dis
 import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
 import { ReadingListAction } from '../../../reading-list/reading-list-action';
 import { StarRating } from '../star-rating/star-rating';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-book-card',
@@ -25,6 +26,7 @@ import { StarRating } from '../star-rating/star-rating';
     MatMenuModule,
     ReadingListAction,
     StarRating,
+    InlineFeedback,
   ],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',

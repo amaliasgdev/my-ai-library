@@ -26,6 +26,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import {
   EMPTY_GENRE_FILTER,
   GenreFilterValue,
@@ -51,6 +52,7 @@ import {
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
+    InlineFeedback,
   ],
   templateUrl: './genre-filter-select.html',
   styleUrl: './genre-filter-select.scss',

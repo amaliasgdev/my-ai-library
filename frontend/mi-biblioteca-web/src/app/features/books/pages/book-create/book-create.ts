@@ -9,10 +9,12 @@ import { BookRequest } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-book-create',
-  imports: [BookForm],
+  imports: [BookForm, InlineFeedback],
   templateUrl: './book-create.html',
   styleUrl: './book-create.scss',
 })
@@ -22,6 +24,7 @@ export class BookCreate {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
+  private readonly feedback = inject(FeedbackService);
   private scanRef: MatDialogRef<IsbnScanDialog, string> | null = null;
   readonly detectedIsbn = signal<string | null>(null);
   readonly editor = viewChild.required(BookForm);
@@ -164,6 +167,7 @@ export class BookCreate {
       )
       .subscribe({
         next: () => {
+          this.feedback.success('Libro creado.');
           void this.router.navigate(['/books']);
         },
         error: (error: unknown) => {

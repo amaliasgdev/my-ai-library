@@ -7,21 +7,11 @@ h1 {
   line-height: 1.2;
 }
 
-.notice,
-.photo-input,
-.error-panel {
+.photo-input {
   padding: 1rem;
   margin-block: 1rem;
-  border-radius: var(--app-panel-radius);
-}
-
-.notice {
-  background: var(--mat-sys-surface-container);
-  color: var(--mat-sys-on-surface);
-}
-
-.photo-input {
   border: 2px dashed var(--mat-sys-outline);
+  border-radius: var(--app-panel-radius);
 }
 
 .actions {
@@ -31,10 +21,8 @@ h1 {
   margin-block: 1rem;
 }
 
-.error-panel {
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
-  overflow-wrap: anywhere;
+app-inline-feedback {
+  margin-block: 1rem;
 }
 
 .photo-grid {

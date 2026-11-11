@@ -2,6 +2,7 @@ mat-form-field {
   display: block;
   width: 100%;
 }
-.error {
-  color: var(--mat-sys-error);
+
+app-inline-feedback {
+  margin-block: 0.75rem;
 }

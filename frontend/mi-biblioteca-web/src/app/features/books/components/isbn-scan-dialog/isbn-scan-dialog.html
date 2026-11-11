@@ -16,7 +16,7 @@
   </p>
   <p>El código de barras se procesa en tu dispositivo.</p>
   <p>Al detectar un ISBN, se consultarán sus datos para completar los campos vacíos.</p>
-  <p role="status" aria-live="polite">
+  <app-inline-feedback variant="info">
     @switch (state()) {
       @case ('requestingCamera') {
         Solicitando acceso a la cámara…
@@ -34,12 +34,12 @@
         Puedes seleccionar una imagen o reintentar la cámara.
       }
     }
-  </p>
+  </app-inline-feedback>
   @if (warning()) {
-    <p role="status" aria-live="polite">{{ warning() }}</p>
+    <app-inline-feedback variant="warning">{{ warning() }}</app-inline-feedback>
   }
   @if (error()) {
-    <p role="alert">{{ error() }}</p>
+    <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
   }
   @if (diagnosticsEnabled) {
     <button

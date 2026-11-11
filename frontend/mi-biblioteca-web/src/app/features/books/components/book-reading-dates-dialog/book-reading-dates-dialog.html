@@ -33,22 +33,24 @@
       }
     </mat-form-field>
     @if (form.hasError('emptyDates')) {
-      <p>Para borrar ambas fechas, usa Eliminar fechas.</p>
+      <app-inline-feedback variant="info">
+        Para borrar ambas fechas, usa Eliminar fechas.
+      </app-inline-feedback>
     }
     @if (form.hasError('dateOrder')) {
-      <p role="alert">La fecha de fin no puede ser anterior a la de inicio.</p>
+      <app-inline-feedback variant="error">
+        La fecha de fin no puede ser anterior a la de inicio.
+      </app-inline-feedback>
     }
-    <p role="status" aria-live="polite">
-      {{
-        pending()
-          ? pendingAction() === 'deleteReadingDates'
-            ? 'Eliminando fechas…'
-            : 'Actualizando fechas…'
-          : ''
-      }}
-    </p>
+    @if (pending()) {
+      <app-inline-feedback variant="info">
+        {{
+          pendingAction() === 'deleteReadingDates' ? 'Eliminando fechas…' : 'Actualizando fechas…'
+        }}
+      </app-inline-feedback>
+    }
     @if (error()) {
-      <p class="error" role="alert">{{ error() }}</p>
+      <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
     }
   </mat-dialog-content>
   <mat-dialog-actions>

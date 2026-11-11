@@ -277,9 +277,9 @@ describe('catalog multi-genre filter with real Router and HTTP boundary', () => 
     genreRequest().flush({}, { status: 500, statusText: 'Error' });
     await stable();
     expect(harness.routeNativeElement!.textContent).toContain('No se pudieron cargar los géneros');
-    expect(harness.routeNativeElement!.querySelector('.genre-error')?.getAttribute('role')).toBe(
-      'alert',
-    );
+    expect(
+      harness.routeNativeElement!.querySelector('.genre-error [role="alert"]')?.textContent,
+    ).toContain('No se pudieron cargar los géneros');
     harness.routeNativeElement!.querySelector<HTMLButtonElement>('.genre-error button')!.click();
     await stable();
     genreRequest().flush(['Terror']);

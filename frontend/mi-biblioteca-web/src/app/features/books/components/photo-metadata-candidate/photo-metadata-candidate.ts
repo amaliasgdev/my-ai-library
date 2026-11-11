@@ -29,6 +29,7 @@ import {
   normalizedMetadataIsbn,
 } from '../../models/book-metadata.models';
 import { BooksService } from '../../services/books.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-photo-metadata-candidate',
@@ -39,6 +40,7 @@ import { BooksService } from '../../services/books.service';
     MatInputModule,
     MatSelectModule,
     MatExpansionModule,
+    InlineFeedback,
   ],
   templateUrl: './photo-metadata-candidate.html',
   styleUrl: './photo-metadata-candidate.scss',

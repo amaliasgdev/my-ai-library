@@ -61,8 +61,8 @@ mat-card-subtitle {
   }
 }
 
-.update-error {
-  color: var(--mat-sys-error);
+app-inline-feedback {
+  margin-block: 0.5rem;
 }
 
 .reading-dates {
@@ -117,7 +117,7 @@ mat-card-subtitle {
   }
 }
 
-.compact-content .update-error {
+.compact-content app-inline-feedback {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
 }

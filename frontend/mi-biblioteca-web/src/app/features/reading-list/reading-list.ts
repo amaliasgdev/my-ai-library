@@ -22,6 +22,9 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../books/models/book-
 import { ReadingStatus } from '../books/models/book.models';
 import { localDateString } from '../books/models/reading-date';
 import { BooksService } from '../books/services/books.service';
+import { EmptyState } from '../../core/ui/feedback/empty-state';
+import { InlineFeedback, InlineFeedbackVariant } from '../../core/ui/feedback/inline-feedback';
+import { LoadingState } from '../../core/ui/feedback/loading-state';
 import { ReadingListItem, ReadingListResponse } from './reading-list.models';
 import { ReadingListService } from './reading-list.service';
 
@@ -37,6 +40,9 @@ type LoadState =
     MatFormFieldModule,
     MatSelectModule,
     DragDropModule,
+    EmptyState,
+    InlineFeedback,
+    LoadingState,
   ],
   templateUrl: './reading-list.html',
   styleUrl: './reading-list.scss',
@@ -56,6 +62,7 @@ export class ReadingList {
   readonly busy = signal(false);
   readonly synchronizing = signal(false);
   readonly notice = signal('');
+  readonly noticeVariant = signal<InlineFeedbackVariant>('info');
   readonly failedCovers = signal<ReadonlySet<string>>(new Set());
   readonly labels = READING_STATUS_LABELS;
   readonly statuses: ReadingStatus[] = ['TO_READ', 'READING', 'READ', 'ABANDONED'];
@@ -104,6 +111,7 @@ export class ReadingList {
     if (this.busy() || this.datesDialog || status === this.filter()) return;
     this.filter.set(status);
     this.notice.set('');
+    this.noticeVariant.set('info');
     this.reload.next();
   }
 
@@ -238,6 +246,7 @@ export class ReadingList {
   ): void {
     if (this.busy()) return;
     this.busy.set(true);
+    this.noticeVariant.set('info');
     this.notice.set('Guardando cambios…');
     if (dialog) {
       dialog.disableClose = true;
@@ -250,6 +259,7 @@ export class ReadingList {
     request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         dialog?.close();
+        this.noticeVariant.set('success');
         this.notice.set(success);
         this.synchronizing.set(true);
         this.reload.next();
@@ -258,6 +268,7 @@ export class ReadingList {
         const status = error instanceof HttpErrorResponse ? error.status : 0;
         if (status === 409 || status === 0 || status >= 500) {
           dialog?.close();
+          this.noticeVariant.set('warning');
           this.notice.set(
             status === 409
               ? 'La lista o el libro han cambiado. Se consulta el estado actual.'
@@ -271,6 +282,7 @@ export class ReadingList {
             status === 404
               ? 'El libro o la entrada ya no existe. Actualiza la lista.'
               : 'No se pudo guardar el cambio. Revisa los datos.';
+          this.noticeVariant.set('error');
           this.notice.set(message);
           if (dialog) {
             dialog.disableClose = false;

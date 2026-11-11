@@ -17,6 +17,7 @@ import {
 import { BookRequest } from '../../models/book.models';
 import { MetadataDuplicates } from '../../models/book-metadata.models';
 import { BooksService } from '../../services/books.service';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
 import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 
 export type PhotoCandidateState =
@@ -78,6 +79,7 @@ export class PhotoImportWorkflow {
   private readonly reading = inject(PhotoReadingListWorkflow);
   private readonly books = inject(BooksService);
   private readonly dialogs = inject(MatDialog);
+  private readonly feedback = inject(FeedbackService);
   private readonly destroy = inject(DestroyRef);
   private readonly reads = new Map<string, Subscription>();
   private write: Subscription | null = null;
@@ -438,6 +440,10 @@ export class PhotoImportWorkflow {
     const next = this.stopped() ? undefined : queue.shift();
     if (!next) {
       this.creating.set(false);
+      if (this.completed() > 0) {
+        if (this.stopped()) this.feedback.info('Importación fotográfica detenida.');
+        else this.feedback.success('Importación fotográfica completada.');
+      }
       return;
     }
     const row = this.row(next.id);

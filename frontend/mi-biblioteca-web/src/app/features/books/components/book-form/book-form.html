@@ -33,18 +33,18 @@
             Escanear ISBN
           </button>
         }
-        <p>Completa los campos vacíos. Revisa los datos antes de guardar.</p>
-        <p role="status" aria-live="polite">
-          {{
-            lookupLoading()
-              ? 'Consultando ISBN…'
-              : lookupSuccess()
-                ? 'Consulta completada. Revisa y completa los datos antes de guardar.'
-                : ''
-          }}
-        </p>
+        <app-inline-feedback variant="neutral" [announce]="false">
+          Completa los campos vacíos. Revisa los datos antes de guardar.
+        </app-inline-feedback>
+        @if (lookupLoading()) {
+          <app-inline-feedback variant="info">Consultando ISBN…</app-inline-feedback>
+        } @else if (lookupSuccess()) {
+          <app-inline-feedback variant="success">
+            Consulta completada. Revisa y completa los datos antes de guardar.
+          </app-inline-feedback>
+        }
         @if (lookupError()) {
-          <p class="field-error" role="alert">{{ lookupError() }}</p>
+          <app-inline-feedback variant="error">{{ lookupError() }}</app-inline-feedback>
         }
       </div>
     }
@@ -113,7 +113,9 @@
       }
     </div>
   </div>
-  <p role="status" aria-live="polite">{{ submitting() ? submissionMessage() : '' }}</p>
+  @if (submitting()) {
+    <app-inline-feedback variant="info">{{ submissionMessage() }}</app-inline-feedback>
+  }
   <div class="actions">
     <button mat-flat-button type="submit" [disabled]="submitting() || saveDisabled()">
       {{ saveLabel() }}

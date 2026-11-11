@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   catchError,
@@ -29,6 +28,9 @@ import { COVERS_CONFIG } from '../../../../core/config/covers.config';
 import { isManagedCover } from '../../models/managed-cover';
 import { parseBookId } from '../../models/book-id';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
+import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 
 type EditState =
   | { status: 'loading' }
@@ -46,7 +48,7 @@ function loadError(error: unknown): string {
 
 @Component({
   selector: 'app-book-edit',
-  imports: [BookForm, MatButtonModule, MatProgressSpinnerModule],
+  imports: [BookForm, MatButtonModule, InlineFeedback, LoadingState],
   templateUrl: './book-edit.html',
   styleUrl: './book-edit.scss',
 })
@@ -56,6 +58,7 @@ export class BookEdit {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly coversConfig = inject(COVERS_CONFIG);
+  private readonly feedback = inject(FeedbackService);
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('coverFile');
   readonly editor = viewChild(BookForm);
   readonly state = signal<EditState>({ status: 'loading' });
@@ -284,6 +287,7 @@ export class BookEdit {
       )
       .subscribe({
         next: () => {
+          this.feedback.success('Libro actualizado.');
           this.returnToCatalog();
         },
         error: (error: unknown) => {

@@ -1,6 +1,10 @@
 <section aria-labelledby="books-heading">
   <h1 id="books-heading" tabindex="-1">Mi Biblioteca</h1>
-  <p aria-live="polite" aria-atomic="true">{{ membership.message() }}</p>
+  @if (membership.message()) {
+    <app-inline-feedback [variant]="membership.messageVariant()">{{
+      membership.message()
+    }}</app-inline-feedback>
+  }
   <div class="catalog-create-actions">
     <a mat-flat-button routerLink="/books/new">Añadir libro</a>
     <a mat-button routerLink="/books/import" [queryParams]="catalogParams()">Importar ISBN</a>
@@ -56,10 +60,14 @@
       </mat-form-field>
     </div>
     @if (searchForm.touched && searchForm.hasError('noCriteria')) {
-      <p class="search-validation" role="alert">Introduce al menos un título, autor o ISBN</p>
+      <app-inline-feedback variant="error"
+        >Introduce al menos un título, autor o ISBN</app-inline-feedback
+      >
     }
     @if (searchForm.touched && searchForm.hasError('exclusiveIsbn')) {
-      <p class="search-validation" role="alert">El ISBN no se puede combinar con título o autor</p>
+      <app-inline-feedback variant="error"
+        >El ISBN no se puede combinar con título o autor</app-inline-feedback
+      >
     }
     <div class="search-actions">
       <button mat-flat-button type="submit" [disabled]="deletingId() !== null">Buscar</button>
@@ -97,7 +105,7 @@
     </div>
   </section>
   @if (deleteError()) {
-    <p class="error-panel" role="alert">{{ deleteError() }}</p>
+    <app-inline-feedback variant="error">{{ deleteError() }}</app-inline-feedback>
   }
   <form
     class="filters-form"
@@ -165,7 +173,9 @@
       filtersForm.hasError('yearRange') &&
       (filtersForm.controls.yearFrom.touched || filtersForm.controls.yearTo.touched)
     ) {
-      <p role="alert">El año hasta no puede ser anterior al año desde</p>
+      <app-inline-feedback variant="error"
+        >El año hasta no puede ser anterior al año desde</app-inline-feedback
+      >
     }
     <div class="filters-actions">
       <button mat-flat-button type="submit" [disabled]="deletingId() !== null">
@@ -177,7 +187,9 @@
     </div>
   </form>
   <div class="catalog-toolbar">
-    <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+    @if (announcement()) {
+      <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+    }
     <mat-form-field appearance="outline" class="cards-per-row" subscriptSizing="dynamic">
       <mat-label>Tarjetas por fila</mat-label>
       <mat-icon matPrefix svgIcon="mb-grid-view" aria-hidden="true" />
@@ -192,15 +204,12 @@
     @let current = state();
     @switch (current.status) {
       @case ('loading') {
-        <div class="loading">
-          <mat-spinner diameter="40" aria-label="Cargando libros" />
-        </div>
+        <app-loading-state message="Cargando libros…" />
       }
       @case ('error') {
-        <div class="error-panel">
-          <p role="alert">{{ current.message }}</p>
-          <button mat-flat-button type="button" (click)="retry()">Reintentar</button>
-        </div>
+        <app-inline-feedback variant="error" actionLabel="Reintentar" (action)="retry()">{{
+          current.message
+        }}</app-inline-feedback>
       }
       @case ('success') {
         @if (current.response.content.length > 0) {
@@ -234,7 +243,29 @@
             }
           </ul>
         } @else if (current.response.totalElements > 0) {
-          <button mat-button type="button" (click)="firstPage()">Volver a la primera página</button>
+          <app-empty-state
+            title="No hay libros en esta página"
+            description="La página solicitada ya no contiene resultados."
+            [live]="true"
+          >
+            <button mat-button type="button" (click)="firstPage()">
+              Volver a la primera página
+            </button>
+          </app-empty-state>
+        } @else if (currentSearch() || hasAppliedFilters()) {
+          <app-empty-state
+            title="No se encontraron libros"
+            description="Prueba a cambiar la búsqueda o los filtros aplicados."
+            [live]="true"
+          />
+        } @else {
+          <app-empty-state
+            title="Tu biblioteca todavía no tiene libros"
+            description="Añade tu primer libro para empezar a organizar tu biblioteca."
+            [live]="true"
+          >
+            <a mat-flat-button routerLink="/books/new">Añadir libro</a>
+          </app-empty-state>
         }
       }
     }

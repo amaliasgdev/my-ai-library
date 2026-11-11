@@ -35,8 +35,10 @@
   gap: 0.75rem;
 }
 
-.search-validation {
-  color: var(--mat-sys-error);
+app-inline-feedback,
+app-empty-state,
+app-loading-state {
+  margin-block: 1rem;
 }
 
 @media (max-width: 48rem) {
@@ -60,19 +62,6 @@ h1 {
 
 .catalog-content {
   min-height: 8rem;
-}
-
-.loading {
-  display: grid;
-  place-items: center;
-  padding: 2rem;
-}
-
-.error-panel {
-  padding: 1.5rem;
-  border-radius: var(--app-panel-radius);
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
 }
 
 .catalog-toolbar {

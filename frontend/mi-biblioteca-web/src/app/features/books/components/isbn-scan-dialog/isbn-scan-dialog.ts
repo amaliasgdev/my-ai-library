@@ -11,6 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import {
   ISBN_SCAN_DIAGNOSTICS_ENABLED,
   IsbnBarcodeReader,
@@ -21,7 +22,7 @@ import {
 
 @Component({
   selector: 'app-isbn-scan-dialog',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, MatButtonModule, InlineFeedback],
   providers: [IsbnBarcodeReader],
   templateUrl: './isbn-scan-dialog.html',
   styleUrl: './isbn-scan-dialog.scss',

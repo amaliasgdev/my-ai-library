@@ -1,10 +1,11 @@
 import { Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { InlineFeedback } from '../../core/ui/feedback/inline-feedback';
 import { ReadingListMembership } from './reading-list-membership';
 
 @Component({
   selector: 'app-reading-list-action',
-  imports: [MatButtonModule],
+  imports: [MatButtonModule, InlineFeedback],
   template: `
     @switch (membership().state(bookId())) {
       @case ('included') {
@@ -14,7 +15,7 @@ import { ReadingListMembership } from './reading-list-membership';
         <span>Consultando lista de lectura…</span>
       }
       @case ('error') {
-        <span>Pertenencia desconocida.</span>
+        <app-inline-feedback variant="warning">Pertenencia desconocida.</app-inline-feedback>
         <button
           mat-button
           type="button"

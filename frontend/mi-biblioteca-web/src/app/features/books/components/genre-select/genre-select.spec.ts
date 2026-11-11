@@ -200,7 +200,9 @@ describe('GenreSelect multi selection', () => {
     expect(host.genres.value).toEqual(['Fantasía']);
     fixture.detectChanges();
     expect(notice()?.textContent).toContain('«FANTASÍA» ya está seleccionado');
-    expect(notice()?.getAttribute('role')).toBe('alert');
+    expect(notice()?.querySelector('[role="status"]')?.textContent).toContain(
+      'ya está seleccionado',
+    );
   });
 
   it('rejects a duplicate custom genre ignoring accents and shows a notice', async () => {

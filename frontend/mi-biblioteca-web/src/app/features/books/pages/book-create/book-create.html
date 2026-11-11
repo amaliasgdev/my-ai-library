@@ -1,10 +1,10 @@
 <section aria-labelledby="create-heading">
   <h1 id="create-heading">Añadir libro</h1>
   @if (detectedIsbn()) {
-    <p role="status">ISBN detectado: {{ detectedIsbn() }}</p>
+    <app-inline-feedback variant="info">ISBN detectado: {{ detectedIsbn() }}</app-inline-feedback>
   }
   @if (generalError()) {
-    <p role="alert" class="error-panel">{{ generalError() }}</p>
+    <app-inline-feedback variant="error">{{ generalError() }}</app-inline-feedback>
   }
   <app-book-form
     [submitting]="submitting()"

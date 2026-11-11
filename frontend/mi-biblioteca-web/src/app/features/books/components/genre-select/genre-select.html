@@ -19,7 +19,7 @@
 }
 
 @if (notice()) {
-  <p class="genre-notice" role="alert">{{ notice() }}</p>
+  <app-inline-feedback variant="warning" class="genre-notice">{{ notice() }}</app-inline-feedback>
 }
 
 @if (selected().length > 0) {

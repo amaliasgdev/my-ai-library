@@ -34,7 +34,7 @@
     }
   </div>
   @if (error()) {
-    <p role="alert">{{ error() }}</p>
+    <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
   }
   @if (checking()) {
     <h2>2. Analizar / consultar</h2>

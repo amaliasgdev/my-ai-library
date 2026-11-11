@@ -58,16 +58,9 @@ dd {
   gap: 0.5rem;
   margin-block-start: 1.5rem;
 }
-.loading {
-  display: grid;
-  justify-items: center;
-  padding: 2rem;
-}
-.error-panel {
-  padding: 1rem;
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
-  border-radius: var(--app-panel-radius);
+app-inline-feedback,
+app-loading-state {
+  margin-block: 1rem;
 }
 @media (max-width: 42rem) {
   .detail-grid {

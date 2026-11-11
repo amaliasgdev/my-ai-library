@@ -3,6 +3,10 @@ mat-form-field {
   width: 100%;
   margin-block-end: 1rem;
 }
+
+app-inline-feedback {
+  margin-block: 1rem;
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
