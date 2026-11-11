@@ -19,7 +19,8 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
     @Parameter(name = "ratingMin", in = ParameterIn.QUERY, schema = @Schema(type = "integer", minimum = "1", maximum = "5")),
     @Parameter(name = "yearFrom", in = ParameterIn.QUERY, schema = @Schema(type = "integer", minimum = "1", maximum = "2100")),
     @Parameter(name = "yearTo", in = ParameterIn.QUERY, schema = @Schema(type = "integer", minimum = "1", maximum = "2100")),
-    @Parameter(name = "genre", in = ParameterIn.QUERY, description = "Exact case-insensitive array element", schema = @Schema(type = "string", maxLength = 50)),
+    @Parameter(name = "genre", in = ParameterIn.QUERY, style = ParameterStyle.FORM, explode = Explode.TRUE, description = "Repeat for OR; at most 50 occurrences; exact case-insensitive array element, accent-sensitive", array = @ArraySchema(schema = @Schema(type = "string", maxLength = 50))),
+    @Parameter(name = "genreUnassigned", in = ParameterIn.QUERY, description = "Include books with no assigned genres in the genre OR group", schema = @Schema(type = "boolean", defaultValue = "false")),
     @Parameter(name = "language", in = ParameterIn.QUERY, description = "ISO 639-1 code", schema = @Schema(type = "string", minLength = 2, maxLength = 2)),
     @Parameter(name = "publisher", in = ParameterIn.QUERY, description = "Literal case-insensitive substring", schema = @Schema(type = "string", maxLength = 255))
 })

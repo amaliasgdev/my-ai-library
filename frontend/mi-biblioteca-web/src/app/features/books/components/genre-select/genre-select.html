@@ -1,0 +1,70 @@
+<mat-form-field>
+  <mat-label>{{ label() }}</mat-label>
+  <input
+    #searchInput
+    id="genre-search"
+    type="text"
+    matInput
+    [formControl]="searchControl"
+    [matAutocomplete]="genreAuto"
+    maxlength="50"
+    placeholder="Buscar o añadir"
+    (keydown.enter)="onSearchEnter($event)"
+  />
+  <mat-hint>{{ hint() }}. Pulsa Intro para añadir un género personalizado.</mat-hint>
+</mat-form-field>
+
+@if (searchMessage()) {
+  <p class="genre-hint" aria-live="polite">{{ searchMessage() }}</p>
+}
+
+@if (notice()) {
+  <p class="genre-notice" role="alert">{{ notice() }}</p>
+}
+
+@if (selected().length > 0) {
+  <mat-chip-set [attr.aria-label]="chipsLabel()">
+    @for (genre of selected(); track genre) {
+      <mat-chip [disabled]="blocked()">
+        {{ genre }}
+        <button
+          matChipRemove
+          type="button"
+          [disabled]="blocked()"
+          [attr.aria-label]="'Eliminar género ' + genre"
+          (click)="remove(genre)"
+        >
+          ×
+        </button>
+      </mat-chip>
+    }
+  </mat-chip-set>
+}
+
+<mat-autocomplete
+  #genreAuto="matAutocomplete"
+  [autoActiveFirstOption]="true"
+  (optionSelected)="onOptionSelected($event)"
+>
+  @if (options().length === 0) {
+    <mat-option [disabled]="true" class="genre-empty">{{ emptyMessage() }}</mat-option>
+  } @else {
+    @for (option of options(); track option) {
+      <mat-option
+        [value]="option"
+        class="genre-option"
+        [attr.aria-label]="option + (isSelected(option) ? ', seleccionado' : ', no seleccionado')"
+      >
+        <mat-checkbox
+          [checked]="isSelected(option)"
+          aria-hidden="true"
+          tabindex="-1"
+          (click)="$event.stopPropagation()"
+          (change)="setCheckbox(option, $event.checked)"
+        >
+          {{ option }}
+        </mat-checkbox>
+      </mat-option>
+    }
+  }
+</mat-autocomplete>

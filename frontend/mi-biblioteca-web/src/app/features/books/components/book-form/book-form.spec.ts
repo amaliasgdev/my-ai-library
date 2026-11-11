@@ -17,12 +17,12 @@ describe('BookForm without HTTP or routing providers', () => {
     component.form.patchValue({ title: 'Draft', description: 'Exact', pageCount: 100 });
     component.form.controls.title.markAsDirty();
     component.form.controls.title.markAsTouched();
-    component.genreInput.setValue('Pending');
+    component.form.controls.genres.setValue(['Pendiente']);
     component.synchronizeCoverUrl('https://images.example.test/new.png');
     expect(component.form.controls.title.value).toBe('Draft');
     expect(component.form.controls.title.dirty).toBe(true);
     expect(component.form.controls.title.touched).toBe(true);
-    expect(component.genreInput.value).toBe('Pending');
+    expect(component.form.controls.genres.value).toEqual(['Pendiente']);
     component.synchronizeCoverUrl(null);
     expect(component.form.controls.coverUrl.value).toBe('');
     expect(component.form.controls.description.value).toBe('Exact');
@@ -83,48 +83,57 @@ describe('BookForm without HTTP or routing providers', () => {
     expect(requested).toHaveBeenCalledExactlyOnceWith('978-0132350884');
   });
 
-  it('should apply genres using existing limits, uniqueness and per-chip validators', () => {
-    component.applyLookup(
-      testBookLookup({
-        genres: [
-          'Genre',
-          'genre',
-          'x'.repeat(51),
-          ...Array.from({ length: 8 }, (_, index) => String(index)),
-        ],
-      }),
-    );
-    expect(component.form.controls.genres.hasError('genreLimit')).toBe(true);
-    component.form.controls.genres.removeAt(10);
-    expect(component.form.controls.genres.hasError('duplicate')).toBe(true);
-    expect(component.form.controls.genres.at(2).hasError('maxlength')).toBe(true);
-    expect(component.form.controls.genres.untouched).toBe(true);
+  it('should apply lookup genres only when the selection is empty', () => {
+    component.applyLookup(testBookLookup({ genres: ['Novela negra', 'Terror'] }));
+    expect(component.form.controls.genres.value).toEqual(['Novela negra', 'Terror']);
+    expect(component.form.controls.genres.dirty).toBe(true);
+    component.applyLookup(testBookLookup({ genres: ['Poesía'] }));
+    expect(component.form.controls.genres.value).toEqual(['Novela negra', 'Terror']);
+    component.form.controls.genres.reset([]);
+    expect(component.form.controls.genres.pristine).toBe(true);
   });
 
-  it('should emit only a valid full request after processing pending genres', () => {
+  it('should surface lookup genres that violate the shared contract instead of repairing them', () => {
+    component.applyLookup(
+      testBookLookup({ genres: [...Array.from({ length: 11 }, (_, i) => `Género ${i}`)] }),
+    );
+    expect(component.form.controls.genres.hasError('genreLimit')).toBe(true);
+    expect(component.form.controls.genres.untouched).toBe(true);
+    component.form.controls.genres.reset([]);
+    component.applyLookup(testBookLookup({ genres: ['Fantasía', 'fantasía'] }));
+    expect(component.form.controls.genres.hasError('duplicate')).toBe(true);
+  });
+
+  it('should emit a valid full request including the confirmed genres', () => {
     const save = vi.fn();
     component.save.subscribe(save);
-    component.submit();
-    expect(save).not.toHaveBeenCalled();
-    expect(component.form.controls.title.touched).toBe(true);
     component.form.patchValue({ title: 'Libro de prueba', author: 'Autora de prueba' });
-    component.genreInput.setValue(' Aventura ');
+    component.form.controls.genres.setValue([' Aventura ']);
     component.submit();
     expect(save).toHaveBeenCalledWith(testBookRequest({ genres: ['Aventura'] }));
   });
 
-  it('should never discard an invalid pending genre', () => {
+  it('should never save an invalid genre list and focus the genre search input', () => {
     const save = vi.fn();
     component.save.subscribe(save);
     component.form.patchValue({ title: 'Libro', author: 'Autora' });
-    component.genreInput.setValue('x'.repeat(51));
+    component.form.controls.genres.setValue(Array.from({ length: 11 }, (_, i) => `Género ${i}`));
     component.submit();
     expect(save).not.toHaveBeenCalled();
-    expect(component.genreInput.value).toHaveLength(51);
-    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#genre-input'));
+    expect(component.form.controls.genres.touched).toBe(true);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#genre-search'));
   });
 
-  it('should preload a pristine untouched form and not reset user edits when submitting changes', () => {
+  it('should save without genres and never invent a placeholder genre', () => {
+    const save = vi.fn();
+    component.save.subscribe(save);
+    component.form.patchValue({ title: 'Libro', author: 'Autora' });
+    component.submit();
+    expect(save).toHaveBeenCalledWith(testBookRequest({ title: 'Libro', author: 'Autora' }));
+    expect(fixture.nativeElement.textContent).not.toContain('Sin género');
+  });
+
+  it('should preload a pristine untouched form keeping existing genres', () => {
     fixture.componentRef.setInput(
       'initialBook',
       testBook({ genres: ['Aventura'], pageCount: 120 }),
@@ -133,13 +142,14 @@ describe('BookForm without HTTP or routing providers', () => {
     expect(component.form.pristine).toBe(true);
     expect(component.form.untouched).toBe(true);
     expect(component.form.controls.genres.value).toEqual(['Aventura']);
+    expect(fixture.nativeElement.textContent).toContain('Aventura');
     component.form.controls.title.setValue('Edited title');
     fixture.componentRef.setInput('submitting', true);
     fixture.detectChanges();
     expect(component.form.controls.title.value).toBe('Edited title');
   });
 
-  it('should block every action while submitting', () => {
+  it('should block every action while submitting, including the genre selector', () => {
     fixture.componentRef.setInput('initialBook', testBook({ genres: ['Aventura'] }));
     fixture.componentRef.setInput('submitting', true);
     fixture.detectChanges();
@@ -149,11 +159,15 @@ describe('BookForm without HTTP or routing providers', () => {
     component.cancelled.subscribe(cancelled);
     component.submit();
     component.cancel();
-    component.removeGenre(0);
-    expect(component.addGenre()).toBe(false);
     expect(save).not.toHaveBeenCalled();
     expect(cancelled).not.toHaveBeenCalled();
     expect(component.form.controls.genres.value).toEqual(['Aventura']);
+    expect(fixture.nativeElement.querySelector('#genre-search')?.hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(
+      fixture.nativeElement.querySelector('button[aria-label="Eliminar género Aventura"]'),
+    ).toHaveProperty('disabled', true);
   });
 
   it('should apply safe server field errors and preserve local errors until edited', () => {
@@ -163,6 +177,15 @@ describe('BookForm without HTTP or routing providers', () => {
     expect(fixture.nativeElement.textContent).not.toContain('SECRET');
     component.form.controls.title.setValue(' ');
     expect(component.form.controls.title.errors).toEqual({ required: true });
+  });
+
+  it('should map genres and genres[index] server errors onto the genres control', () => {
+    component.applyFieldErrors({ errors: { 'genres[0]': 'SECRET' } });
+    expect(component.form.controls.genres.hasError('server')).toBe(true);
+    component.form.controls.genres.setValue(['Fantasía']);
+    expect(component.form.controls.genres.errors).toBeNull();
+    component.applyFieldErrors({ errors: { genres: 'SECRET' } });
+    expect(component.form.controls.genres.hasError('server')).toBe(true);
   });
 
   it('should mark ISBN conflict and clear it when ISBN is changed', () => {

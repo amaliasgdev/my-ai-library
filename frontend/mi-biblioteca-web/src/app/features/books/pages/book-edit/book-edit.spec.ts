@@ -125,6 +125,15 @@ describe('BookEdit', () => {
     expect(element.querySelector('mat-spinner')).toBeNull();
   });
 
+  it('should cancel genre draft edits without sending a PUT', () => {
+    load(testBook({ id: 42, genres: ['Aventura', 'Fantasía'] }));
+    const editor = component.editor()!;
+    editor.form.controls.genres.setValue(['Aventura']);
+    editor.cancel();
+    expect(navigate).toHaveBeenCalledWith(['/books']);
+    http.expectNone((request) => request.method === 'PUT');
+  });
+
   it('should map textual nulls to empty inputs and numeric nulls to null', () => {
     load();
     const value = component.editor()!.form.getRawValue();
@@ -218,7 +227,7 @@ describe('BookEdit', () => {
       load(testBook({ id: 42, coverUrl: managedCover, genres: ['Aventura'] }));
       const editor = component.editor()!;
       editor.form.controls.coverUrl.setValue(coverUrl);
-      editor.removeGenre(0);
+      editor.form.controls.genres.setValue([]);
       editor.submit();
       const request = http.expectOne('/api/books/42');
       expect(request.request.body.coverUrl).toBe(coverUrl === '' ? null : coverUrl);
@@ -227,7 +236,7 @@ describe('BookEdit', () => {
     },
   );
 
-  it('should process a pending genre and use the shared request normalization', () => {
+  it('should send the confirmed genre selection with the shared request normalization', () => {
     load();
     const editor = component.editor()!;
     editor.form.patchValue({
@@ -238,7 +247,7 @@ describe('BookEdit', () => {
       publicationYear: 2001,
       pageCount: 120,
     });
-    editor.genreInput.setValue(' Aventura ');
+    editor.form.controls.genres.setValue([' Aventura ']);
     editor.submit();
     const request = http.expectOne('/api/books/42');
     expect(request.request.body).toEqual(
@@ -263,8 +272,10 @@ describe('BookEdit', () => {
     fixture.detectChanges();
     editor.submit();
     editor.cancel();
-    editor.removeGenre(0);
-    expect(editor.form.controls.genres.length).toBe(1);
+    (
+      element.querySelector('button[aria-label="Eliminar género Aventura"]') as HTMLButtonElement
+    ).click();
+    expect(editor.form.controls.genres.value).toEqual(['Aventura']);
     expect(component.submitting()).toBe(true);
     expect(element.textContent).toContain('Guardando libro…');
     expect(Array.from(element.querySelectorAll('button')).every((button) => button.disabled)).toBe(
@@ -318,7 +329,7 @@ describe('BookEdit', () => {
         { status: 400, statusText: 'Bad Request' },
       );
     expect(editor.form.controls.coverUrl.hasError('server')).toBe(true);
-    expect(editor.form.controls.genres.at(0).hasError('server')).toBe(true);
+    expect(editor.form.controls.genres.hasError('server')).toBe(true);
     editor.form.controls.coverUrl.setValue('https://example.test/new.png');
     expect(editor.form.controls.coverUrl.errors).toBeNull();
     fixture.detectChanges();

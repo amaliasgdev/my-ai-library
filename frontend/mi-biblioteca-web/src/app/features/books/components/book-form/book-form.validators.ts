@@ -1,5 +1,6 @@
 import { ValidatorFn } from '@angular/forms';
 import { isIsoLanguage } from '../../models/iso-language';
+import { MAX_BOOK_GENRES, normalizeGenreKey } from '../../models/genre-key';
 
 export { CRUD_ISBN_PATTERN } from '../../models/isbn-pattern';
 
@@ -57,8 +58,15 @@ export const httpCoverUrl: ValidatorFn = (control) => {
 };
 
 export const genreList: ValidatorFn = (control) => {
-  const values: string[] = control.value;
-  if (values.length > 10) return { genreLimit: true };
-  const normalized = values.map((value) => value.trim().toLowerCase());
-  return new Set(normalized).size === normalized.length ? null : { duplicate: true };
+  const values: unknown[] = control.value;
+  if (!Array.isArray(values)) return { genreValue: 0 };
+  if (values.length > MAX_BOOK_GENRES) return { genreLimit: true };
+  const keys: string[] = [];
+  for (const [index, value] of values.entries()) {
+    if (typeof value !== 'string') return { genreValue: index };
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > 50) return { genreValue: index };
+    keys.push(normalizeGenreKey(trimmed));
+  }
+  return new Set(keys).size === keys.length ? null : { duplicate: true };
 };

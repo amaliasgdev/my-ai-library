@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.net.URI;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -115,6 +116,26 @@ public class BookController {
         BookFilterRequest filters = BookFilterRequest.fromQuery(parameters);
         return filters.equals(BookFilterRequest.EMPTY) ? bookService.search(request, page, size, sortBy, direction)
             : bookService.search(request, page, size, sortBy, direction, filters);
+    }
+
+    @GetMapping("/genres")
+    @Operation(
+        summary = "List distinct genres currently used by books",
+        description = "Returns trimmed, case-insensitively deduplicated genre labels in deterministic "
+            + "order. Accent differences remain distinct. The list reflects the current catalog and is "
+            + "never persisted separately."
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Distinct genres currently assigned to books",
+        content = @io.swagger.v3.oas.annotations.media.Content(
+            array = @io.swagger.v3.oas.annotations.media.ArraySchema(
+                schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string", maxLength = 50)
+            )
+        )
+    )
+    public List<String> findGenres() {
+        return bookService.findDistinctGenres();
     }
 
     @GetMapping("/{id}")

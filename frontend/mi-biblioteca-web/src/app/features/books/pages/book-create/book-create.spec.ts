@@ -129,7 +129,7 @@ describe('BookCreate', () => {
       language: 'ES',
       coverUrl: 'HTTPS://example.test/a%20b',
     });
-    component.genreInput.setValue(' Fantasía ');
+    component.form.controls.genres.setValue([' Fantasía ']);
     component.submit();
     const request = http.expectOne('/api/books');
     expect(request.request.method).toBe('POST');
@@ -180,69 +180,26 @@ describe('BookCreate', () => {
     );
     component.submit();
     component.cancel();
-    expect(component.addGenre()).toBe(false);
     const request = http.expectOne('/api/books');
     expect(navigate).not.toHaveBeenCalled();
     request.flush(testBook());
   });
 
-  it('should add trimmed genres with Enter, without splitting commas or submitting', () => {
-    component.genreInput.setValue(' Fantasía, aventura ');
-    const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-    element.querySelector('#genre-input')?.dispatchEvent(event);
+  it('should add a custom genre with Enter on the search input without submitting the form', () => {
+    const input = element.querySelector('#genre-search') as HTMLInputElement;
+    input.focus();
+    input.value = ' Fantasía, aventura ';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    input.dispatchEvent(enter);
     fixture.detectChanges();
-    expect(event.defaultPrevented).toBe(true);
+    expect(enter.defaultPrevented).toBe(true);
     expect(component.form.controls.genres.value).toEqual(['Fantasía, aventura']);
+    expect(input.value).toBe('');
     expect(
       element.querySelector('button[aria-label="Eliminar género Fantasía, aventura"]'),
     ).not.toBeNull();
     http.expectNone('/api/books');
-  });
-
-  it('should reject blank, long and duplicate genres without discarding the pending text', () => {
-    validForm();
-    for (const value of [' ', 'x'.repeat(51)]) {
-      component.genreInput.setValue(value);
-      component.submit();
-      expect(component.genreInput.invalid).toBe(true);
-      expect(component.genreInput.value).toBe(value);
-      http.expectNone('/api/books');
-    }
-    component.genreInput.setValue('Fantasía');
-    expect(component.addGenre()).toBe(true);
-    component.genreInput.setValue(' fantasía ');
-    component.submit();
-    expect(component.genreInput.hasError('duplicate')).toBe(true);
-    expect(component.genreInput.value).toBe(' fantasía ');
-    http.expectNone('/api/books');
-  });
-
-  it('should allow ten genres and reject an eleventh', () => {
-    for (let i = 0; i < 10; i++) {
-      component.genreInput.setValue(`Género ${i}`);
-      expect(component.addGenre()).toBe(true);
-    }
-    component.genreInput.setValue('Otro');
-    expect(component.addGenre()).toBe(false);
-    expect(component.genreInput.hasError('genreLimit')).toBe(true);
-    component.removeGenre(0);
-    expect(component.addGenre()).toBe(true);
-  });
-
-  it('should remove chips and block removal during POST', () => {
-    validForm();
-    component.genreInput.setValue('Fantasía');
-    component.addGenre();
-    component.submit();
-    fixture.detectChanges();
-    component.removeGenre(0);
-    expect(component.form.controls.genres.length).toBe(1);
-    http.expectOne('/api/books').flush({}, { status: 500, statusText: 'Error' });
-    fixture.detectChanges();
-    (
-      element.querySelector('button[aria-label="Eliminar género Fantasía"]') as HTMLButtonElement
-    ).click();
-    expect(component.form.controls.genres.length).toBe(0);
   });
 
   it.each([
@@ -299,8 +256,7 @@ describe('BookCreate', () => {
 
   it('should map genres and genres[index], ignore bad indices and clear errors when changed', () => {
     validForm();
-    component.genreInput.setValue('Fantasía');
-    component.addGenre();
+    component.form.controls.genres.setValue(['Fantasía']);
     component.submit();
     http.expectOne('/api/books').flush(
       {
@@ -314,10 +270,7 @@ describe('BookCreate', () => {
       { status: 400, statusText: 'Bad Request' },
     );
     expect(component.form.controls.genres.hasError('server')).toBe(true);
-    const genre = component.form.controls.genres.at(0);
-    expect(genre.hasError('server')).toBe(true);
-    genre.setValue('Aventura');
-    expect(genre.errors).toBeNull();
+    component.form.controls.genres.setValue(['Aventura']);
     expect(component.form.controls.genres.errors).toBeNull();
   });
 

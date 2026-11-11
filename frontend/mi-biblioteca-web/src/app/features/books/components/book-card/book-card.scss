@@ -46,6 +46,8 @@ mat-card-subtitle {
 }
 
 .rating {
+  display: flex;
+  justify-content: flex-start;
   color: var(--mat-sys-on-surface-variant);
 }
 
@@ -80,4 +82,61 @@ mat-card-subtitle {
 .list-action {
   padding: 0.5rem 1rem;
   overflow-wrap: anywhere;
+}
+
+// Compact variant (8 and 10 columns): cover first, a short title, and everything else in a menu.
+.compact-card {
+  .cover-fallback {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+}
+
+.compact-content {
+  padding: 0.5rem 0.5rem 0;
+
+  h2 {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+}
+
+.compact-progress {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.compact-content .update-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+
+.compact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.25rem 0.25rem;
+  gap: 0;
+}
+
+.compact-detail {
+  min-width: 0;
+  padding-inline: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.compact-deleting:empty {
+  display: none;
 }

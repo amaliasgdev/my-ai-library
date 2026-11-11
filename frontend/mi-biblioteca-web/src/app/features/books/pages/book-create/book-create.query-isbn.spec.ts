@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Component } from '@angular/core';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { ActivatedRoute, convertToParamMap, Params, provideRouter, Router } from '@angular/router';
+import { GenreSelect } from '../../components/genre-select/genre-select';
 import { testBookLookup } from '../../models/book.testing';
 import { BookCreate } from './book-create';
 
@@ -104,6 +106,9 @@ describe('BookCreate consumable ISBN URL seed', () => {
     page.editor().form.controls.isbn.setValue('9780132350884');
     expect(page.detectedIsbn()).toBeNull();
   });
+  function genreSelect(): GenreSelect {
+    return fixture.debugElement.query(By.directive(GenreSelect)).componentInstance as GenreSelect;
+  }
   it('keeps lookup partial-application rules and edits made while GET is pending', async () => {
     const page = await create({ isbn });
     const request = lookup();
@@ -113,15 +118,15 @@ describe('BookCreate consumable ISBN URL seed', () => {
       description: 'Exact description',
       coverUrl: 'https://example.test/cover.png',
     });
-    editor.genreInput.setValue('Pending genre');
+    genreSelect().searchControl.setValue('Pending genre');
     editor.form.controls.title.markAsTouched();
     request.flush(testBookLookup({ isbn }));
     expect(editor.form.controls.title.value).toBe('User title');
     expect(editor.form.controls.author.value).toBe('Robert C. Martin');
     expect(editor.form.controls.description.value).toBe('Exact description');
     expect(editor.form.controls.coverUrl.value).toBe('https://example.test/cover.png');
-    expect(editor.form.controls.genres.value).toEqual([]);
-    expect(editor.genreInput.value).toBe('Pending genre');
+    expect(editor.form.controls.genres.value).toEqual(['Software', 'Programming']);
+    expect(genreSelect().searchControl.value).toBe('Pending genre');
     expect(editor.form.controls.title.touched).toBe(true);
     http.expectNone((request) => request.method === 'POST');
   });

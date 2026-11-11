@@ -1,0 +1,57 @@
+@if (readonly()) {
+  <span class="stars" role="img" [attr.aria-label]="groupLabel() + ': ' + summary()">
+    @for (star of stars; track star) {
+      <mat-icon
+        class="star"
+        [class.filled]="star <= (selected() ?? 0)"
+        [svgIcon]="star <= (selected() ?? 0) ? filledIcon : outlineIcon"
+        aria-hidden="true"
+      />
+    }
+  </span>
+  @if (showSummary()) {
+    <span class="summary">{{ summary() }}</span>
+  }
+} @else {
+  <div
+    class="stars"
+    role="radiogroup"
+    [attr.aria-label]="groupLabel()"
+    [attr.aria-disabled]="isDisabled() ? 'true' : null"
+    (pointerleave)="endPreview()"
+  >
+    @for (star of stars; track star) {
+      <button
+        #starButton
+        type="button"
+        role="radio"
+        class="star-button"
+        [class.filled]="star <= displayed()"
+        [class.preview]="hovered() !== null && star > (selected() ?? 0)"
+        [attr.aria-checked]="selected() === star"
+        [attr.aria-label]="starLabel(star)"
+        [tabindex]="tabIndexFor(star)"
+        [disabled]="isDisabled()"
+        (pointerenter)="preview(star, $event)"
+        (click)="choose(star)"
+        (keydown)="onKeydown($event, star)"
+        (focus)="focused.set(star)"
+        (blur)="focused.set(null); touched()"
+      >
+        <mat-icon
+          class="star"
+          [svgIcon]="star <= displayed() ? filledIcon : outlineIcon"
+          aria-hidden="true"
+        />
+      </button>
+    }
+  </div>
+  @if (showSummary()) {
+    <span class="summary" aria-live="polite">{{ summary() }}</span>
+  }
+  @if (canClear()) {
+    <button type="button" class="clear" [attr.aria-label]="clearLabel()" (click)="clear()">
+      Quitar valoración
+    </button>
+  }
+}

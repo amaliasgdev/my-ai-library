@@ -42,7 +42,7 @@ describe('Photo import routing', () => {
       .expectOne('/api/book-photo-import/capabilities')
       .flush(testPhotoCapabilities());
     expect(page.photos()).toEqual([]);
-    expect(page.catalogParams).toEqual({ genre: 'Terror' });
+    expect(page.catalogParams).toEqual({ genre: ['Terror'] });
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe(
       'Importar libros desde fotografías',
     );

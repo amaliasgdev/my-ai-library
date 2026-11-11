@@ -1,0 +1,88 @@
+:host {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  max-inline-size: 100%;
+  gap: 0.25rem 0.5rem;
+  // Gold chosen for 3:1 against the light surface; lighter on the prepared dark theme.
+  --star-on: #bf8600;
+  --star-off: var(--mat-sys-outline);
+}
+
+:host-context(html.app-dark) {
+  --star-on: #ffc933;
+}
+
+.stars {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-inline-size: 100%;
+}
+
+// Full 2.5rem targets; they only shrink (down to the 1.5rem icon) in very narrow cards.
+.star-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 1 2.5rem;
+  inline-size: 2.5rem;
+  min-inline-size: 1.5rem;
+  block-size: auto;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--star-off);
+  cursor: pointer;
+
+  &.filled {
+    color: var(--star-on);
+  }
+
+  &.preview {
+    opacity: 0.65;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+.star {
+  color: inherit;
+}
+
+span.stars .star {
+  color: var(--star-off);
+
+  &.filled {
+    color: var(--star-on);
+  }
+}
+
+.summary {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.clear {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+}

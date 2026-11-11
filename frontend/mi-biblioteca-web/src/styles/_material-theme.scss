@@ -16,8 +16,9 @@ html {
   );
 }
 
-// Future theme switching can set this class on <html>, including overlay content.
-// No automatic OS selection, persistence or theme toggle is implemented yet.
+// Theme switching sets this class on <html> (AppShell + UiPreferencesService), including overlay
+// content: 'Claro' and 'Oscuro' apply their theme directly, 'Automático' follows
+// prefers-color-scheme live. The preference is persisted in the single versioned localStorage key.
 html.app-dark {
   color-scheme: dark;
 

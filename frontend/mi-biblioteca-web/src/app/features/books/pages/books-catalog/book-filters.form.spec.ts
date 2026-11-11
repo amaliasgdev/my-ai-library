@@ -11,7 +11,8 @@ describe('typed catalog filter form', () => {
         ratingMin: 4,
         yearFrom: 2020,
         yearTo: 2020,
-        genre: ' Terror ',
+        genre: [' Terror ', 'Fantasía', 'terror'],
+        genreUnassigned: true,
         language: ' ES ',
         publisher: ' Press ',
       }),
@@ -22,7 +23,8 @@ describe('typed catalog filter form', () => {
       ratingMin: 4,
       yearFrom: 2020,
       yearTo: 2020,
-      genre: 'Terror',
+      genre: ['Fantasía', 'Terror'],
+      genreUnassigned: true,
       language: 'es',
       publisher: 'Press',
     });
@@ -46,9 +48,31 @@ describe('typed catalog filter form', () => {
     expect(form.hasError('yearRange')).toBe(true);
     form.patchValue({ yearTo: null });
     expect(form.valid).toBe(true);
-    form.patchValue({ genre: 'x'.repeat(51), publisher: 'x'.repeat(256), language: 'zz' });
+    form.patchValue({
+      genre: { genres: ['x'.repeat(51)], genreUnassigned: false },
+      publisher: 'x'.repeat(256),
+      language: 'zz',
+    });
     expect(form.controls.genre.invalid).toBe(true);
     expect(form.controls.publisher.invalid).toBe(true);
     expect(form.controls.language.invalid).toBe(true);
+  });
+  it('accepts at most 50 distinct genres and rejects duplicates or overflow', () => {
+    const form = createBookFiltersForm();
+    form.controls.genre.setValue({
+      genres: Array.from({ length: 50 }, (_, index) => `Género ${index}`),
+      genreUnassigned: false,
+    });
+    expect(form.controls.genre.valid).toBe(true);
+    form.controls.genre.setValue({
+      genres: Array.from({ length: 51 }, (_, index) => `Género ${index}`),
+      genreUnassigned: false,
+    });
+    expect(form.controls.genre.invalid).toBe(true);
+    form.controls.genre.setValue({
+      genres: ['Terror', 'terror'],
+      genreUnassigned: false,
+    });
+    expect(form.controls.genre.invalid).toBe(true);
   });
 });

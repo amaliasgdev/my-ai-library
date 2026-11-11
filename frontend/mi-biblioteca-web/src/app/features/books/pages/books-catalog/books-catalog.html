@@ -139,12 +139,15 @@
         <input matInput type="number" min="1" max="2100" step="1" formControlName="yearTo" />
         <mat-error>Introduce un año entero entre 1 y 2100</mat-error>
       </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Género</mat-label>
-        <input matInput formControlName="genre" />
-        <mat-hint>Coincidencia exacta, sin distinguir mayúsculas</mat-hint>
-        <mat-error>Máximo 50 caracteres</mat-error>
-      </mat-form-field>
+      <app-genre-filter-select
+        formControlName="genre"
+        [options]="genreOptions()"
+        [optionsLoading]="genreOptionsState() === 'loading'"
+        [optionsError]="genreOptionsState() === 'error'"
+        [selectionDisabled]="deletingId() !== null"
+        (interaction)="loadGenres()"
+        (retryOptions)="loadGenres(true)"
+      />
       <mat-form-field appearance="outline">
         <mat-label>Idioma</mat-label>
         <input matInput formControlName="language" />
@@ -173,7 +176,18 @@
       </button>
     </div>
   </form>
-  <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+  <div class="catalog-toolbar">
+    <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+    <mat-form-field appearance="outline" class="cards-per-row" subscriptSizing="dynamic">
+      <mat-label>Tarjetas por fila</mat-label>
+      <mat-icon matPrefix svgIcon="mb-grid-view" aria-hidden="true" />
+      <mat-select [value]="cardsPerRow()" (selectionChange)="onCardsPerRowChange($event.value)">
+        @for (option of cardsPerRowOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
   <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
     @let current = state();
     @switch (current.status) {
@@ -190,11 +204,18 @@
       }
       @case ('success') {
         @if (current.response.content.length > 0) {
-          <ul class="book-grid" aria-label="Libros">
+          <ul
+            class="book-grid"
+            aria-label="Libros"
+            [class.fixed-columns]="gridColumns() !== null"
+            [class.compact-columns]="compactCards()"
+            [style.--book-columns]="gridColumns()"
+          >
             @for (book of current.response.content; track book.id) {
               <li>
                 <app-book-card
                   [book]="book"
+                  [compact]="compactCards()"
                   [membership]="membership"
                   [catalogParams]="catalogParams()"
                   [deleting]="deletingId() === book.id"

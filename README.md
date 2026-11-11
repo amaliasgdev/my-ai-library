@@ -343,27 +343,31 @@ context through detail/edit/import, reload and Back/Forward. Sorting is unchange
 identity.** Shelf photos, persistent inventory and mass reassignment will require
 a separately approved evolution toward **Room -> Bookcase -> Shelf**, with stable
 Shelf ID and nullable Book FK. That model is not implemented now. Authoritative
-autocomplete is also deferred: no page-local guesses, full-catalog loading or new
-distinct-value endpoints.
+autocomplete is also deferred for locations: no page-local guesses or full-catalog
+loading. Genres use their own read-only distinct-value endpoint.
 
 Both existing endpoints accept the same optional filters, preserving pagination,
 sorting and the `BookPageResponse` contract:
 
 ```text
-GET /api/books?readingStatus=READ&readingStatus=READING&ratingMin=4&yearFrom=2020&genre=Terror
+GET /api/books?readingStatus=READ&readingStatus=READING&ratingMin=4&yearFrom=2020&genre=Terror&genre=Fantasía&genreUnassigned=true
 GET /api/books/search?author=King&ratingMin=4&language=es&publisher=Press
+GET /api/books/genres
 ```
 
-Filters combine with AND; repeated reading states combine with OR. `/search`
-still requires title, author or ISBN; ISBN remains exclusive with title/author,
-but can combine with filters. List and search share JPA Specifications.
+Filters combine with AND; repeated reading states and repeated genres combine
+with OR. `genreUnassigned=true` adds books with no assigned genres to the same
+genre OR group. `/search` still requires title, author or ISBN; ISBN remains
+exclusive with title/author, but can combine with filters. List and search share
+JPA Specifications.
 
 | Parameter | Contract |
 | --- | --- |
 | `readingStatus` | Exact enum, at most 4 occurrences, deduplicated; no CSV |
 | `ratingMin` | Integer 1–5, inclusive; unrated books do not match |
 | `yearFrom`, `yearTo` | Inclusive publication-year bounds, 1–2100, from <= to; unknown years do not match |
-| `genre` | Trimmed nonblank <=50, exact case-insensitive array element |
+| `genre` | Up to 50 occurrences; each trimmed nonblank <=50, exact case-insensitive, accent-sensitive array element; duplicates ignored |
+| `genreUnassigned` | Optional `true`/`false`; adds empty genre arrays to the genre OR group |
 | `language` | Recognized two-letter ISO 639-1 code, case-insensitive |
 | `publisher` | Trimmed nonblank <=255, literal case-insensitive substring |
 | `room`, `bookcase` | Single nonblank text <=100 raw characters, trimmed, no controls, exact case-insensitive/accent-sensitive |
@@ -371,15 +375,25 @@ but can combine with filters. List and search share JPA Specifications.
 
 Repeated scalar parameters, blank supplied filters and invalid values return
 400 ProblemDetail with public field names in `errors`. `%` and `_` are literals,
-not user-controlled SQL wildcards. Genre uses a Hibernate FunctionContributor
-rendering bound `EXISTS/unnest` on PostgreSQL `varchar[]`, tested for paging and
-count on PostgreSQL 16. Genre filtering adds no schema changes; physical location
-uses V7. No filter indexes or dependencies were added.
+not user-controlled SQL wildcards. Each genre uses a Hibernate FunctionContributor
+rendering bound `EXISTS/unnest` on PostgreSQL `varchar[]`, with OR across genres
+and `cardinality(genres)=0` for `genreUnassigned`; paging and count are tested on
+PostgreSQL 16. Genre filtering adds no schema changes; physical location uses V7.
+No filter indexes or dependencies were added.
+
+`GET /api/books/genres` returns the distinct genres currently present in books
+as a JSON string array, deterministically ordered, trimmed and case-insensitively
+deduplicated while keeping accent differences. It is derived from `book.genres`
+with `unnest`: no table, migration, PostgreSQL extension or index is added, and
+the frontend never downloads every book to build suggestions.
 
 The Material filter panel applies explicitly: editing does not request data.
-**Aplicar filtros** and **Limpiar filtros** reset page 0 while preserving search,
-size and sorting; searching/clearing search preserves filters. Applied state
-lives in the canonical URL, surviving reload, Back/Forward and detail/edit return.
+The catalog genre selector loads its options lazily from `/api/books/genres`,
+supports search, checkboxes, removable chips, **Sin género** and **Limpiar
+géneros** (which clears only the genre draft). **Aplicar filtros** and **Limpiar
+filtros** reset page 0 while preserving search, size and sorting;
+searching/clearing search preserves filters. Applied state lives in the canonical
+URL, surviving reload, Back/Forward and detail/edit return.
 Invalid URL filters are discarded silently before the single GET, unlike invalid
 form submissions. Confirmed inline writes reload when active filters depend on
 the changed status/rating; they are never repeated or filtered locally.

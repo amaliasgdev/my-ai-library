@@ -18,6 +18,13 @@
   white-space: normal;
 }
 
+.app-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
 main {
   width: 100%;
   max-width: var(--app-content-width);

@@ -129,6 +129,20 @@ describe('BookDetail', () => {
     load({ rating });
     expect(element.textContent).toContain(`${rating}/5`);
     expect(element.querySelector('mat-select')).toBeNull();
+    const stars = element.querySelector('header app-star-rating [role="img"]');
+    expect(stars?.getAttribute('aria-label')).toBe(`Valoración de Libro de prueba: ${rating} de 5`);
+    expect(element.querySelectorAll('header app-star-rating mat-icon.filled')).toHaveLength(rating);
+    expect(element.querySelector('app-star-rating button')).toBeNull();
+    expect(element.querySelector('app-star-rating [role="radio"]')).toBeNull();
+  });
+  it('renders an unrated book as outlined read-only stars and never writes on interaction', () => {
+    load({ rating: null });
+    const stars = element.querySelector('header app-star-rating [role="img"]');
+    expect(stars?.getAttribute('aria-label')).toBe('Valoración de Libro de prueba: Sin valorar');
+    expect(element.querySelectorAll('header app-star-rating mat-icon.filled')).toHaveLength(0);
+    stars?.dispatchEvent(new MouseEvent('pointerenter'));
+    (stars as HTMLElement).click();
+    http.expectNone((request) => request.method !== 'GET');
   });
   it.each([
     [404, 'El libro no existe'],

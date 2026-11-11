@@ -33,9 +33,14 @@
           <header>
             <h1>{{ current.book.title }}</h1>
             <p class="author">{{ current.book.author }}</p>
-            <p>
+            <p class="status-line">
               {{ statusLabels[current.book.readingStatus] }} ·
-              {{ current.book.rating === null ? 'Sin valorar' : current.book.rating + '/5' }}
+              <app-star-rating
+                [value]="current.book.rating"
+                [subject]="current.book.title"
+                [readonly]="true"
+                [showSummary]="false"
+              />
             </p>
           </header>
           <section aria-labelledby="bibliography-heading">

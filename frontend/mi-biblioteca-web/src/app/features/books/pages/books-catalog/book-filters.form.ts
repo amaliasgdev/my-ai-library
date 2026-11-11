@@ -1,5 +1,12 @@
 import { FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
-import { BookFilters, FILTER_STATES } from '../../models/book-filters';
+import {
+  BookFilters,
+  EMPTY_GENRE_FILTER,
+  FILTER_STATES,
+  GenreFilterValue,
+  normalizeGenreFilter,
+  normalizeGenres,
+} from '../../models/book-filters';
 import { ReadingStatus } from '../../models/book.models';
 import { isIsoLanguage } from '../../models/iso-language';
 
@@ -22,6 +29,13 @@ const states: ValidatorFn = (control) =>
 const yearRange: ValidatorFn = (control) => {
   const { yearFrom, yearTo } = control.value as { yearFrom: number | null; yearTo: number | null };
   return yearFrom !== null && yearTo !== null && yearFrom > yearTo ? { yearRange: true } : null;
+};
+const genreFilter: ValidatorFn = (control) => {
+  const value = control.value as Partial<GenreFilterValue> | null;
+  if (!value || !Array.isArray(value.genres) || typeof value.genreUnassigned !== 'boolean')
+    return { genres: true };
+  const normalized = normalizeGenres(value.genres);
+  return normalized.length === value.genres.length ? null : { genres: true };
 };
 
 export function createBookFiltersForm() {
@@ -46,7 +60,10 @@ export function createBookFiltersForm() {
         Validators.min(1),
         Validators.max(2100),
       ]),
-      genre: new FormControl('', { nonNullable: true, validators: [trimmedText(50)] }),
+      genre: new FormControl<GenreFilterValue>(EMPTY_GENRE_FILTER, {
+        nonNullable: true,
+        validators: [genreFilter],
+      }),
       language: new FormControl('', { nonNullable: true, validators: [language] }),
       publisher: new FormControl('', { nonNullable: true, validators: [trimmedText(255)] }),
     },
@@ -60,7 +77,10 @@ export function bookFiltersFormValue(filters: BookFilters = {}) {
     ratingMin: filters.ratingMin ?? null,
     yearFrom: filters.yearFrom ?? null,
     yearTo: filters.yearTo ?? null,
-    genre: filters.genre ?? '',
+    genre: normalizeGenreFilter({
+      genres: filters.genre ?? [],
+      genreUnassigned: filters.genreUnassigned ?? false,
+    }),
     language: filters.language ?? '',
     publisher: filters.publisher ?? '',
   };
@@ -73,7 +93,10 @@ export function filtersFromForm(form: ReturnType<typeof createBookFiltersForm>):
   if (selected.length) filters.readingStatus = selected;
   for (const key of ['ratingMin', 'yearFrom', 'yearTo'] as const)
     if (value[key] !== null) filters[key] = value[key];
-  for (const key of ['genre', 'language', 'publisher'] as const) {
+  const genre = normalizeGenreFilter(value.genre);
+  if (genre.genres.length) filters.genre = genre.genres;
+  if (genre.genreUnassigned) filters.genreUnassigned = true;
+  for (const key of ['language', 'publisher'] as const) {
     const text = value[key].trim();
     if (text) filters[key] = key === 'language' ? text.toLowerCase() : text;
   }

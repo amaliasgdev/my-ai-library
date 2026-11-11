@@ -2,18 +2,30 @@
 <header>
   <mat-toolbar class="app-toolbar">
     <span class="app-brand">Mi Biblioteca</span>
-    <nav aria-label="Navegación principal">
-      <a
-        mat-button
-        routerLink="/reading-list"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >Lista de lectura</a
+    <div class="app-toolbar-end">
+      <nav aria-label="Navegación principal">
+        <a
+          mat-button
+          routerLink="/reading-list"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          >Lista de lectura</a
+        >
+        <a mat-button routerLink="/books" routerLinkActive="active" ariaCurrentWhenActive="page">
+          Biblioteca
+        </a>
+      </nav>
+      <button
+        mat-icon-button
+        type="button"
+        (click)="onThemeChange()"
+        [attr.aria-label]="'Cambiar tema (actual: ' + themeLabel() + ')'"
+        [matTooltip]="themeTooltips[theme()]"
+        matTooltipPosition="below"
       >
-      <a mat-button routerLink="/books" routerLinkActive="active" ariaCurrentWhenActive="page">
-        Biblioteca
-      </a>
-    </nav>
+        <mat-icon [svgIcon]="themeIcons[theme()]" aria-hidden="true" />
+      </button>
+    </div>
   </mat-toolbar>
 </header>
 <main id="main-content" tabindex="-1">

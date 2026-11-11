@@ -87,6 +87,11 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
+    public List<String> findDistinctGenres() {
+        return bookRepository.findDistinctGenres();
+    }
+
+    @Transactional(readOnly = true)
     public BookPageResponse search(BookSearchRequest request, int page, int size, String sortBy, Sort.Direction direction) {
         return search(request, page, size, sortBy, direction, BookFilterRequest.EMPTY);
     }

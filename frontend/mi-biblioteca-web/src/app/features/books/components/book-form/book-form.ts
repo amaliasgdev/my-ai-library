@@ -9,25 +9,18 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
 import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
 import { createBookForm } from './book-form.factory';
-import { notBlank } from './book-form.validators';
+import { GenreSelect } from '../genre-select/genre-select';
 
 @Component({
   selector: 'app-book-form',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatChipsModule,
-    MatFormFieldModule,
-    MatInputModule,
-  ],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, GenreSelect],
   templateUrl: './book-form.html',
   styleUrl: './book-form.scss',
 })
@@ -52,12 +45,7 @@ export class BookForm implements OnChanges {
   readonly lookupError = input<string | null>(null);
   readonly lookupRequested = output<string>();
   readonly isbnChanged = output<string>();
-  readonly genreInput = new FormControl('', {
-    nonNullable: true,
-    validators: [notBlank, Validators.maxLength(50)],
-  });
   readonly form = createBookForm();
-
   constructor() {
     this.form.controls.isbn.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -107,8 +95,8 @@ export class BookForm implements OnChanges {
       isbn.markAsDirty();
     }
     const genres = this.form.controls.genres;
-    if (genres.length === 0 && this.genreInput.value.length === 0 && proposal.genres.length > 0) {
-      for (const genre of proposal.genres) genres.push(this.genreControl(genre));
+    if (genres.value.length === 0 && proposal.genres.length > 0) {
+      genres.setValue([...proposal.genres]);
       genres.markAsDirty();
     }
   }
@@ -119,52 +107,14 @@ export class BookForm implements OnChanges {
     if (!((changes['initialBook'] && book) || (changes['initialDraft'] && draft))) return;
     const value = draft ?? (book ? bookFormValue(book) : null);
     if (!value) return;
-    this.form.controls.genres.clear();
-    for (const genre of value.genres) this.form.controls.genres.push(this.genreControl(genre));
     this.form.reset(value);
-    this.genreInput.reset();
-  }
-
-  addGenre(): boolean {
-    if (this.submitting()) return false;
-    this.genreInput.markAsTouched();
-    this.genreInput.updateValueAndValidity();
-    if (this.genreInput.invalid) return false;
-    const genres = this.form.controls.genres;
-    if (genres.length >= 10) {
-      this.genreInput.setErrors({ genreLimit: true });
-      return false;
-    }
-    const value = this.genreInput.value.trim();
-    if (genres.value.some((genre) => genre.trim().toLowerCase() === value.toLowerCase())) {
-      this.genreInput.setErrors({ duplicate: true });
-      return false;
-    }
-    genres.push(this.genreControl(value));
-    genres.markAsDirty();
-    this.genreInput.reset();
-    return true;
-  }
-
-  onGenreEnter(event: Event): void {
-    event.preventDefault();
-    this.addGenre();
-  }
-
-  removeGenre(index: number): void {
-    if (this.submitting()) return;
-    this.form.controls.genres.removeAt(index);
-    this.form.controls.genres.markAsDirty();
-    this.genreInput.updateValueAndValidity();
   }
 
   submit(): void {
     if (this.submitting() || this.saveDisabled()) return;
     this.submitAttempted.emit();
-    const pending = this.genreInput.value.length > 0;
-    const added = !pending || this.addGenre();
     this.form.markAllAsTouched();
-    if (!added || this.form.invalid) {
+    if (this.form.invalid) {
       this.focusInvalidField();
       return;
     }
@@ -187,8 +137,9 @@ export class BookForm implements OnChanges {
     if (errors['language']) return 'Introduce un código de idioma reconocido de dos letras';
     if (errors['coverUrl'])
       return 'Introduce una URL HTTP/HTTPS válida, sin espacios ni credenciales';
-    if (errors['duplicate']) return 'Este género ya está añadido';
+    if (errors['duplicate']) return 'Hay géneros duplicados';
     if (errors['genreLimit']) return 'Puedes añadir un máximo de 10 géneros';
+    if (errors['genreValue'] !== undefined) return 'Hay un género que no cumple las reglas';
     return 'Revisa este valor';
   }
 
@@ -205,11 +156,8 @@ export class BookForm implements OnChanges {
       if (Object.hasOwn(this.form.controls, field)) {
         this.setServerError(this.form.get(field)!);
       } else {
-        const match = /^genres\[(\d+)\]$/.exec(field);
-        if (match) {
-          const control = this.form.controls.genres.at(Number(match[1]));
-          if (control) this.setServerError(control);
-        }
+        const match = /^genres(?:\[(\d+)\])?$/.exec(field);
+        if (match) this.setServerError(this.form.controls.genres);
       }
     }
   }
@@ -232,19 +180,11 @@ export class BookForm implements OnChanges {
       .subscribe(() => this.clearServerError(control));
   }
 
-  private genreControl(value: string): FormControl<string> {
-    const control = new FormControl(value, {
-      nonNullable: true,
-      validators: [notBlank, Validators.maxLength(50)],
-    });
-    this.watchServerErrors(control);
-    return control;
-  }
-
   private focusInvalidField(): void {
     // Form control classes update on the next render; use control state, not DOM validity.
     const field = Object.entries(this.form.controls).find(([, control]) => control.invalid)?.[0];
-    const selector = !field || field === 'genres' ? '#genre-input' : `[formControlName="${field}"]`;
+    const selector =
+      !field || field === 'genres' ? '#genre-search' : `[formControlName="${field}"]`;
     this.element.nativeElement.querySelector<HTMLElement>(selector)?.focus();
   }
 }

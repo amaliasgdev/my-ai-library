@@ -1,6 +1,9 @@
-import { Component, input, OnChanges, output, signal } from '@angular/core';
+import { Component, computed, input, OnChanges, output, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { registerAppIcons } from '../../../../core/icons/app-icons';
 import { Params, RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
@@ -8,6 +11,7 @@ import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book
 import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-display';
 import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
 import { ReadingListAction } from '../../../reading-list/reading-list-action';
+import { StarRating } from '../star-rating/star-rating';
 
 @Component({
   selector: 'app-book-card',
@@ -17,13 +21,25 @@ import { ReadingListAction } from '../../../reading-list/reading-list-action';
     RouterLink,
     MatFormFieldModule,
     MatSelectModule,
+    MatIconModule,
+    MatMenuModule,
     ReadingListAction,
+    StarRating,
   ],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',
 })
 export class BookCard implements OnChanges {
   readonly membership = input<ReadingListMembership | null>(null);
+  /** Compact presentation for very dense grids; the default card is unchanged. */
+  readonly compact = input(false);
+  protected readonly busy = computed(
+    () => this.deleting() || this.pendingAction() !== null || this.updateDisabled(),
+  );
+  protected readonly ratingSummary = computed(() => {
+    const rating = this.book().rating;
+    return rating === null ? 'Sin valorar' : `${rating} de 5`;
+  });
   readonly book = input.required<BookResponse>();
   readonly catalogParams = input<Params>({});
   readonly deleting = input(false);
@@ -51,6 +67,10 @@ export class BookCard implements OnChanges {
   protected readonly imageFailed = signal(false);
   protected readonly statusLabels = READING_STATUS_LABELS;
   private previousCoverUrl: string | null | undefined;
+
+  constructor() {
+    registerAppIcons();
+  }
 
   ngOnChanges(): void {
     if (this.book().coverUrl !== this.previousCoverUrl) {
@@ -81,10 +101,13 @@ export class BookCard implements OnChanges {
   }
 
   onReadingStatusChange(event: MatSelectChange): void {
-    const status: ReadingStatus = event.value;
     // MatSelect has already selected the requested value. Restore the confirmed one
     // explicitly even when the input binding has not changed.
     event.source.value = this.book().readingStatus;
+    this.chooseReadingStatus(event.value);
+  }
+
+  chooseReadingStatus(status: ReadingStatus): void {
     if (
       this.deleting() ||
       this.pendingAction() ||
@@ -96,9 +119,17 @@ export class BookCard implements OnChanges {
     this.readingStatusRequested.emit({ id: this.book().id, status });
   }
 
-  onRatingChange(event: MatSelectChange): void {
-    const rating: number | null = event.value;
-    event.source.value = this.book().rating;
+  addToReadingList(list: ReadingListMembership): void {
+    if (!this.busy() && !list.busy()) list.add(this.book().id);
+  }
+
+  protected starsLabel(rating: number): string {
+    return rating === 1 ? '1 estrella' : `${rating} estrellas`;
+  }
+
+  onRatingChange(rating: number | null): void {
+    // The star component never shows an unconfirmed value: it follows book().rating only, so a
+    // failed or ignored write leaves the confirmed rating displayed.
     if (
       this.deleting() ||
       this.pendingAction() ||

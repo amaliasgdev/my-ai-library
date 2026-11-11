@@ -16,6 +16,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -33,9 +34,17 @@ import {
   switchMap,
 } from 'rxjs';
 import { BookCard } from '../../components/book-card/book-card';
+import { GenreFilterSelect } from '../../components/genre-filter-select/genre-filter-select';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
 import { BookFilters, FILTER_STATES, sameBookFilters } from '../../models/book-filters';
+import {
+  CARDS_PER_ROW_OPTIONS,
+  isCardsPerRow,
+  isCompactCardsPerRow,
+} from '../../../../core/preferences/cards-per-row';
+import { UiPreferencesService } from '../../../../core/preferences/ui-preferences.service';
+import { registerAppIcons } from '../../../../core/icons/app-icons';
 import { bookFiltersFormValue, createBookFiltersForm, filtersFromForm } from './book-filters.form';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
@@ -74,6 +83,8 @@ type CatalogState =
   | { status: 'loading' }
   | { status: 'success'; response: BookPageResponse }
   | { status: 'error'; message: string };
+
+type GenreOptionsState = 'idle' | 'loading' | 'success' | 'error';
 
 function spanishPaginator(): MatPaginatorIntl {
   const intl = new MatPaginatorIntl();
@@ -114,6 +125,7 @@ function searchError(error: unknown): string {
   selector: 'app-books-catalog',
   imports: [
     BookCard,
+    GenreFilterSelect,
     MatButtonModule,
     MatPaginatorModule,
     MatProgressSpinnerModule,
@@ -122,6 +134,7 @@ function searchError(error: unknown): string {
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatIconModule,
   ],
   providers: [ReadingListMembership, { provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
@@ -150,6 +163,15 @@ export class BooksCatalog {
     { value: 'rating', label: 'Valoración' },
   ];
   private readonly reloadRequested = new Subject<CatalogReload>();
+  private readonly preferences = inject(UiPreferencesService);
+  /** Visual density only: never part of the URL, the query or any request. */
+  readonly cardsPerRow = this.preferences.cardsPerRow;
+  protected readonly cardsPerRowOptions = CARDS_PER_ROW_OPTIONS;
+  protected readonly gridColumns = computed(() => {
+    const value = this.cardsPerRow();
+    return value === 'auto' ? null : value;
+  });
+  protected readonly compactCards = computed(() => isCompactCardsPerRow(this.cardsPerRow()));
   private appliedQuery: BookCatalogQuery | null = null;
   private requestGeneration = 0;
   readonly catalogParams = computed(() =>
@@ -164,6 +186,8 @@ export class BooksCatalog {
   readonly currentSearch = signal<BookSearchRequest | null>(null);
   readonly currentFilters = signal<BookFilters>({});
   readonly filtersForm = createBookFiltersForm();
+  protected readonly genreOptions = signal<readonly string[]>([]);
+  protected readonly genreOptionsState = signal<GenreOptionsState>('idle');
   protected readonly filterStates = FILTER_STATES;
   protected readonly filterStateLabels = {
     TO_READ: 'Por leer',
@@ -204,6 +228,7 @@ export class BooksCatalog {
   });
 
   constructor() {
+    registerAppIcons();
     this.route.queryParamMap
       .pipe(
         map((params) => {
@@ -407,9 +432,50 @@ export class BooksCatalog {
     if (this.appliedQuery) this.navigateQuery({ ...this.appliedQuery, filters: {}, page: 0 });
   }
 
+  /** Lazy option load: no catalog-wide book download and no request until the filter is used. */
+  protected loadGenres(force = false): void {
+    const state = this.genreOptionsState();
+    if (state === 'loading' || (!force && state !== 'idle' && state !== 'error')) return;
+    this.genreOptionsState.set('loading');
+    this.booksService
+      .getGenres()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (genres) => {
+          if (!Array.isArray(genres)) {
+            this.genreOptionsState.set('error');
+            return;
+          }
+          const seen = new Set<string>();
+          const options: string[] = [];
+          for (const raw of genres) {
+            if (typeof raw !== 'string') continue;
+            const value = raw.trim();
+            const key = value.toLowerCase();
+            if (!value || value.length > 50 || seen.has(key)) continue;
+            seen.add(key);
+            options.push(value);
+          }
+          this.genreOptions.set(options);
+          this.genreOptionsState.set('success');
+        },
+        error: () => this.genreOptionsState.set('error'),
+      });
+  }
+
+  /** Keep the suggestions current after a write that can remove a genre from the catalog. */
+  private refreshGenresAfterDelete(): void {
+    if (this.genreOptionsState() === 'success') this.loadGenres(true);
+  }
+
   onSortByChange(sortBy: BookCatalogSort['sortBy']): void {
     if (!this.sortOptions.some((option) => option.value === sortBy)) return;
     this.applySort({ ...this.currentSort(), sortBy });
+  }
+
+  onCardsPerRowChange(value: unknown): void {
+    // Layout preference: no navigation, reload or state beyond the visual preference service.
+    if (isCardsPerRow(value)) this.preferences.setCardsPerRow(value);
   }
 
   onSortDirectionChange(direction: BookCatalogSort['direction']): void {
@@ -459,6 +525,7 @@ export class BooksCatalog {
       )
       .subscribe({
         next: () => {
+          this.refreshGenresAfterDelete();
           this.restoreFocusAfterReload = true;
           this.reloadCurrentQuery(true);
         },

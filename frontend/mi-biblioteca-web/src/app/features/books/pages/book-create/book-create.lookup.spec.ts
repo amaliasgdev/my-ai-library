@@ -1,8 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { BookForm } from '../../components/book-form/book-form';
+import { GenreSelect } from '../../components/genre-select/genre-select';
 import { testBook, testBookLookup } from '../../models/book.testing';
 import { BookCreate } from './book-create';
 
@@ -35,6 +37,9 @@ describe('BookCreate ISBN lookup', () => {
     lookupButton().click();
     fixture.detectChanges();
     return http.expectOne((req) => req.url === '/api/books/isbn-lookup');
+  }
+  function genreSelect(): GenreSelect {
+    return fixture.debugElement.query(By.directive(GenreSelect)).componentInstance as GenreSelect;
   }
 
   it('should expose an optional lookup button in create and preserve labels and focus', () => {
@@ -127,8 +132,7 @@ describe('BookCreate ISBN lookup', () => {
       pageCount: 100,
       coverUrl: 'https://manual.test/cover.jpg',
     });
-    editor.genreInput.setValue('Manual');
-    editor.addGenre();
+    editor.form.controls.genres.setValue(['Manual']);
     const before = editor.form.getRawValue();
     begin().flush(testBookLookup());
     expect(editor.form.getRawValue()).toEqual({ ...before, isbn: '9780132350884' });
@@ -136,11 +140,11 @@ describe('BookCreate ISBN lookup', () => {
     expect(editor.form.controls.genres.value).toEqual(['Manual']);
   });
 
-  it('should preserve a pending genre, including whitespace, instead of applying provider chips', () => {
-    editor.genreInput.setValue(' Pending genre ');
+  it('should apply provider genres only to an empty selection and keep the search draft', () => {
+    genreSelect().searchControl.setValue(' Pending genre ');
     begin().flush(testBookLookup());
-    expect(editor.form.controls.genres.value).toEqual([]);
-    expect(editor.genreInput.value).toBe(' Pending genre ');
+    expect(editor.form.controls.genres.value).toEqual(['Software', 'Programming']);
+    expect(genreSelect().searchControl.value).toBe(' Pending genre ');
   });
 
   it('should not clear values for null metadata or empty genres', () => {

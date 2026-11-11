@@ -82,11 +82,10 @@ describe('catalog filters with real Router and HTTP boundary', () => {
   it('editing drafts neither navigates nor requests; native submit applies', async () => {
     await loaded();
     const navigate = vi.spyOn(router, 'navigate');
-    const input = harness.routeNativeElement!.querySelector<HTMLInputElement>(
-      '.filters-form [formControlName="genre"]',
-    )!;
-    input.value = ' Terror ';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    page.filtersForm.controls.genre.setValue({
+      genres: [' Terror ', 'Fantasía'],
+      genreUnassigned: true,
+    });
     await stable();
     expect(navigate).not.toHaveBeenCalled();
     http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
@@ -94,9 +93,10 @@ describe('catalog filters with real Router and HTTP boundary', () => {
       .routeNativeElement!.querySelector('form.filters-form')!
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await stable();
-    expect(params()).toEqual({ genre: 'Terror' });
+    expect(params()).toEqual({ genre: ['Fantasía', 'Terror'], genreUnassigned: 'true' });
     const req = request();
-    expect(req.request.params.get('genre')).toBe('Terror');
+    expect(req.request.params.getAll('genre')).toEqual(['Fantasía', 'Terror']);
+    expect(req.request.params.get('genreUnassigned')).toBe('true');
     req.flush(testBookPage());
   });
   it('Apply resets page and keeps applied search, sorting and size; one GET for an effective change', async () => {
@@ -106,7 +106,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
       ratingMin: 4,
       yearFrom: 2020,
       yearTo: 2021,
-      genre: ' Terror ',
+      genre: { genres: [' Terror ', 'Fantasía'], genreUnassigned: true },
       language: ' ES ',
       publisher: ' Press ',
     });
@@ -121,7 +121,8 @@ describe('catalog filters with real Router and HTTP boundary', () => {
       ratingMin: '4',
       yearFrom: '2020',
       yearTo: '2021',
-      genre: 'Terror',
+      genre: ['Fantasía', 'Terror'],
+      genreUnassigned: 'true',
       language: 'es',
       publisher: 'Press',
     });
@@ -129,6 +130,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     expect(req.request.url).toBe('/api/books/search');
     expect(req.request.params.get('page')).toBe('0');
     expect(req.request.params.getAll('readingStatus')).toEqual(['READING', 'READ']);
+    expect(req.request.params.getAll('genre')).toEqual(['Fantasía', 'Terror']);
     req.flush(testBookPage());
     page.applyFilters();
     await stable();
@@ -145,10 +147,13 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     const req = request();
     expect(req.request.params.has('ratingMin')).toBe(false);
     req.flush(testBookPage());
-    page.filtersForm.controls.genre.setValue('Draft');
+    page.filtersForm.controls.genre.setValue({ genres: ['Draft'], genreUnassigned: true });
     page.clearFilters();
     await stable();
-    expect(page.filtersForm.controls.genre.value).toBe('');
+    expect(page.filtersForm.controls.genre.value).toEqual({
+      genres: [],
+      genreUnassigned: false,
+    });
     http.expectNone((item) => item.method === 'GET' && item.url !== '/api/reading-list/membership');
   });
   it('invalid form stays local and shows field/range errors', async () => {
@@ -166,7 +171,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
   });
   it('search submit and clear search retain filters, independently of filter drafts', async () => {
     await loaded('/books?ratingMin=4');
-    page.filtersForm.controls.genre.setValue('Draft');
+    page.filtersForm.controls.genre.setValue({ genres: ['Draft'], genreUnassigned: false });
     page.searchForm.controls.title.setValue('Dune');
     page.submitSearch();
     await stable();
@@ -180,14 +185,22 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     const list = request();
     expect(list.request.url).toBe('/api/books');
     list.flush(testBookPage());
-    expect(page.filtersForm.controls.genre.value).toBe('Draft');
+    expect(page.filtersForm.controls.genre.value).toEqual({
+      genres: ['Draft'],
+      genreUnassigned: false,
+    });
   });
   it('canonicalizes malformed URL before one GET without alerts', async () => {
     const navigate = vi.spyOn(router, 'navigate');
     await enter(
-      '/books?readingStatus=READ&readingStatus=READING&readingStatus=READ&ratingMin=4&ratingMin=5&yearFrom=2021&yearTo=2020&genre=%20Terror%20&language=ES&foo=x',
+      '/books?readingStatus=READ&readingStatus=READING&readingStatus=READ&ratingMin=4&ratingMin=5&yearFrom=2021&yearTo=2020&genre=%20Terror%20&genre=Fantas%C3%ADa&genreUnassigned=true&language=ES&foo=x',
     );
-    const canonical = { readingStatus: ['READING', 'READ'], genre: 'Terror', language: 'es' };
+    const canonical = {
+      readingStatus: ['READING', 'READ'],
+      genre: ['Fantasía', 'Terror'],
+      genreUnassigned: 'true',
+      language: 'es',
+    };
     expect(params()).toEqual(canonical);
     expect(navigate).toHaveBeenCalledWith(['/books'], { queryParams: canonical, replaceUrl: true });
     const req = request();
@@ -251,12 +264,12 @@ describe('catalog filters with real Router and HTTP boundary', () => {
   });
   it('changing filters cancels prior GET and removes stale cards', async () => {
     await loaded();
-    page.filtersForm.controls.genre.setValue('Terror');
+    page.filtersForm.controls.genre.setValue({ genres: ['Terror'], genreUnassigned: false });
     page.applyFilters();
     await stable();
     const previous = request();
     expect(harness.routeNativeElement!.querySelector('app-book-card')).toBeNull();
-    page.filtersForm.controls.genre.setValue('Drama');
+    page.filtersForm.controls.genre.setValue({ genres: ['Drama'], genreUnassigned: false });
     page.applyFilters();
     await stable();
     expect(previous.cancelled).toBe(true);
@@ -310,7 +323,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     page.openDeleteDialog(testBook());
     TestBed.inject(MatDialog).openDialogs[0].close(true);
     await vi.waitFor(() => expect(page.deletingId()).toBe(1));
-    page.filtersForm.controls.genre.setValue('Draft');
+    page.filtersForm.controls.genre.setValue({ genres: ['Draft'], genreUnassigned: false });
     page.applyFilters();
     page.clearFilters();
     expect(params()).toEqual({ page: '2', genre: 'Terror' });
@@ -321,11 +334,14 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     await stable();
     expect(params()).toEqual({ page: '1', genre: 'Terror' });
     request().flush(testBookPage({ page: 1 }));
-    expect(page.filtersForm.controls.genre.value).toBe('Draft');
+    expect(page.filtersForm.controls.genre.value).toEqual({
+      genres: ['Draft'],
+      genreUnassigned: false,
+    });
   });
   it('detail/edit links and edit Cancel preserve every normalized filter through shared context helpers', async () => {
     const url =
-      '/books?page=2&size=50&sortBy=author&title=Dune&readingStatus=READING&readingStatus=READ&ratingMin=4&yearFrom=2020&yearTo=2021&genre=Terror&language=es&publisher=Press';
+      '/books?page=2&size=50&sortBy=author&title=Dune&readingStatus=READING&readingStatus=READ&ratingMin=4&yearFrom=2020&yearTo=2021&genre=Fantas%C3%ADa&genre=Terror&genreUnassigned=true&language=es&publisher=Press';
     await loaded(url);
     const context = params();
     harness

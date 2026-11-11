@@ -74,9 +74,24 @@ describe('BooksCatalog reading state', () => {
     const [status] = await selects();
     await status.clickOptions({ text: label });
   }
+  function cardAt(index: number): Element {
+    return element.querySelectorAll('app-book-card').item(index);
+  }
+  function cardStars(index = 0) {
+    return Array.from(
+      cardAt(index).querySelectorAll<HTMLButtonElement>('app-star-rating button[role="radio"]'),
+    );
+  }
+  function ratingOf(index = 0) {
+    fixture.detectChanges();
+    return cardAt(index).querySelector('app-star-rating .summary')?.textContent;
+  }
   async function selectRating(label = '4') {
-    const [, rating] = await selects();
-    await rating.clickOptions({ text: label });
+    if (label === 'Sin valorar')
+      firstCard().querySelector<HTMLButtonElement>('app-star-rating button.clear')!.click();
+    else cardStars()[Number(label) - 1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
   }
   function firstCard() {
     return element.querySelector('app-book-card')!;
@@ -99,10 +114,10 @@ describe('BooksCatalog reading state', () => {
       const request = http.expectOne('/api/books/1/reading-status');
       expect(request.request.method).toBe('PATCH');
       expect(request.request.body).toEqual({ readingStatus: status });
-      const [control, rating] = await selects();
+      const [control] = await selects();
       expect(await control.getValueText()).toBe('Por leer');
       expect(await control.isDisabled()).toBe(true);
-      expect(await rating.isDisabled()).toBe(true);
+      expect(cardStars().every((star) => star.disabled)).toBe(true);
       expect(firstCard().querySelector('a')?.getAttribute('href')).toBeNull();
       expect(firstCard().textContent).toContain('Actualizando estado…');
       request.flush({ ...original(), readingStatus: status });
@@ -136,15 +151,30 @@ describe('BooksCatalog reading state', () => {
       const request = http.expectOne('/api/books/1/rating');
       expect(request.request.method).toBe('PUT');
       expect(request.request.body).toEqual({ rating });
-      const [, control] = await selects();
-      expect(await control.getValueText()).toBe('Sin valorar');
+      expect(ratingOf()).toBe('Sin valorar');
+      expect(cardStars().every((star) => star.disabled)).toBe(true);
       request.flush({ ...original(), rating });
       await fixture.whenStable();
-      expect(await control.getValueText()).toBe(String(rating));
+      expect(ratingOf()).toBe(`${rating} de 5`);
+      expect(cardStars().every((star) => !star.disabled)).toBe(true);
       expect(firstCard().querySelector('.reading-status')?.textContent).toBe('Por leer');
       http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
+
+  it('should not send HTTP on hover and should leave the reading status untouched when rating', async () => {
+    cardStars()[3].dispatchEvent(new MouseEvent('pointerenter'));
+    fixture.detectChanges();
+    http.expectNone((req) => req.url.includes('/rating') || req.url.includes('/reading-status'));
+    expect(ratingOf()).toBe('Sin valorar');
+    await selectRating('4');
+    http.expectNone('/api/books/1/reading-status');
+    http.expectOne('/api/books/1/rating').flush({ ...original(), rating: 4 });
+    await fixture.whenStable();
+    expect(ratingOf()).toBe('4 de 5');
+    expect(firstCard().querySelector('.reading-status')?.textContent).toBe('Por leer');
+    expect(await (await selects())[0].getValueText()).toBe('Por leer');
+  });
 
   it('should change a confirmed numeric rating to another number', async () => {
     fixture.componentInstance.updateRating({ id: 1, rating: 2 });
@@ -164,18 +194,18 @@ describe('BooksCatalog reading state', () => {
     const deletion = http.expectOne('/api/books/1/rating');
     expect(deletion.request.method).toBe('DELETE');
     expect(deletion.request.body).toBeNull();
-    expect(await (await selects())[1].getValueText()).toBe('4');
+    expect(ratingOf()).toBe('4 de 5');
     deletion.flush(null, { status: 204, statusText: 'No Content' });
     const reload = listRequest();
     expectQuery(reload, 'title');
     reload.flush(page());
     await fixture.whenStable();
-    expect(await (await selects())[1].getValueText()).toBe('Sin valorar');
+    expect(ratingOf()).toBe('Sin valorar');
   });
 
   it('should not issue HTTP for identical values or invalid requests', async () => {
     await selectStatus('Por leer');
-    await selectRating('Sin valorar');
+    expect(firstCard().querySelector('app-star-rating button.clear')).toBeNull();
     fixture.componentInstance.updateReadingStatus({ id: 1, status: 'TO_READ' });
     fixture.componentInstance.updateRating({ id: 1, rating: null });
     fixture.componentInstance.updateRating({ id: 1, rating: 6 });
@@ -216,8 +246,8 @@ describe('BooksCatalog reading state', () => {
     http.expectNone('/api/books/1/rating');
     http.expectNone('/api/books/1/reading-status');
     const controls = await selects();
-    expect(await controls[2].isDisabled()).toBe(false);
-    await controls[3].clickOptions({ text: '5' });
+    expect(await controls[1].isDisabled()).toBe(false);
+    cardStars(1)[4].click();
     const rating = http.expectOne('/api/books/2/rating');
     expect(fixture.componentInstance.pendingUpdates().size).toBe(2);
     expect(
@@ -238,7 +268,7 @@ describe('BooksCatalog reading state', () => {
     await fixture.whenStable();
     expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
     expect(await (await selects())[0].getValueText()).toBe('Leyendo');
-    expect(await (await selects())[3].getValueText()).toBe('5');
+    expect(ratingOf(1)).toBe('5 de 5');
   });
 
   it('should recheck pending updates when an already-open deletion dialog is confirmed', async () => {
@@ -270,8 +300,9 @@ describe('BooksCatalog reading state', () => {
     fixture.componentInstance.updateRating({ id: 2, rating: 5 });
     fixture.componentInstance.updateRating({ id: 1, rating: null });
     http.expectNone((req) => req.url.includes('/rating') || req.url.includes('/reading-status'));
-    expect((await selects()).length).toBe(4);
+    expect((await selects()).length).toBe(2);
     for (const control of await selects()) expect(await control.isDisabled()).toBe(true);
+    for (const index of [0, 1]) expect(cardStars(index).every((star) => star.disabled)).toBe(true);
     deletion.flush(null, { status: 204, statusText: 'No Content' });
     listRequest().flush(page([testBook({ id: 2 })]));
   });
@@ -316,7 +347,7 @@ describe('BooksCatalog reading state', () => {
       await selectRating(remove ? 'Sin valorar' : '5');
       http.expectOne('/api/books/1/rating').flush({}, { status: 500, statusText: 'Error' });
       await fixture.whenStable();
-      expect(await (await selects())[1].getValueText()).toBe('4');
+      expect(ratingOf()).toBe('4 de 5');
       expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
       http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
@@ -483,7 +514,7 @@ describe('BooksCatalog reading state', () => {
       'No se pudo actualizar el libro',
     );
     expect(element.querySelectorAll('app-book-card')[1].querySelector('[role="alert"]')).toBeNull();
-    expect(await (await selects())[3].getValueText()).toBe('5');
+    expect(ratingOf(1)).toBe('5 de 5');
   });
 
   it('should cancel pending writes and release pending state when the catalog is destroyed', () => {
