@@ -39,10 +39,10 @@ import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/b
 import { BookFilters, FILTER_STATES, sameBookFilters } from '../../models/book-filters';
 import {
   CARDS_PER_ROW_OPTIONS,
-  CardsPerRow,
   isCardsPerRow,
   isCompactCardsPerRow,
-} from '../../models/cards-per-row';
+} from '../../../../core/preferences/cards-per-row';
+import { UiPreferencesService } from '../../../../core/preferences/ui-preferences.service';
 import { registerAppIcons } from '../../../../core/icons/app-icons';
 import { bookFiltersFormValue, createBookFiltersForm, filtersFromForm } from './book-filters.form';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
@@ -159,8 +159,9 @@ export class BooksCatalog {
     { value: 'rating', label: 'Valoración' },
   ];
   private readonly reloadRequested = new Subject<CatalogReload>();
+  private readonly preferences = inject(UiPreferencesService);
   /** Visual density only: never part of the URL, the query or any request. */
-  readonly cardsPerRow = signal<CardsPerRow>('auto');
+  readonly cardsPerRow = this.preferences.cardsPerRow;
   protected readonly cardsPerRowOptions = CARDS_PER_ROW_OPTIONS;
   protected readonly gridColumns = computed(() => {
     const value = this.cardsPerRow();
@@ -431,8 +432,8 @@ export class BooksCatalog {
   }
 
   onCardsPerRowChange(value: unknown): void {
-    // Layout preference: no navigation, reload or state beyond the signal.
-    if (isCardsPerRow(value) && value !== this.cardsPerRow()) this.cardsPerRow.set(value);
+    // Layout preference: no navigation, reload or state beyond the visual preference service.
+    if (isCardsPerRow(value)) this.preferences.setCardsPerRow(value);
   }
 
   onSortDirectionChange(direction: BookCatalogSort['direction']): void {

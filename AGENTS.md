@@ -132,7 +132,9 @@ frontend/mi-biblioteca-web/
 - Native SCSS/CSS Grid/Flexbox handles layout, spacing, responsive rules and visual customization
 - Keep component styles local; global styles and semantic Material theme tokens stay in src/styles.scss and src/styles/
 - Use public Material theming APIs (mat.theme), not internal CSS selectors, ::ng-deep or unnecessary !important
-- Initial light theme; html.app-dark has dark color tokens prepared, but there is no switch, preference persistence or automatic OS theme selection
+- Global theme Claro/Oscuro/Automático: UiPreferencesService (core/preferences) owns a theme signal; AppShell applies APP_DARK_CLASS (app-dark) to html through an effect, with light/dark applied directly and Automático following prefers-color-scheme live (single matchMedia listener, cleaned up on destroy); default is Automático and there is no FOUC because the class is applied during bootstrap before first paint; overlay content follows html.app-dark. The toolbar control is a Material icon cycle button (Claro→Oscuro→Automático) with a dynamic aria-label and a reactive Material tooltip explaining the selected theme (Tema claro / Tema oscuro / Tema automático (según el sistema)); no native title alongside the tooltip
+- The ONLY authorized localStorage use is the single versioned key `mb.ui-preferences.v1` (UI_PREFERENCES_STORAGE_KEY), storing exclusively { version, theme, cardsPerRow } visual preferences with defensive per-field validation; corrupt/unknown-version payloads degrade to defaults, storage failures never break the app, and it never stores books, filters, searches, dates, photos or secrets. This replaces the former "no localStorage persistence" rule for visual preferences only; catalog/search/filter/URL state still has no storage
+- cards-per-row.ts (catalog density vocabulary: CardsPerRow, options, compact threshold, validators) lives in core/preferences and is persisted through UiPreferencesService.setCardsPerRow; BooksCatalog exposes the service signal read-only and writes only through the setter
 - System fonts only initially; no remote font/CDN dependency
 - Root route redirects to /books; /books lazy-loads the standalone BooksCatalog page
 - BooksCatalog is a server-paginated catalog with local signals, loading/success/error states and switchMap cancellation for GET; no stale cards during loading
@@ -655,6 +657,7 @@ Verified:
 - Structured locations are implemented with V8, Room/Bookcase/Shelf CRUD, /locations, a shared selector and stable ID filters. V7 labels remain unchanged until explicit per-book assignment; no automatic reconciliation
 - Assisted legacy reconciliation is available at /locations/reconcile: exact groups, full-group signed review, explicit Shelf selection/confirmation and atomic conversion of verified IDs. No automatic conversion, fuzzy matching, history, undo, reconciliation tables or V9
 - Shelf inventory sessions are implemented with V9: /locations/shelves/:shelfId/inventory and /inventory-sessions/:id. Explicit start/complete/cancel and active-only notes, no Book relationship, photos, OCR or AI
+- UX 03 is implemented: global theme Claro/Oscuro/Automático in AppShell with html.app-dark (cycle button + Material tooltip), and persisted visual preferences (theme + cards per row) in the single versioned localStorage key mb.ui-preferences.v1 via core/preferences/UiPreferencesService; cards-per-row.ts moved from features/books/models to core/preferences. No backend, dependency or API changes
 
 ---
 

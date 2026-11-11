@@ -1,8 +1,12 @@
 /**
  * Visual density of the catalog grid: the *maximum* number of columns wanted. The grid drops
- * columns when they do not fit. In-memory preference only (no storage, URL or HTTP).
+ * columns when they do not fit. Persisted as a visual preference (single versioned localStorage
+ * key); never part of the URL, the query or any HTTP request.
  */
 export type CardsPerRow = 'auto' | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+
+/** Starting density: the original fully responsive grid. */
+export const DEFAULT_CARDS_PER_ROW: CardsPerRow = 'auto';
 
 export const CARDS_PER_ROW_OPTIONS: readonly { value: CardsPerRow; label: string }[] = [
   { value: 'auto', label: 'Automático' },

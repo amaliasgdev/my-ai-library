@@ -12,7 +12,8 @@ import {
   CardsPerRow,
   isCardsPerRow,
   isCompactCardsPerRow,
-} from '../../models/cards-per-row';
+} from '../../../../core/preferences/cards-per-row';
+import { UI_PREFERENCES_STORAGE_KEY } from '../../../../core/preferences/ui-preferences.service';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
 import {
@@ -29,6 +30,8 @@ describe('BooksCatalog cards per row', () => {
     testBookPage({ content: books(), page, size: 20, totalElements: 45, totalPages: 3 });
 
   beforeEach(() => {
+    // Visual preferences persist in storage: start every test from the defaults.
+    localStorage.removeItem(UI_PREFERENCES_STORAGE_KEY);
     TestBed.configureTestingModule({
       imports: [BooksCatalog],
       providers: [

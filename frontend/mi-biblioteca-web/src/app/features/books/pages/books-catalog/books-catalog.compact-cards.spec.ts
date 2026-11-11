@@ -8,6 +8,7 @@ import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { provideRouter } from '@angular/router';
 import { completeMembershipQueries } from '../../../reading-list/reading-list-membership.testing';
+import { UI_PREFERENCES_STORAGE_KEY } from '../../../../core/preferences/ui-preferences.service';
 import { testBook, testBookPage } from '../../models/book.testing';
 import { BooksCatalog } from './books-catalog';
 import {
@@ -24,6 +25,8 @@ describe('BooksCatalog compact cards (8 and 10 per row)', () => {
     testBookPage({ content: books(), page, size: 20, totalElements: 45, totalPages: 3 });
 
   beforeEach(() => {
+    // Visual preferences persist in storage: start every test from the defaults.
+    localStorage.removeItem(UI_PREFERENCES_STORAGE_KEY);
     TestBed.configureTestingModule({
       imports: [BooksCatalog],
       providers: [
