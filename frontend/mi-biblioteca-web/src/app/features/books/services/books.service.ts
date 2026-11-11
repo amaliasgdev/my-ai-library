@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { BookFilters, appendBookFilters } from '../models/book-filters';
 import {
+  MetadataWorks,
+  MetadataEditions,
+  MetadataDuplicates,
+} from '../models/book-metadata.models';
+import {
   BookPageResponse,
   BookLookupResponse,
   BookRequest,
@@ -21,6 +26,41 @@ import {
 export class BooksService {
   private readonly http = inject(HttpClient);
   private readonly apiConfig = inject(API_CONFIG);
+
+  searchMetadata(title: string, author: string, language?: string): Observable<MetadataWorks> {
+    let params = new HttpParams();
+    if (language !== undefined) params = params.set('smart', true).set('language', language);
+    if (title.trim()) params = params.set('title', title.trim());
+    if (author.trim()) params = params.set('author', author.trim());
+    return this.http.get<MetadataWorks>(`${this.apiConfig.apiBaseUrl}/books/metadata-search`, {
+      params,
+    });
+  }
+
+  metadataEditions(
+    workKey: string,
+    page = 0,
+    filters?: Record<string, string>,
+  ): Observable<MetadataEditions> {
+    let params = new HttpParams().set('workKey', workKey).set('page', page);
+    for (const [key, value] of Object.entries(filters ?? {})) {
+      if (value.trim()) params = params.set(key, value.trim());
+    }
+    return this.http.get<MetadataEditions>(`${this.apiConfig.apiBaseUrl}/books/metadata-editions`, {
+      params,
+    });
+  }
+
+  metadataDuplicates(isbn: string, title: string, author: string): Observable<MetadataDuplicates> {
+    let params = new HttpParams();
+    if (isbn.trim()) params = params.set('isbn', isbn);
+    if (title.trim()) params = params.set('title', title.trim());
+    if (author.trim()) params = params.set('author', author.trim());
+    return this.http.get<MetadataDuplicates>(
+      `${this.apiConfig.apiBaseUrl}/books/metadata-duplicates`,
+      { params },
+    );
+  }
 
   uploadCover(id: number, file: File): Observable<BookResponse> {
     const formData = new FormData();

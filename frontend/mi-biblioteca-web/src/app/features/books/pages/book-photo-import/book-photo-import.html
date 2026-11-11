@@ -1,0 +1,545 @@
+<section aria-labelledby="photo-import-heading">
+  <h1 id="photo-import-heading" tabindex="-1">Importar libros desde fotografías</h1>
+  <p>
+    Fotografía los lomos o portadas de tus libros para identificarlos y añadirlos a tu biblioteca
+  </p>
+
+  @if (analyzing()) {
+    <p role="status">
+      Analizando fotografías: {{ analysisCompleted() }} de {{ analysisTotal() }} finalizadas.
+    </p>
+    <button mat-button type="button" (click)="cancelAnalysis()">
+      Detener análisis de fotografías
+    </button>
+  }
+  @if (workflow.creating() || reading.pending()) {
+    <p role="status">
+      Hay una operación de importación o lista de lectura en curso. Cambiar de paso no la cancela.
+    </p>
+    <button mat-button type="button" (click)="goToStep(3)">Ver progreso de importación</button>
+  }
+  <mat-stepper
+    orientation="vertical"
+    [selectedIndex]="step()"
+    (selectionChange)="goToStep($event.selectedIndex)"
+  >
+    <!-- Public icon templates keep numbered steps without a remote icon font. -->
+    <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
+    <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
+    <mat-step label="Fotografías">
+      <p class="notice" id="recognition-notice">
+        @if (availabilityLoading()) {
+          Consultando disponibilidad del reconocimiento…
+        } @else if (available() && realProvider()) {
+          RECONOCIMIENTO REAL MEDIANTE OPENAI. Las fotografías se enviarán a OpenAI para identificar
+          los libros. El análisis puede generar un coste de API. El backend elimina metadatos
+          EXIF/GPS antes del envío. store=false no significa retención cero. Seleccionar fotografías
+          no inicia ningún envío. Los resultados pueden contener errores y requieren revisión y
+          confirmación antes de crear libros.
+        } @else if (available()) {
+          MODO SIMULADO DE DESARROLLO. Los resultados son ejemplos fijos y no identifican los libros
+          de tus fotografías. Solo al pulsar Analizar fotografías se envían al backend local; no se
+          envían a servicios externos. El análisis no crea libros: las altas requieren revisión de
+          datos reales y confirmación explícita.
+        } @else {
+          El reconocimiento todavía no está conectado o está deshabilitado. Puedes preparar
+          fotografías localmente, pero no analizarlas. Puedes añadir manualmente candidatos y
+          revisarlos. No se envían imágenes al seleccionar.
+        }
+      </p>
+      @if (availabilityError()) {
+        <p role="alert">No se pudo consultar la disponibilidad. No se permite iniciar análisis.</p>
+        <button mat-button type="button" (click)="loadCapabilities()">
+          Reintentar disponibilidad
+        </button>
+      }
+
+      <section
+        class="photo-input"
+        aria-labelledby="photo-input-heading"
+        aria-describedby="photo-limits photo-camera-help"
+        (dragover)="allowDrop($event)"
+        (drop)="dropFiles($event)"
+      >
+        <h2 id="photo-input-heading">Seleccionar fotografías</h2>
+        <p>Arrastra aquí tus imágenes o utiliza los botones de selección.</p>
+        <p id="photo-limits">
+          Máximo 3 fotografías, de hasta 5 MB (5.242.880 bytes) cada una. Solo JPEG y PNG. HEIC/HEIF
+          de iPhone, WebP, SVG, PDF y GIF no son compatibles; elige o exporta una copia en JPEG o
+          PNG.
+        </p>
+        <input
+          #fileInput
+          type="file"
+          accept="image/jpeg,image/png"
+          multiple
+          [disabled]="analyzing() || workflow.locked()"
+          hidden
+          aria-label="Seleccionar fotografías JPEG o PNG"
+          (change)="selectFiles($event)"
+        />
+        <input
+          #cameraInput
+          type="file"
+          accept="image/jpeg,image/png"
+          capture="environment"
+          [disabled]="analyzing() || workflow.locked()"
+          hidden
+          aria-label="Tomar una fotografía JPEG o PNG"
+          (change)="selectFiles($event)"
+        />
+        <div class="actions">
+          <button
+            #chooseButton
+            mat-flat-button
+            type="button"
+            (click)="fileInput.click()"
+            [disabled]="analyzing() || workflow.locked()"
+            aria-describedby="photo-limits"
+          >
+            Seleccionar fotografías
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="cameraInput.click()"
+            [disabled]="analyzing() || workflow.locked()"
+            aria-describedby="photo-camera-help"
+          >
+            Tomar fotografía
+          </button>
+        </div>
+        <p id="photo-camera-help">
+          En móviles compatibles se ofrecerá la cámara. En otros dispositivos puede abrirse el
+          selector de archivos. No se activa una cámara continua.
+        </p>
+      </section>
+
+      <div aria-live="polite" aria-atomic="true">
+        <p>{{ photos().length }} de {{ maxPhotos }} fotografías seleccionadas.</p>
+      </div>
+      @if (errors().length) {
+        <div class="error-panel" role="alert">
+          <ul>
+            @for (error of errors(); track $index) {
+              <li>{{ error }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <p id="photo-rotation-help">
+        La rotación ajusta la vista previa y queda pendiente. El archivo original no se modifica: se
+        envía junto al giro solicitado. El servidor aplica primero la orientación EXIF y después
+        este giro una sola vez, y elimina los metadatos. No se reduce la resolución.
+      </p>
+      <div class="photo-grid">
+        @for (photo of photos(); track photo.id) {
+          <mat-card appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{ photo.file.name }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="preview">
+                <img
+                  [src]="photo.previewUrl"
+                  [alt]="'Vista previa local de ' + photo.file.name"
+                  [style.transform]="'rotate(' + photo.rotationDegrees + 'deg)'"
+                  (error)="previewFailed(photo.id)"
+                />
+              </div>
+              <p aria-live="polite">Giro pendiente: {{ photo.rotationDegrees }}°</p>
+              <p aria-live="polite">{{ analysisLabel(photo) }}</p>
+              @if (photo.analysis === 'analyzing') {
+                <mat-progress-bar
+                  mode="indeterminate"
+                  [attr.aria-label]="'Analizando ' + photo.file.name"
+                />
+              }
+              @if (photo.message) {
+                <p role="status">{{ photo.message }}</p>
+              }
+            </mat-card-content>
+            <mat-card-actions>
+              <button
+                mat-button
+                type="button"
+                [attr.aria-label]="'Rotar 90 grados a la derecha: ' + photo.file.name"
+                aria-describedby="photo-rotation-help"
+                (click)="rotatePhoto(photo.id)"
+                [disabled]="analyzing() || workflow.locked()"
+              >
+                Rotar 90°
+              </button>
+              <button
+                mat-button
+                type="button"
+                [attr.aria-label]="'Retirar fotografía: ' + photo.file.name"
+                (click)="removePhoto(photo.id); chooseButton.focus()"
+                [disabled]="analyzing() || workflow.locked()"
+              >
+                Retirar
+              </button>
+              @if (photo.analysis === 'error' || photo.analysis === 'cancelled') {
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="
+                    analyzing() ||
+                    workflow.locked() ||
+                    !available() ||
+                    (realProvider() && !openaiConsent())
+                  "
+                  [attr.aria-label]="'Reintentar análisis: ' + photo.file.name"
+                  (click)="retryPhoto(photo.id)"
+                >
+                  Reintentar análisis
+                </button>
+              }
+            </mat-card-actions>
+          </mat-card>
+        }
+      </div>
+      @if (available() && realProvider()) {
+        <mat-checkbox
+          [checked]="openaiConsent()"
+          [disabled]="analyzing() || workflow.locked()"
+          (change)="openaiConsent.set($event.checked)"
+        >
+          Autorizo el envío de las fotografías pendientes a OpenAI y acepto el posible coste de este
+          análisis. Después pulsaré Analizar fotografías o Reintentar análisis.
+        </mat-checkbox>
+      }
+      <div class="actions">
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="!canAnalyze()"
+          (click)="analyze()"
+          aria-describedby="recognition-notice"
+        >
+          Analizar fotografías
+        </button>
+        @if (analyzing()) {
+          <button mat-stroked-button type="button" (click)="cancelAnalysis()">
+            Cancelar análisis
+          </button>
+        }
+        <a mat-button routerLink="/books" [queryParams]="catalogParams">Volver al catálogo</a>
+      </div>
+      @if (analysisTotal()) {
+        <p aria-live="polite">
+          {{ analysisCompleted() }} de {{ analysisTotal() }} análisis finalizados.
+        </p>
+      }
+      <p>
+        Cancelar detiene la cola y descarta respuestas tardías; el servidor puede terminar una
+        petición ya enviada y generar coste en OpenAI. No se reintenta automáticamente; cada nuevo
+        análisis real requiere autorización.
+      </p>
+      <p>
+        Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la selección.
+      </p>
+      <button mat-button type="button" (click)="goToStep(1)">Ver resultados</button>
+    </mat-step>
+    <mat-step label="Resultados">
+      <h2>Libros identificados</h2>
+      <mat-form-field
+        ><mat-label>Idioma preferido de búsqueda</mat-label
+        ><mat-select
+          [value]="preferredLanguage()"
+          [disabled]="batchSearching()"
+          (selectionChange)="preferredLanguage.set($event.value)"
+        >
+          <mat-option value="es">Español</mat-option><mat-option value="en">Inglés</mat-option
+          ><mat-option value="all">Todos los idiomas</mat-option
+          ><mat-option value="fr">Francés</mat-option><mat-option value="de">Alemán</mat-option
+          ><mat-option value="it">Italiano</mat-option><mat-option value="pt">Portugués</mat-option>
+        </mat-select></mat-form-field
+      >
+      <p>Es una preferencia, no excluye obras en otros idiomas. No altera los datos reconocidos.</p>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="batchSearching() || workflow.locked() || analyzing()"
+        (click)="searchAllMetadata()"
+      >
+        Buscar metadatos de todos los libros
+      </button>
+      @if (batchSearching()) {
+        <button mat-button type="button" (click)="stopMetadataBatch()">
+          Detener búsqueda por lote
+        </button>
+      }
+      @if (batchTotal()) {
+        <p role="status">
+          Bibliografía: {{ batchCompleted() }} de {{ batchTotal() }} búsquedas finalizadas. No se
+          crean libros ni se consultan todas las ediciones.
+        </p>
+      }
+      <p role="status">
+        Candidatos: {{ candidateSummary().total }} · Pendientes: {{ candidateSummary().pending }} ·
+        Revisados: {{ candidateSummary().reviewed }} · Posibles duplicados:
+        {{ candidateSummary().duplicates }}
+      </p>
+      <p>
+        El reconocimiento visual no confirma una edición. Busca coincidencias y revisa los datos
+        antes de importar.
+      </p>
+      @for (group of resultGroups().groups; track group.photo.id) {
+        <section [attr.aria-label]="'Resultados de ' + group.name">
+          <h3>{{ group.name }}</h3>
+          @if (group.photo.message) {
+            <p role="status">{{ group.photo.message }}</p>
+          }
+          @if (group.photo.result; as result) {
+            <p>
+              {{
+                result.simulated
+                  ? 'Ejemplo simulado — no corresponde a esta fotografía'
+                  : 'Reconocimiento mediante OpenAI — comprueba cada observación'
+              }}
+            </p>
+            @if (result.incomplete) {
+              <p role="status">
+                Resultado incompleto. Puede haber libros omitidos o datos sin identificar.
+              </p>
+            }
+            @if (!result.observations.length) {
+              <p>
+                {{
+                  result.simulated
+                    ? 'Sin observaciones en este ejemplo.'
+                    : 'No se han identificado libros en este resultado.'
+                }}
+              </p>
+            }
+            <mat-expansion-panel>
+              <mat-expansion-panel-header
+                ><mat-panel-title
+                  >Consultar fotografía original y advertencias</mat-panel-title
+                ></mat-expansion-panel-header
+              >
+              <div class="evidence-photo">
+                <img
+                  [src]="group.photo.previewUrl"
+                  [alt]="'Fotografía original: ' + group.name"
+                  [style.transform]="'rotate(' + group.photo.rotationDegrees + 'deg)'"
+                />
+              </div>
+              @for (warning of result.warnings; track $index) {
+                <p>{{ warning }}</p>
+              }
+            </mat-expansion-panel>
+          } @else {
+            <p>
+              {{ analysisLabel(group.photo) }}. Vuelve a Fotografías para analizar o reintentar.
+            </p>
+          }
+          <div class="candidate-grid">
+            @for (row of group.candidates; track row.id) {
+              <app-photo-candidate-card
+                [row]="row"
+                [metadataStatus]="
+                  metadataEditor(row.id)?.resolutionStatus() ?? 'Pendiente de búsqueda'
+                "
+                [proposedCover]="metadataEditor(row.id)?.proposedCover() ?? null"
+                [proposalLabel]="metadataEditor(row.id)?.proposalLabel() ?? ''"
+                [coverKind]="
+                  metadataEditor(row.id)?.selected()
+                    ? 'Edición elegida'
+                    : 'Obra propuesta · sin confirmar'
+                "
+                [locked]="workflow.locked()"
+                [legibility]="observationLegibility(row.id)"
+                [batchDuplicate]="batchDuplicates().has(row.id)"
+                (review)="openCandidate($event)"
+                (discard)="workflow.discard($event)"
+              />
+            }
+          </div>
+        </section>
+      }
+      @if (resultGroups().other.length) {
+        <h3>Candidatos introducidos manualmente u originados en fotografías retiradas</h3>
+        <div class="candidate-grid">
+          @for (row of resultGroups().other; track row.id) {
+            <app-photo-candidate-card
+              [row]="row"
+              [manual]="isManual(row.id)"
+              [metadataStatus]="
+                metadataEditor(row.id)?.resolutionStatus() ?? 'Pendiente de búsqueda'
+              "
+              [proposedCover]="metadataEditor(row.id)?.proposedCover() ?? null"
+              [proposalLabel]="metadataEditor(row.id)?.proposalLabel() ?? ''"
+              [coverKind]="
+                metadataEditor(row.id)?.selected()
+                  ? 'Edición elegida'
+                  : 'Obra propuesta · sin confirmar'
+              "
+              [locked]="workflow.locked()"
+              [batchDuplicate]="batchDuplicates().has(row.id)"
+              (review)="openCandidate($event)"
+              (discard)="workflow.discard($event)"
+            />
+          }
+        </div>
+      }
+      @if (!workflow.rows().length) {
+        <p>Todavía no hay candidatos. Analiza una fotografía o añade un libro manualmente.</p>
+      }
+      <div class="actions">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="workflow.locked()"
+          (click)="workflow.addManual()"
+        >
+          Añadir manualmente un libro omitido
+        </button>
+        <button mat-button type="button" (click)="goToStep(0)">Volver a fotografías</button>
+        @if (candidateSummary().pending) {
+          <button mat-flat-button type="button" (click)="reviewBooks()">Revisar libros</button>
+        }
+        @if (hasReady()) {
+          <button mat-flat-button type="button" (click)="goToStep(3)">
+            Continuar a importación
+          </button>
+        }
+      </div>
+    </mat-step>
+    <mat-step label="Revisión">
+      <h2>Revisar un candidato</h2>
+      <p aria-live="polite">
+        Candidato actual: {{ activeRow()?.draft?.title || 'Ninguno seleccionado' }}
+      </p>
+      <p>
+        La evidencia no confirma la edición. Nada se importa al buscar coincidencias o confirmar
+        datos.
+      </p>
+      <!-- Eager, stable instances deliberately preserve independent search forms, edition choices
+         and in-flight reads across steps. Only the active editor is visible/focusable. -->
+      @for (photo of photos(); track photo.id) {
+        @if (photo.result; as result) {
+          @for (observation of result.observations; track observation.id) {
+            <section [hidden]="activeCandidate() !== 'photo:' + photo.id + ':' + observation.id">
+              <h3>{{ observation.title ?? 'Título sin identificar' }}</h3>
+              <p>
+                Origen: {{ photo.file.name }} · Legibilidad:
+                {{ legibilityLabel(observation.legibility) }}
+              </p>
+              <mat-expansion-panel>
+                <mat-expansion-panel-header
+                  ><mat-panel-title
+                    >Consultar evidencia textual y fotografía</mat-panel-title
+                  ></mat-expansion-panel-header
+                >
+                <div class="evidence-photo">
+                  <img
+                    [src]="photo.previewUrl"
+                    [alt]="'Fotografía original: ' + photo.file.name"
+                    [style.transform]="'rotate(' + photo.rotationDegrees + 'deg)'"
+                  />
+                </div>
+                <p class="literal-evidence">
+                  Texto visible (evidencia): {{ observation.visibleText ?? 'Sin texto' }}
+                </p>
+                <p>ISBN visible propuesto: {{ observation.rawIsbn ?? 'No visible' }}</p>
+                @for (warning of observation.warnings; track $index) {
+                  <p>{{ warning }}</p>
+                }
+              </mat-expansion-panel>
+              <app-photo-metadata-candidate
+                [observation]="observation"
+                [candidateId]="'photo:' + photo.id + ':' + observation.id"
+                [preferredLanguage]="preferredLanguage()"
+                [batchBusy]="batchSearching()"
+                (searchSettled)="metadataSettled('photo:' + photo.id + ':' + observation.id)"
+                [simulated]="result.simulated"
+                [locked]="candidateLocked('photo:' + photo.id + ':' + observation.id)"
+                (identificationChanged)="candidateChanged(photo.id, observation.id, $event)"
+                (reviewRequested)="reviewCandidate(photo.id, observation.id, $event)"
+              />
+            </section>
+          }
+        }
+      }
+      @for (manual of workflow.manualCandidates(); track manual.id) {
+        <section [hidden]="activeCandidate() !== manual.id">
+          <h3>{{ manual.observation.title }}</h3>
+          <p>Origen: introducido manualmente · sin fotografía</p>
+          <app-photo-metadata-candidate
+            [observation]="manual.observation"
+            [candidateId]="manual.id"
+            [userEntered]="true"
+            [preferredLanguage]="preferredLanguage()"
+            [batchBusy]="batchSearching()"
+            [simulated]="false"
+            [locked]="candidateLocked(manual.id)"
+            (searchSettled)="metadataSettled(manual.id)"
+            (identificationChanged)="manualChanged(manual.id, $event)"
+            (reviewRequested)="reviewManual(manual.id, $event)"
+          />
+        </section>
+      }
+      @if (activeRow(); as row) {
+        <p role="status">{{ workflow.label(row.state) }}. {{ row.message }}</p>
+        @if (batchDuplicates().has(row.id)) {
+          <p>
+            Posible duplicado en el lote: comprueba la fotografía; podrían ser ejemplares distintos.
+          </p>
+        }
+        @if (!hasObservation(row.id)) {
+          <h3>{{ row.draft.title || 'Libro sin identificar' }}</h3>
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="candidateLocked(row.id)"
+            (click)="workflow.review(row.id)"
+          >
+            Revisar datos
+          </button>
+        }
+        @if (row.state === 'possible') {
+          @for (match of row.duplicates?.matches ?? []; track match.id) {
+            <p>
+              Posible duplicado: {{ match.title }} · {{ match.author }} ·
+              {{ match.isbn ?? 'Sin ISBN' }}
+            </p>
+          }
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="workflow.locked()"
+            (click)="workflow.approvePossible(row.id)"
+          >
+            He revisado las coincidencias; es otro libro o edición
+          </button>
+        }
+      } @else {
+        <p>Selecciona Revisar en una tarjeta de Resultados.</p>
+      }
+      <div class="actions">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="workflow.locked()"
+          (click)="nextCandidate()"
+        >
+          Siguiente candidato pendiente
+        </button>
+        <button mat-button type="button" (click)="goToStep(1)">Volver a resultados</button>
+        @if (hasReady()) {
+          <button mat-flat-button type="button" (click)="goToStep(3)">
+            Continuar a importación
+          </button>
+        }
+      </div>
+    </mat-step>
+    <mat-step label="Importación">
+      <app-photo-import-queue [catalogParams]="catalogParams" />
+      <button mat-button type="button" (click)="goToStep(1)">Volver a resultados</button>
+      <a mat-button routerLink="/books" [queryParams]="catalogParams">Volver al catálogo</a>
+    </mat-step>
+  </mat-stepper>
+</section>

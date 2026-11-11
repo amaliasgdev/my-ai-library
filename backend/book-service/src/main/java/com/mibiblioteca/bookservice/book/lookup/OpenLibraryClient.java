@@ -20,6 +20,57 @@ public class OpenLibraryClient {
     private final ObjectMapper objectMapper;
     private final OpenLibraryProperties properties;
     private final OpenLibraryRequestFactory requestFactory;
+    private final OpenLibraryPacer pacer = new OpenLibraryPacer();
+
+    public JsonNode metadataSearch(String title, String author, LookupBudget budget) {
+        return metadataSearch(title, author, null, false, budget);
+    }
+
+    /** Language-aware search also requests the best matching edition's title as translated-title evidence. */
+    public JsonNode metadataSearch(String title, String author, String language, LookupBudget budget) {
+        return metadataSearch(title, author, language, true, budget);
+    }
+
+    private JsonNode metadataSearch(String title, String author, String language, boolean editionEvidence, LookupBudget budget) {
+        var builder = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
+            .replacePath("/search.json");
+        if (title != null) builder.queryParam("title", "{title}");
+        if (author != null) builder.queryParam("author", "{author}");
+        var values = new java.util.HashMap<String, String>();
+        if (title != null) values.put("title", title);
+        if (author != null) values.put("author", author);
+        if (language != null) builder.queryParam("lang", language);
+        String fields = "key,title,author_name,cover_i,first_publish_year,edition_count"
+            + (editionEvidence ? ",editions,editions.key,editions.title" : "");
+        URI uri = builder.queryParam("fields", fields)
+            .queryParam("limit", 10).encode().buildAndExpand(values).toUri();
+        return request(uri, budget, false, false);
+    }
+
+    public JsonNode filteredEdition(String workKey, String query, String language, LookupBudget budget) {
+        if (workKey == null || !workKey.matches("/works/OL[0-9]{1,12}W")) throw invalidResponse();
+        var builder = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
+            .replacePath("/search.json").queryParam("q", "{query}")
+            .queryParam("fields", "key,editions,editions.key").queryParam("limit", 1);
+        if (language != null) builder.queryParam("lang", language);
+        return request(builder.encode().buildAndExpand(java.util.Map.of("query",
+            "key:\"" + workKey + "\"" + (query.isEmpty() ? "" : " " + query))).toUri(), budget, false, false);
+    }
+
+    public JsonNode metadataEdition(String key, LookupBudget budget) {
+        if (!key.matches("/books/OL[0-9]{1,12}M")) throw invalidResponse();
+        return request(properties.baseUrl().resolve(key + ".json"), budget, false, false);
+    }
+
+    public JsonNode metadataEditions(String workKey, int page, LookupBudget budget) {
+        if (!workKey.matches("/works/OL[0-9]{1,12}W") || page < 0 || page > 9) {
+            throw new BookLookupException(HttpStatus.BAD_REQUEST, "Invalid metadata request", "Invalid work identifier or page");
+        }
+        URI uri = org.springframework.web.util.UriComponentsBuilder.fromUri(properties.baseUrl())
+            .replacePath(workKey + "/editions.json").queryParam("limit", 10).queryParam("offset", page * 10)
+            .build().toUri();
+        return request(uri, budget, false, false);
+    }
 
     public OpenLibraryClient(@Qualifier("openLibraryRestClient") RestClient restClient, ObjectMapper objectMapper,
                              OpenLibraryProperties properties, OpenLibraryRequestFactory requestFactory) {
@@ -46,6 +97,7 @@ public class OpenLibraryClient {
 
     private JsonNode request(URI uri, LookupBudget budget, boolean allowRedirect, boolean editionRequest) {
         try {
+            pacer.acquire(budget);
             // Return redirect information before starting the next bounded request.
             Response response = requestFactory.within(budget.remaining(), () -> restClient.get().uri(uri).exchange((request, upstream) -> {
                 int status = upstream.getStatusCode().value();
@@ -57,6 +109,7 @@ public class OpenLibraryClient {
                 }
                 if (status == 429 || status >= 500) {
                     String retryAfter = status == 429 ? validRetryAfter(upstream.getHeaders().getFirst("Retry-After")) : null;
+                    pacer.backoff(retryAfter);
                     throw new BookLookupException(HttpStatus.SERVICE_UNAVAILABLE, "Book provider unavailable",
                         status == 429 ? "External book provider is temporarily rate limited" : "External book provider is unavailable", retryAfter);
                 }
@@ -64,8 +117,10 @@ public class OpenLibraryClient {
                     throw invalidResponse();
                 }
                 try {
+                    byte[] body = upstream.getBody().readNBytes(2097153);
+                    if (body.length > 2097152) throw invalidResponse();
                     JsonNode node = objectMapper.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                        .readTree(upstream.getBody());
+                        .readTree(body);
                     if (node == null || !node.isObject() || node.isEmpty()) {
                         throw invalidResponse();
                     }

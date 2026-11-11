@@ -84,6 +84,56 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void documentsBibliographicWorksEditionsAndAdvisoryDuplicates() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (String endpoint : new String[] {"metadata-search", "metadata-editions", "metadata-duplicates"}) {
+            var route = document.path("paths").path("/api/books/" + endpoint);
+            assertThat(route.has("get")).isTrue();
+            assertThat(route.has("post")).isFalse();
+            assertThat(route.path("get").path("responses").has("400")).isTrue();
+            assertThat(route.path("get").path("parameters").isArray()).isTrue();
+        }
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("isbn")).isFalse();
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("firstPublicationYear")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("matchKind")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Work").path("properties").has("matchedEditionTitle")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Works").path("properties").has("resolution")).isTrue();
+        assertThat(document.path("components").path("schemas").path("Editions").path("properties").has("partial")).isTrue();
+        var searchParams = document.path("paths").path("/api/books/metadata-search").path("get").path("parameters");
+        assertThat(searchParams.toString()).contains("\"smart\"", "\"language\"");
+        var editionParams = document.path("paths").path("/api/books/metadata-editions").path("get").path("parameters");
+        assertThat(editionParams.toString()).contains("\"language\"", "\"publisher\"", "\"year\"", "\"isbn\"");
+    }
+
+    @Test
+    void documentsExplicitPhotoProvidersWithoutPersistenceOrCredentials() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths = document.path("paths");
+        assertThat(paths.path("/api/book-photo-import/capabilities").has("get")).isTrue();
+        var analyze = paths.path("/api/book-photo-import/recognize").path("post");
+        assertThat(paths.path("/api/book-photo-import/capabilities").path("get").path("description").asText())
+            .contains("SIMULATED", "REAL", "OpenAI");
+        assertThat(analyze.path("description").asText()).contains("EXIF", "OpenAI", "store=false", "No Book creation", "provider cost");
+        assertThat(analyze.path("requestBody").path("content").has("multipart/form-data")).isTrue();
+        var multipart = analyze.path("requestBody").path("content").path("multipart/form-data").path("schema");
+        if (multipart.has("$ref")) {
+            multipart = document.path("components").path("schemas").path(multipart.path("$ref").asText().substring("#/components/schemas/".length()));
+        }
+        assertThat(multipart.path("properties").path("file").path("format").asText()).isEqualTo("binary");
+        assertThat(multipart.path("properties").has("rotation")).isTrue();
+        assertThat(multipart.path("required").toString()).contains("file", "rotation");
+        for (String code : new String[] {"200", "400", "413", "415", "429", "500", "502", "503", "504"}) {
+            assertThat(analyze.path("responses").has(code)).isTrue();
+        }
+        assertThat(analyze.path("responses").path("504").path("content").has("application/problem+json")).isTrue();
+        mockMvc.perform(get("/api/book-photo-import/capabilities"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false))
+            .andExpect(jsonPath("$.mode").value("DISABLED"));
+    }
+
+    @Test
     void documentsReadingListContractsIncludingAbsoluteMoves() throws Exception {
         var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());

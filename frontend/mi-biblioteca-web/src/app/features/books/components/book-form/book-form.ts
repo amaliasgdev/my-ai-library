@@ -9,29 +9,15 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  AbstractControl,
-  FormArray,
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book.models';
 import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
-import {
-  CRUD_ISBN_PATTERN,
-  genreList,
-  httpCoverUrl,
-  integer,
-  isoLanguage,
-  notBlank,
-  optionalText,
-} from './book-form.validators';
+import { createBookForm } from './book-form.factory';
+import { notBlank } from './book-form.validators';
 
 @Component({
   selector: 'app-book-form',
@@ -70,41 +56,7 @@ export class BookForm implements OnChanges {
     nonNullable: true,
     validators: [notBlank, Validators.maxLength(50)],
   });
-  readonly form = new FormGroup({
-    title: new FormControl('', {
-      nonNullable: true,
-      validators: [notBlank, Validators.maxLength(255)],
-    }),
-    author: new FormControl('', {
-      nonNullable: true,
-      validators: [notBlank, Validators.maxLength(255)],
-    }),
-    isbn: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(20), optionalText(Validators.pattern(CRUD_ISBN_PATTERN))],
-    }),
-    description: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(5000)],
-    }),
-    publisher: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
-    publicationYear: new FormControl<number | null>(null, [
-      integer,
-      Validators.min(1),
-      Validators.max(2100),
-    ]),
-    pageCount: new FormControl<number | null>(null, [
-      integer,
-      Validators.min(1),
-      Validators.max(2147483647),
-    ]),
-    language: new FormControl('', { nonNullable: true, validators: [isoLanguage] }),
-    coverUrl: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.maxLength(2048), httpCoverUrl],
-    }),
-    genres: new FormArray<FormControl<string>>([], genreList),
-  });
+  readonly form = createBookForm();
 
   constructor() {
     this.form.controls.isbn.valueChanges

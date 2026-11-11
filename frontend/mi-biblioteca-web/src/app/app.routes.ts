@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { photoImportCanDeactivate } from './features/books/pages/book-photo-import/photo-import.guard';
 
 export const routes: Routes = [
   {
@@ -8,6 +9,15 @@ export const routes: Routes = [
       import('./features/reading-list/reading-list').then((module) => module.ReadingList),
   },
   { path: '', pathMatch: 'full', redirectTo: 'books' },
+  {
+    path: 'books/photo-import',
+    canDeactivate: [photoImportCanDeactivate],
+    title: 'Importar libros desde fotografías | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/books/pages/book-photo-import/book-photo-import').then(
+        (module) => module.BookPhotoImport,
+      ),
+  },
   {
     path: 'books/import',
     title: 'Importar ISBN | Mi Biblioteca',

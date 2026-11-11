@@ -3,6 +3,7 @@ package com.mibiblioteca.bookservice.common.exception;
 import com.mibiblioteca.bookservice.book.lookup.BookLookupException;
 import com.mibiblioteca.bookservice.book.cover.CoverException;
 import com.mibiblioteca.bookservice.readinglist.ReadingListException;
+import com.mibiblioteca.bookservice.book.photoimport.PhotoImportException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.TransactionException;
 import org.springframework.web.multipart.MultipartException;
@@ -27,6 +28,14 @@ import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(PhotoImportException.class)
+    public ProblemDetail handlePhotoImport(PhotoImportException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setProperty("code", ex.code());
+        if (ex.field() != null) problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
+        return problem;
+    }
 
     @ExceptionHandler(ReadingListException.class)
     public ProblemDetail handleReadingList(ReadingListException ex) {

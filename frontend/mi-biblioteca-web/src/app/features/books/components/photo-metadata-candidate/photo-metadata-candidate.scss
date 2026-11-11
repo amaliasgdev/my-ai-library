@@ -1,0 +1,54 @@
+:host {
+  display: block;
+  border-block-start: 1px solid var(--mat-sys-outline-variant);
+  margin-block-start: 1rem;
+  padding-block-start: 1rem;
+}
+form {
+  display: grid;
+  gap: 0.5rem;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+article {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-block-end: 1px solid var(--mat-sys-outline-variant);
+  padding-block: 1rem;
+}
+article > div {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+img {
+  width: 5rem;
+  height: 7rem;
+  object-fit: contain;
+}
+p,
+h5 {
+  overflow-wrap: anywhere;
+}
+h5 {
+  font-size: 1rem;
+  margin-block: 0.5rem;
+}
+.notice,
+.selection {
+  background: var(--mat-sys-surface-container);
+  padding: 0.75rem;
+}
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 0.75rem;
+}
+
+mat-expansion-panel {
+  margin-block: 1rem;
+}
