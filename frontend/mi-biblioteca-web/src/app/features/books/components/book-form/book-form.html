@@ -104,44 +104,8 @@
       >
       <mat-error>{{ fieldError(form.controls.coverUrl) }}</mat-error>
     </mat-form-field>
-    <div class="genres full-width" role="group" aria-labelledby="genres-heading">
-      <h2 id="genres-heading">Géneros</h2>
-      <div class="genre-entry">
-        <mat-form-field>
-          <mat-label>Nuevo género</mat-label>
-          <input
-            id="genre-input"
-            matInput
-            [formControl]="genreInput"
-            [readonly]="submitting()"
-            (keydown.enter)="onGenreEnter($event)"
-          />
-          <mat-hint>Hasta 10 géneros; 50 caracteres por género</mat-hint>
-          <mat-error>{{ fieldError(genreInput) }}</mat-error>
-        </mat-form-field>
-        <button mat-button type="button" (click)="addGenre()" [disabled]="submitting()">
-          Añadir
-        </button>
-      </div>
-      <mat-chip-set aria-label="Géneros añadidos">
-        @for (genre of form.controls.genres.controls; track genre; let index = $index) {
-          <mat-chip [disabled]="submitting()">
-            {{ genre.value }}
-            <button
-              matChipRemove
-              type="button"
-              [disabled]="submitting()"
-              [attr.aria-label]="'Eliminar género ' + genre.value"
-              (click)="removeGenre(index)"
-            >
-              ×
-            </button>
-          </mat-chip>
-          @if (genre.invalid && genre.touched) {
-            <p class="field-error" role="alert">{{ genre.value }}: {{ fieldError(genre) }}</p>
-          }
-        }
-      </mat-chip-set>
+    <div class="genres full-width">
+      <app-genre-select [formControl]="form.controls.genres" [selectionDisabled]="submitting()" />
       @if (
         form.controls.genres.invalid && form.controls.genres.touched && form.controls.genres.errors
       ) {

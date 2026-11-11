@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.genre-notice {
+  margin: 0.25rem 0 0;
+  color: var(--mat-sys-error);
+}
+
+.genre-hint {
+  margin: -0.75rem 0 0.5rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.genre-option mat-checkbox {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding-right: 0.75rem;
+}
+
+.genre-empty {
+  color: var(--mat-sys-on-surface-variant);
+}

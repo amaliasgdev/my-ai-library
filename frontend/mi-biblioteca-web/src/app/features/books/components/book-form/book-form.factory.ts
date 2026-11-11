@@ -1,4 +1,4 @@
-import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { BookRequest } from '../../models/book.models';
 import {
   CRUD_ISBN_PATTERN,
@@ -45,21 +45,15 @@ export function createBookForm() {
       nonNullable: true,
       validators: [Validators.maxLength(2048), httpCoverUrl],
     }),
-    genres: new FormArray<FormControl<string>>([], genreList),
+    genres: new FormControl<string[]>([], { nonNullable: true, validators: [genreList] }),
   });
 }
 
 export function validConfirmedBookRequest(request: BookRequest): boolean {
   const form = createBookForm();
-  for (const genre of request.genres)
-    form.controls.genres.push(
-      new FormControl(genre, {
-        nonNullable: true,
-        validators: [notBlank, Validators.maxLength(50)],
-      }),
-    );
   form.patchValue({
     ...request,
+    genres: [...request.genres],
     isbn: request.isbn ?? '',
     description: request.description ?? '',
     publisher: request.publisher ?? '',

@@ -2,9 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogConfig, MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BookForm } from '../../components/book-form/book-form';
+import { GenreSelect } from '../../components/genre-select/genre-select';
 import { IsbnBarcodeReader } from '../../components/isbn-scan-dialog/isbn-barcode-reader';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { testBookLookup } from '../../models/book.testing';
@@ -140,11 +142,13 @@ describe('BookCreate local barcode to existing lookup', () => {
     expect(page.detectedIsbn()).toBeNull();
   });
   it('uses existing partial application preserving drafts, description, genres and cover', async () => {
+    const genreSelect = () =>
+      fixture.debugElement.query(By.directive(GenreSelect)).componentInstance as GenreSelect;
     editor.form.patchValue({
       description: 'Exact description',
       coverUrl: 'https://example.test/cover.jpg',
     });
-    editor.genreInput.setValue('Pending');
+    genreSelect().searchControl.setValue('Pending');
     await scan();
     const request = lookup();
     editor.form.controls.title.setValue('Typed during GET');
@@ -153,8 +157,8 @@ describe('BookCreate local barcode to existing lookup', () => {
     expect(editor.form.controls.author.value).toBe('Robert C. Martin');
     expect(editor.form.controls.description.value).toBe('Exact description');
     expect(editor.form.controls.coverUrl.value).toBe('https://example.test/cover.jpg');
-    expect(editor.form.controls.genres.value).toEqual([]);
-    expect(editor.genreInput.value).toBe('Pending');
+    expect(editor.form.controls.genres.value).toEqual(['Software', 'Programming']);
+    expect(genreSelect().searchControl.value).toBe('Pending');
   });
   it('manual edits cancel lookup and stale proposals cannot apply', async () => {
     await scan();

@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { COVERS_CONFIG } from '../../../../core/config/covers.config';
+import { GenreSelect } from '../../components/genre-select/genre-select';
 import { testBook, testBookRequest } from '../../models/book.testing';
 import { BookEdit } from './book-edit';
 
@@ -46,6 +48,9 @@ describe('BookEdit managed covers', () => {
   function load(coverUrl: string | null = managed) {
     http.expectOne('/api/books/42').flush(testBook({ id: 42, coverUrl }));
     fixture.detectChanges();
+  }
+  function genreSelect(): GenreSelect {
+    return fixture.debugElement.query(By.directive(GenreSelect)).componentInstance as GenreSelect;
   }
   function input() {
     return element.querySelector<HTMLInputElement>('#cover-file')!;
@@ -189,10 +194,9 @@ describe('BookEdit managed covers', () => {
     });
     form.controls.title.markAsDirty();
     form.controls.title.markAsTouched();
-    editor().genreInput.setValue('Draft chip');
-    editor().addGenre();
-    editor().genreInput.setValue('Pending genre');
-    form.controls.genres.markAsTouched();
+    editor().form.controls.genres.setValue(['Draft chip']);
+    editor().form.controls.genres.markAsTouched();
+    genreSelect().searchControl.setValue('Pending genre');
     const before = form.getRawValue();
     const controls = Object.entries(form.controls)
       .filter(([field]) => field !== 'coverUrl')
@@ -206,7 +210,7 @@ describe('BookEdit managed covers', () => {
     upload().flush(testBook({ id: 42, coverUrl: replacement }));
     fixture.detectChanges();
     expect(form.getRawValue()).toEqual({ ...before, coverUrl: replacement });
-    expect(editor().genreInput.value).toBe('Pending genre');
+    expect(genreSelect().searchControl.value).toBe('Pending genre');
     for (const state of controls) {
       const control = form.get(state.field)!;
       expect(control.dirty).toBe(state.dirty);
@@ -269,7 +273,7 @@ describe('BookEdit managed covers', () => {
       description: 'Exact',
       coverUrl: 'https://draft.test/cover',
     });
-    editor().genreInput.setValue('Pending');
+    genreSelect().searchControl.setValue('Pending');
     const before = editor().form.getRawValue();
     const reload = deleteAndReload();
     expect(confirmed().coverUrl).toBe(managed);
@@ -278,7 +282,7 @@ describe('BookEdit managed covers', () => {
     reload.flush(testBook({ id: 42, coverUrl: null }));
     fixture.detectChanges();
     expect(editor().form.getRawValue()).toEqual({ ...before, coverUrl: '' });
-    expect(editor().genreInput.value).toBe('Pending');
+    expect(genreSelect().searchControl.value).toBe('Pending');
     expect(confirmed().coverUrl).toBeNull();
     expect(page.writesBlocked()).toBe(false);
     expect(button('Eliminar portada')).toBeUndefined();

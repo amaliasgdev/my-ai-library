@@ -27,13 +27,23 @@ describe('PhotoImportReviewDialog uses the existing CRUD form', () => {
     const { fixture, form, close, dialog } = create();
     dialog.realConfirmed.set(true);
     fixture.detectChanges();
-    expect(form.form.controls.genres.length).toBe(0);
+    expect(form.form.controls.genres.value).toEqual([]);
     expect(form.form.controls.genres.valid).toBe(true);
-    expect(fixture.nativeElement.querySelector('#genre-input[required]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#genre-search[required]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#genre-search')).not.toBeNull();
     form.submit();
     expect(close).toHaveBeenCalledOnce();
     expect(close.mock.calls[0][0].genres).toEqual([]);
     expect(fixture.nativeElement.textContent).not.toContain('Sin género');
+  });
+
+  it('discards genre selection changes when the photo review is cancelled', () => {
+    const { form, close } = create();
+    form.form.controls.genres.setValue(['Aventura']);
+    form.cancel();
+    expect(close).toHaveBeenCalledOnce();
+    expect(close.mock.calls[0]).toHaveLength(0);
+    expect(form.form.controls.genres.value).toEqual(['Aventura']);
   });
   it('requires explicit real-data confirmation, supports null ISBN, and never writes', () => {
     const { fixture, form, close, dialog } = create();
@@ -61,7 +71,7 @@ describe('PhotoImportReviewDialog uses the existing CRUD form', () => {
       language: 'es',
       coverUrl: 'https://example.org/bibliography.jpg',
     });
-    form.genreInput.setValue('Fiction');
+    form.form.controls.genres.setValue(['Fiction']);
     form.submit();
     expect(close).toHaveBeenCalledWith(
       expect.objectContaining({

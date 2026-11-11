@@ -79,11 +79,18 @@ describe('Book form validators', () => {
     expect(httpCoverUrl(new FormControl(value))).toEqual({ coverUrl: true });
   });
 
-  it('should enforce genre count and case-insensitive trimmed uniqueness', () => {
+  it('should enforce genre count, trimmed uniqueness and entry validity', () => {
     expect(genreList(new FormControl([]))).toBeNull();
     expect(genreList(new FormControl(['Fantasía', ' fantasía ']))).toEqual({ duplicate: true });
+    expect(genreList(new FormControl(['Fantasía', 'Fantasia']))).toEqual({ duplicate: true });
+    expect(genreList(new FormControl(['Ciencia  ficción', 'Ciencia ficción']))).toEqual({
+      duplicate: true,
+    });
     expect(genreList(new FormControl(Array.from({ length: 11 }, (_, i) => `Genre ${i}`)))).toEqual({
       genreLimit: true,
     });
+    expect(genreList(new FormControl(['Fantasía', ' ']))).toEqual({ genreValue: 1 });
+    expect(genreList(new FormControl(['Fantasía', 'x'.repeat(51)]))).toEqual({ genreValue: 1 });
+    expect(genreList(new FormControl(['Fantasía', 'Novela negra']))).toBeNull();
   });
 });
