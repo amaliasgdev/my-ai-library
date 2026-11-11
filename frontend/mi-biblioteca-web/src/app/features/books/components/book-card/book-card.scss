@@ -46,6 +46,8 @@ mat-card-subtitle {
 }
 
 .rating {
+  display: flex;
+  justify-content: flex-start;
   color: var(--mat-sys-on-surface-variant);
 }
 

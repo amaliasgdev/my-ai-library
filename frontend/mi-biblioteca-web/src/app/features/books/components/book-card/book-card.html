@@ -19,9 +19,6 @@
   </mat-card-header>
   <mat-card-content>
     <p class="reading-status">{{ statusLabels[book().readingStatus] }}</p>
-    @if (book().rating !== null) {
-      <p class="rating">Valoración: {{ book().rating }} de 5</p>
-    }
     <div class="reading-controls">
       <mat-form-field appearance="outline">
         <mat-label>Estado de lectura de {{ book().title }}</mat-label>
@@ -36,21 +33,13 @@
           }
         </mat-select>
       </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Valoración de {{ book().title }}</mat-label>
-        <mat-select
-          [value]="book().rating"
-          [canSelectNullableOptions]="true"
-          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-          [aria-label]="'Valoración de ' + book().title"
-          (selectionChange)="onRatingChange($event)"
-        >
-          <mat-option [value]="null">Sin valorar</mat-option>
-          @for (rating of ratings; track rating) {
-            <mat-option [value]="rating">{{ rating }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <app-star-rating
+        class="rating"
+        [value]="book().rating"
+        [subject]="book().title"
+        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+        (ratingChange)="onRatingChange($event)"
+      />
     </div>
     <p class="reading-dates">
       Inicio: {{ displayDate(book().startedOn) }} · Fin: {{ displayDate(book().finishedOn) }}

@@ -6,6 +6,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { StarRating } from '../../components/star-rating/star-rating';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -56,6 +57,7 @@ function loadError(error: unknown): string {
     MatChipsModule,
     MatProgressSpinnerModule,
     ReadingListAction,
+    StarRating,
   ],
   providers: [ReadingListMembership],
   templateUrl: './book-detail.html',

@@ -8,6 +8,7 @@ import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book
 import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-display';
 import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
 import { ReadingListAction } from '../../../reading-list/reading-list-action';
+import { StarRating } from '../star-rating/star-rating';
 
 @Component({
   selector: 'app-book-card',
@@ -18,6 +19,7 @@ import { ReadingListAction } from '../../../reading-list/reading-list-action';
     MatFormFieldModule,
     MatSelectModule,
     ReadingListAction,
+    StarRating,
   ],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',
@@ -96,9 +98,9 @@ export class BookCard implements OnChanges {
     this.readingStatusRequested.emit({ id: this.book().id, status });
   }
 
-  onRatingChange(event: MatSelectChange): void {
-    const rating: number | null = event.value;
-    event.source.value = this.book().rating;
+  onRatingChange(rating: number | null): void {
+    // The star component never shows an unconfirmed value: it follows book().rating only, so a
+    // failed or ignored write leaves the confirmed rating displayed.
     if (
       this.deleting() ||
       this.pendingAction() ||

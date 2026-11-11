@@ -143,14 +143,18 @@ describe('BookCard', () => {
     expect(element.querySelector('.reading-status')?.textContent).toBe(label);
   });
 
-  it('should show a noninteractive accessible rating when present', () => {
+  it('should show the confirmed rating as accessible stars, and Sin valorar when null', () => {
+    expect(element.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe(
+      'Valoración de Libro de prueba',
+    );
+    expect(checkedStar()).toBe(0);
+    expect(element.querySelector('app-star-rating .summary')?.textContent).toBe('Sin valorar');
     fixture.componentRef.setInput('book', testBook({ rating: 4 }));
     fixture.detectChanges();
-    expect(element.querySelector('.rating')?.textContent).toBe('Valoración: 4 de 5');
-  });
-
-  it('should omit rating when null', () => {
-    expect(element.querySelector('.rating')).toBeNull();
+    expect(checkedStar()).toBe(4);
+    expect(element.querySelectorAll('app-star-rating .star-button.filled')).toHaveLength(4);
+    expect(element.querySelector('app-star-rating .summary')?.textContent).toBe('4 de 5');
+    expect(element.querySelector('mat-form-field + app-star-rating')).not.toBeNull();
   });
 
   it('should always show both confirmed reading dates, including missing values', () => {
@@ -234,27 +238,33 @@ describe('BookCard', () => {
   async function selects() {
     return TestbedHarnessEnvironment.loader(fixture).getAllHarnesses(MatSelectHarness);
   }
+  const stars = () =>
+    Array.from(element.querySelectorAll<HTMLButtonElement>('app-star-rating button[role="radio"]'));
+  const checkedStar = () =>
+    stars().findIndex((star) => star.getAttribute('aria-checked') === 'true') + 1;
+  const clearButton = () =>
+    element.querySelector<HTMLButtonElement>('app-star-rating button.clear');
 
-  it('should initialize accessible selects with readable states and Sin valorar', async () => {
-    const [status, rating] = await selects();
+  it('should initialize the status select and the star rating with readable states', async () => {
+    const [status, ...others] = await selects();
+    expect(others).toHaveLength(0);
+    expect(element.querySelectorAll('mat-select')).toHaveLength(1);
     expect(await status.getValueText()).toBe('Por leer');
-    expect(await rating.getValueText()).toBe('Sin valorar');
-    expect(element.querySelectorAll('mat-select')[0].getAttribute('aria-label')).toBe(
+    expect(element.querySelector('mat-select')?.getAttribute('aria-label')).toBe(
       'Estado de lectura de Libro de prueba',
     );
-    expect(element.querySelectorAll('mat-select')[1].getAttribute('aria-label')).toBe(
-      'Valoración de Libro de prueba',
-    );
+    expect(stars().map((star) => star.getAttribute('aria-label'))).toEqual([
+      '1 estrella',
+      '2 estrellas',
+      '3 estrellas',
+      '4 estrellas',
+      '5 estrellas',
+    ]);
     await status.open();
     expect(
       await Promise.all((await status.getOptions()).map((option) => option.getText())),
     ).toEqual(['Por leer', 'Leyendo', 'Leído', 'Abandonado']);
     await status.close();
-    await rating.open();
-    expect(
-      await Promise.all((await rating.getOptions()).map((option) => option.getText())),
-    ).toEqual(['Sin valorar', '1', '2', '3', '4', '5']);
-    await rating.close();
   });
 
   it('should emit status intent but explicitly restore confirmed selection until a new BookResponse', async () => {
@@ -270,42 +280,77 @@ describe('BookCard', () => {
   });
 
   it('should not emit identical status or rating selections', async () => {
+    fixture.componentRef.setInput('book', testBook({ rating: 3 }));
+    fixture.detectChanges();
     const statusRequested = vi.fn();
     const ratingRequested = vi.fn();
     fixture.componentInstance.readingStatusRequested.subscribe(statusRequested);
     fixture.componentInstance.ratingRequested.subscribe(ratingRequested);
-    const [status, rating] = await selects();
+    const [status] = await selects();
     await status.clickOptions({ text: 'Por leer' });
-    await rating.clickOptions({ text: 'Sin valorar' });
+    stars()[2].click();
     expect(statusRequested).not.toHaveBeenCalled();
     expect(ratingRequested).not.toHaveBeenCalled();
   });
 
-  it('should emit a number or deletion intent and retain confirmed rating', async () => {
+  it.each([1, 2, 3, 4, 5])(
+    'should emit a rating intent of %s without touching the reading status',
+    (rating) => {
+      const requested = vi.fn();
+      const status = vi.fn();
+      fixture.componentInstance.ratingRequested.subscribe(requested);
+      fixture.componentInstance.readingStatusRequested.subscribe(status);
+      stars()[rating - 1].click();
+      expect(requested).toHaveBeenCalledExactlyOnceWith({ id: 1, rating });
+      expect(status).not.toHaveBeenCalled();
+    },
+  );
+
+  it('should emit a number or deletion intent and retain the confirmed rating until a new BookResponse', () => {
     fixture.componentRef.setInput('book', testBook({ rating: 4 }));
     fixture.detectChanges();
     const requested = vi.fn();
     fixture.componentInstance.ratingRequested.subscribe(requested);
-    const [, rating] = await selects();
-    expect(await rating.getValueText()).toBe('4');
-    await rating.clickOptions({ text: '5' });
+    expect(checkedStar()).toBe(4);
+    stars()[4].click();
+    fixture.detectChanges();
     expect(requested).toHaveBeenLastCalledWith({ id: 1, rating: 5 });
-    expect(await rating.getValueText()).toBe('4');
-    await rating.clickOptions({ text: 'Sin valorar' });
+    expect(checkedStar()).toBe(4);
+    clearButton()!.click();
+    fixture.detectChanges();
     expect(requested).toHaveBeenLastCalledWith({ id: 1, rating: null });
-    expect(await rating.getValueText()).toBe('4');
-    await rating.clickOptions({ text: '4' });
+    expect(checkedStar()).toBe(4);
+    stars()[3].click();
     expect(requested).toHaveBeenCalledTimes(2);
+    fixture.componentRef.setInput('book', testBook({ rating: 5 }));
+    fixture.detectChanges();
+    expect(checkedStar()).toBe(5);
+    fixture.componentRef.setInput('book', testBook({ rating: null }));
+    fixture.detectChanges();
+    expect(checkedStar()).toBe(0);
+    expect(clearButton()).toBeNull();
+  });
+
+  it('should preview on hover without emitting any write intent', () => {
+    const requested = vi.fn();
+    fixture.componentInstance.ratingRequested.subscribe(requested);
+    stars()[4].dispatchEvent(new MouseEvent('pointerenter'));
+    fixture.detectChanges();
+    expect(element.querySelectorAll('app-star-rating .star-button.filled')).toHaveLength(5);
+    expect(checkedStar()).toBe(0);
+    expect(requested).not.toHaveBeenCalled();
   });
 
   it.each(['readingStatus', 'rating', 'deleteRating'])(
     'should lock all actions while %s is pending and announce progress',
     async (action) => {
+      fixture.componentRef.setInput('book', testBook({ rating: 3 }));
       fixture.componentRef.setInput('pendingAction', action);
       fixture.detectChanges();
-      const [status, rating] = await selects();
+      const [status] = await selects();
       expect(await status.isDisabled()).toBe(true);
-      expect(await rating.isDisabled()).toBe(true);
+      expect(stars().every((star) => star.disabled)).toBe(true);
+      expect(clearButton()).toBeNull();
       expect(element.querySelector('a')?.getAttribute('href')).toBeNull();
       expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
       expect(element.querySelector('mat-card-content [role="status"]')?.textContent?.trim()).toBe(
@@ -328,21 +373,32 @@ describe('BookCard', () => {
     const source = { value: 'READING' } as MatSelect;
     fixture.componentInstance.onReadingStatusChange(new MatSelectChange(source, 'READING'));
     expect(source.value).toBe('TO_READ');
-    fixture.componentInstance.onRatingChange(new MatSelectChange(source, 5));
-    expect(source.value).toBeNull();
+    fixture.componentInstance.onRatingChange(5);
+    fixture.componentInstance.onRatingChange(null);
+    expect(stars().every((star) => star.disabled)).toBe(true);
+    expect(checkedStar()).toBe(0);
     expect(status).not.toHaveBeenCalled();
     expect(rating).not.toHaveBeenCalled();
   });
 
+  it('should reject invalid rating values in code', () => {
+    const rating = vi.fn();
+    fixture.componentInstance.ratingRequested.subscribe(rating);
+    for (const value of [0, 6, 2.5, NaN]) fixture.componentInstance.onRatingChange(value);
+    expect(rating).not.toHaveBeenCalled();
+  });
+
   it('should show a safe inline update error without altering values or locking actions', async () => {
+    fixture.componentRef.setInput('book', testBook({ rating: 2 }));
     fixture.componentRef.setInput('updateError', 'No se pudo actualizar el libro');
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')?.textContent).toBe(
       'No se pudo actualizar el libro',
     );
-    const [status, rating] = await selects();
+    const [status] = await selects();
     expect(await status.getValueText()).toBe('Por leer');
-    expect(await rating.getValueText()).toBe('Sin valorar');
+    expect(checkedStar()).toBe(2);
     expect(await status.isDisabled()).toBe(false);
+    expect(stars().every((star) => !star.disabled)).toBe(true);
   });
 });
