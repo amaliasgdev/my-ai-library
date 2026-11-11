@@ -1,56 +1,70 @@
-<mat-card appearance="outlined">
-  <div class="cover">
-    @if (book().coverUrl && !imageFailed()) {
-      <img
-        [src]="book().coverUrl"
-        [alt]="'Portada de ' + book().title"
-        loading="lazy"
-        (error)="onImageError()"
-      />
-    } @else {
-      <span class="cover-fallback">Sin portada</span>
-    }
-  </div>
-  <mat-card-header>
-    <mat-card-title
-      ><h2>{{ book().title }}</h2></mat-card-title
-    >
-    <mat-card-subtitle>{{ book().author }}</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content>
-    <p class="reading-status">{{ statusLabels[book().readingStatus] }}</p>
-    <div class="reading-controls">
-      <mat-form-field appearance="outline">
-        <mat-label>Estado de lectura de {{ book().title }}</mat-label>
-        <mat-select
-          [value]="book().readingStatus"
-          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-          [aria-label]="'Estado de lectura de ' + book().title"
-          (selectionChange)="onReadingStatusChange($event)"
-        >
-          @for (status of statuses; track status) {
-            <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <app-star-rating
-        class="rating"
-        [value]="book().rating"
-        [subject]="book().title"
-        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-        (ratingChange)="onRatingChange($event)"
-      />
+@if (compact()) {
+  <mat-card appearance="outlined" class="compact-card">
+    <div class="cover">
+      @if (book().coverUrl && !imageFailed()) {
+        <img
+          [src]="book().coverUrl"
+          [alt]="'Portada de ' + book().title"
+          loading="lazy"
+          (error)="onImageError()"
+        />
+      } @else {
+        <span class="cover-fallback">Sin portada</span>
+      }
     </div>
-    <p class="reading-dates">
-      Inicio: {{ displayDate(book().startedOn) }} · Fin: {{ displayDate(book().finishedOn) }}
-    </p>
-    <div class="date-actions">
+    <mat-card-content class="compact-content">
+      <h2 [attr.title]="book().title">{{ book().title }}</h2>
+      @let compactAction = pendingAction();
+      <p class="compact-progress" role="status" aria-live="polite">
+        {{ compactAction ? progressLabels[compactAction] : '' }}
+      </p>
+      @if (updateError()) {
+        <p class="update-error" role="alert">{{ updateError() }}</p>
+      }
+    </mat-card-content>
+    <mat-card-actions class="compact-actions">
+      <a
+        mat-button
+        class="compact-detail"
+        [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id]"
+        [disabled]="deleting() || pendingAction() !== null"
+        [attr.aria-label]="'Ver detalle de ' + book().title"
+        [queryParams]="catalogParams()"
+        >Ver detalle</a
+      >
+      <button
+        mat-icon-button
+        type="button"
+        class="compact-menu-trigger"
+        [matMenuTriggerFor]="actionsMenu"
+        [disabled]="deleting() || pendingAction() !== null"
+        [attr.aria-label]="'Acciones de ' + book().title"
+      >
+        <mat-icon svgIcon="mb-more-vert" aria-hidden="true" />
+      </button>
+      <span class="compact-deleting" role="status" aria-live="polite">{{
+        deleting() ? 'Eliminando…' : ''
+      }}</span>
+    </mat-card-actions>
+    <mat-menu #actionsMenu="matMenu">
+      <a
+        mat-menu-item
+        [routerLink]="['/books', book().id, 'edit']"
+        [queryParams]="catalogParams()"
+        [attr.aria-label]="'Editar ' + book().title"
+        >Editar</a
+      >
+      <button mat-menu-item type="button" [matMenuTriggerFor]="statusMenu" [disabled]="busy()">
+        Estado de lectura: {{ statusLabels[book().readingStatus] }}
+      </button>
+      <button mat-menu-item type="button" [matMenuTriggerFor]="ratingMenu" [disabled]="busy()">
+        Valoración: {{ ratingSummary() }}
+      </button>
       @if (book().readingStatus === 'TO_READ') {
         <button
-          mat-button
+          mat-menu-item
           type="button"
-          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-          [attr.aria-label]="'Empezar lectura de ' + book().title"
+          [disabled]="busy()"
           (click)="requestReadingAction('startReading')"
         >
           Empezar lectura
@@ -58,68 +72,225 @@
       }
       @if (book().readingStatus === 'TO_READ' || book().readingStatus === 'READING') {
         <button
-          mat-button
+          mat-menu-item
           type="button"
-          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-          [attr.aria-label]="'Finalizar lectura de ' + book().title"
+          [disabled]="busy()"
           (click)="requestReadingAction('finishReading')"
         >
-          Finalizar lectura
+          Finalizar lectura (fecha de hoy)
         </button>
-        <small>Usa la fecha de hoy</small>
       }
       <button
-        mat-button
+        mat-menu-item
         type="button"
-        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-        [attr.aria-label]="'Gestionar fechas de lectura de ' + book().title"
+        [disabled]="busy()"
         (click)="requestReadingAction('dates')"
       >
         Gestionar fechas
       </button>
+      @if (membership(); as list) {
+        @switch (list.state(book().id)) {
+          @case ('absent') {
+            <button
+              mat-menu-item
+              type="button"
+              [attr.aria-label]="'Añadir a lista de lectura: ' + book().title"
+              [disabled]="busy() || list.busy()"
+              (click)="addToReadingList(list)"
+            >
+              Añadir a lista de lectura
+            </button>
+          }
+          @case ('included') {
+            <button mat-menu-item type="button" disabled>En mi lista</button>
+          }
+          @case ('loading') {
+            <button mat-menu-item type="button" disabled>Consultando lista de lectura…</button>
+          }
+          @case ('error') {
+            <button
+              mat-menu-item
+              type="button"
+              [disabled]="busy() || list.busy()"
+              (click)="list.refresh()"
+            >
+              Reintentar pertenencia
+            </button>
+          }
+        }
+      }
+      <button
+        mat-menu-item
+        type="button"
+        [disabled]="deleteDisabled() || deleting() || pendingAction() !== null"
+        (click)="requestDelete()"
+      >
+        Eliminar
+      </button>
+    </mat-menu>
+    <mat-menu #statusMenu="matMenu">
+      @for (status of statuses; track status) {
+        <button
+          mat-menu-item
+          type="button"
+          role="menuitemradio"
+          [attr.aria-checked]="book().readingStatus === status"
+          [disabled]="busy()"
+          (click)="chooseReadingStatus(status)"
+        >
+          {{ statusLabels[status] }}
+        </button>
+      }
+    </mat-menu>
+    <mat-menu #ratingMenu="matMenu">
+      <button
+        mat-menu-item
+        type="button"
+        role="menuitemradio"
+        [attr.aria-checked]="book().rating === null"
+        [disabled]="busy()"
+        (click)="onRatingChange(null)"
+      >
+        Sin valorar
+      </button>
+      @for (rating of ratings; track rating) {
+        <button
+          mat-menu-item
+          type="button"
+          role="menuitemradio"
+          [attr.aria-checked]="book().rating === rating"
+          [disabled]="busy()"
+          (click)="onRatingChange(rating)"
+        >
+          {{ starsLabel(rating) }}
+        </button>
+      }
+    </mat-menu>
+  </mat-card>
+} @else {
+  <mat-card appearance="outlined">
+    <div class="cover">
+      @if (book().coverUrl && !imageFailed()) {
+        <img
+          [src]="book().coverUrl"
+          [alt]="'Portada de ' + book().title"
+          loading="lazy"
+          (error)="onImageError()"
+        />
+      } @else {
+        <span class="cover-fallback">Sin portada</span>
+      }
     </div>
-    @let action = pendingAction();
-    <p role="status" aria-live="polite">{{ action ? progressLabels[action] : '' }}</p>
-    @if (updateError()) {
-      <p class="update-error" role="alert">{{ updateError() }}</p>
+    <mat-card-header>
+      <mat-card-title
+        ><h2>{{ book().title }}</h2></mat-card-title
+      >
+      <mat-card-subtitle>{{ book().author }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="reading-status">{{ statusLabels[book().readingStatus] }}</p>
+      <div class="reading-controls">
+        <mat-form-field appearance="outline">
+          <mat-label>Estado de lectura de {{ book().title }}</mat-label>
+          <mat-select
+            [value]="book().readingStatus"
+            [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+            [aria-label]="'Estado de lectura de ' + book().title"
+            (selectionChange)="onReadingStatusChange($event)"
+          >
+            @for (status of statuses; track status) {
+              <mat-option [value]="status">{{ statusLabels[status] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <app-star-rating
+          class="rating"
+          [value]="book().rating"
+          [subject]="book().title"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          (ratingChange)="onRatingChange($event)"
+        />
+      </div>
+      <p class="reading-dates">
+        Inicio: {{ displayDate(book().startedOn) }} · Fin: {{ displayDate(book().finishedOn) }}
+      </p>
+      <div class="date-actions">
+        @if (book().readingStatus === 'TO_READ') {
+          <button
+            mat-button
+            type="button"
+            [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+            [attr.aria-label]="'Empezar lectura de ' + book().title"
+            (click)="requestReadingAction('startReading')"
+          >
+            Empezar lectura
+          </button>
+        }
+        @if (book().readingStatus === 'TO_READ' || book().readingStatus === 'READING') {
+          <button
+            mat-button
+            type="button"
+            [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+            [attr.aria-label]="'Finalizar lectura de ' + book().title"
+            (click)="requestReadingAction('finishReading')"
+          >
+            Finalizar lectura
+          </button>
+          <small>Usa la fecha de hoy</small>
+        }
+        <button
+          mat-button
+          type="button"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+          [attr.aria-label]="'Gestionar fechas de lectura de ' + book().title"
+          (click)="requestReadingAction('dates')"
+        >
+          Gestionar fechas
+        </button>
+      </div>
+      @let action = pendingAction();
+      <p role="status" aria-live="polite">{{ action ? progressLabels[action] : '' }}</p>
+      @if (updateError()) {
+        <p class="update-error" role="alert">{{ updateError() }}</p>
+      }
+    </mat-card-content>
+    @if (membership(); as list) {
+      <div class="list-action">
+        <app-reading-list-action
+          [membership]="list"
+          [bookId]="book().id"
+          [title]="book().title"
+          [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
+        />
+      </div>
     }
-  </mat-card-content>
-  @if (membership(); as list) {
-    <div class="list-action">
-      <app-reading-list-action
-        [membership]="list"
-        [bookId]="book().id"
-        [title]="book().title"
-        [disabled]="deleting() || pendingAction() !== null || updateDisabled()"
-      />
-    </div>
-  }
-  <mat-card-actions>
-    <a
-      mat-button
-      [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id]"
-      [disabled]="deleting() || pendingAction() !== null"
-      [attr.aria-label]="'Ver detalle de ' + book().title"
-      [queryParams]="catalogParams()"
-      >Ver detalle</a
-    >
-    <a
-      mat-button
-      [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id, 'edit']"
-      [disabled]="deleting() || pendingAction() !== null"
-      [attr.aria-label]="'Editar ' + book().title"
-      [queryParams]="catalogParams()"
-      >Editar</a
-    >
-    <button
-      mat-button
-      type="button"
-      [disabled]="deleteDisabled() || deleting() || pendingAction() !== null"
-      [attr.aria-label]="'Eliminar ' + book().title"
-      (click)="requestDelete()"
-    >
-      Eliminar
-    </button>
-    <span role="status" aria-live="polite">{{ deleting() ? 'Eliminando…' : '' }}</span>
-  </mat-card-actions>
-</mat-card>
+    <mat-card-actions>
+      <a
+        mat-button
+        [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id]"
+        [disabled]="deleting() || pendingAction() !== null"
+        [attr.aria-label]="'Ver detalle de ' + book().title"
+        [queryParams]="catalogParams()"
+        >Ver detalle</a
+      >
+      <a
+        mat-button
+        [routerLink]="deleting() || pendingAction() ? null : ['/books', book().id, 'edit']"
+        [disabled]="deleting() || pendingAction() !== null"
+        [attr.aria-label]="'Editar ' + book().title"
+        [queryParams]="catalogParams()"
+        >Editar</a
+      >
+      <button
+        mat-button
+        type="button"
+        [disabled]="deleteDisabled() || deleting() || pendingAction() !== null"
+        [attr.aria-label]="'Eliminar ' + book().title"
+        (click)="requestDelete()"
+      >
+        Eliminar
+      </button>
+      <span role="status" aria-live="polite">{{ deleting() ? 'Eliminando…' : '' }}</span>
+    </mat-card-actions>
+  </mat-card>
+}

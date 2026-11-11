@@ -2,6 +2,8 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  min-width: 0;
+  max-inline-size: 100%;
   gap: 0.25rem 0.5rem;
   // Gold chosen for 3:1 against the light surface; lighter on the prepared dark theme.
   --star-on: #bf8600;
@@ -15,13 +17,19 @@
 .stars {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-inline-size: 100%;
 }
 
+// Full 2.5rem targets; they only shrink (down to the 1.5rem icon) in very narrow cards.
 .star-button {
   display: inline-grid;
   place-items: center;
+  flex: 0 1 2.5rem;
   inline-size: 2.5rem;
-  block-size: 2.5rem;
+  min-inline-size: 1.5rem;
+  block-size: auto;
+  aspect-ratio: 1;
   padding: 0;
   border: 0;
   border-radius: 50%;

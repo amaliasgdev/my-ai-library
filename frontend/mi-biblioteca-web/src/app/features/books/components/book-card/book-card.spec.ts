@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatCardHarness } from '@angular/material/card/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
@@ -400,5 +402,71 @@ describe('BookCard', () => {
     expect(checkedStar()).toBe(2);
     expect(await status.isDisabled()).toBe(false);
     expect(stars().every((star) => !star.disabled)).toBe(true);
+  });
+
+  describe('compact variant', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('compact', true);
+      fixture.detectChanges();
+    });
+
+    it('is off by default and replaces only the presentation when on', () => {
+      expect(element.querySelector('.compact-card')).not.toBeNull();
+      expect(element.querySelector('app-star-rating, mat-select, .date-actions')).toBeNull();
+      expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
+      expect(element.querySelector('a.compact-detail')?.getAttribute('aria-label')).toBe(
+        'Ver detalle de Libro de prueba',
+      );
+      expect(element.querySelector('button.compact-menu-trigger')?.getAttribute('aria-label')).toBe(
+        'Acciones de Libro de prueba',
+      );
+      fixture.componentRef.setInput('compact', false);
+      fixture.detectChanges();
+      expect(element.querySelector('.compact-card')).toBeNull();
+      expect(element.querySelectorAll('app-star-rating button[role="radio"]')).toHaveLength(5);
+    });
+
+    it('emits guarded status and rating intents and never changes the confirmed values', () => {
+      const status = vi.fn();
+      const rating = vi.fn();
+      fixture.componentInstance.readingStatusRequested.subscribe(status);
+      fixture.componentInstance.ratingRequested.subscribe(rating);
+      fixture.componentInstance.chooseReadingStatus('READING');
+      fixture.componentInstance.chooseReadingStatus('TO_READ');
+      fixture.componentInstance.chooseReadingStatus('BOGUS' as ReadingStatus);
+      fixture.componentInstance.onRatingChange(4);
+      fixture.componentInstance.onRatingChange(null);
+      expect(status).toHaveBeenCalledExactlyOnceWith({ id: 1, status: 'READING' });
+      expect(rating).toHaveBeenCalledExactlyOnceWith({ id: 1, rating: 4 });
+      fixture.componentRef.setInput('updateDisabled', true);
+      fixture.detectChanges();
+      fixture.componentInstance.chooseReadingStatus('READ');
+      fixture.componentInstance.onRatingChange(5);
+      expect(status).toHaveBeenCalledTimes(1);
+      expect(rating).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds to the reading list only when idle', () => {
+      const add = vi.fn();
+      const list = { busy: signal(false), add } as unknown as ReadingListMembership;
+      fixture.componentInstance.addToReadingList(list);
+      expect(add).toHaveBeenCalledExactlyOnceWith(1);
+      fixture.componentRef.setInput('pendingAction', 'rating');
+      fixture.detectChanges();
+      fixture.componentInstance.addToReadingList(list);
+      expect(add).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks the trigger, link and progress while an action is pending', () => {
+      fixture.componentRef.setInput('pendingAction', 'startReading');
+      fixture.detectChanges();
+      expect(element.querySelector<HTMLButtonElement>('.compact-menu-trigger')?.disabled).toBe(
+        true,
+      );
+      expect(element.querySelector('a.compact-detail')?.getAttribute('aria-disabled')).toBe('true');
+      expect(element.querySelector('.compact-progress')?.textContent?.trim()).toBe(
+        'Iniciando lectura…',
+      );
+    });
   });
 });

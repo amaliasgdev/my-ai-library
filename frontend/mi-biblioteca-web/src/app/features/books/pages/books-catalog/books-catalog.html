@@ -173,7 +173,18 @@
       </button>
     </div>
   </form>
-  <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+  <div class="catalog-toolbar">
+    <p class="catalog-status" role="status" aria-live="polite">{{ announcement() }}</p>
+    <mat-form-field appearance="outline" class="cards-per-row" subscriptSizing="dynamic">
+      <mat-label>Tarjetas por fila</mat-label>
+      <mat-icon matPrefix svgIcon="mb-grid-view" aria-hidden="true" />
+      <mat-select [value]="cardsPerRow()" (selectionChange)="onCardsPerRowChange($event.value)">
+        @for (option of cardsPerRowOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
   <div class="catalog-content" [attr.aria-busy]="state().status === 'loading'">
     @let current = state();
     @switch (current.status) {
@@ -190,11 +201,18 @@
       }
       @case ('success') {
         @if (current.response.content.length > 0) {
-          <ul class="book-grid" aria-label="Libros">
+          <ul
+            class="book-grid"
+            aria-label="Libros"
+            [class.fixed-columns]="gridColumns() !== null"
+            [class.compact-columns]="compactCards()"
+            [style.--book-columns]="gridColumns()"
+          >
             @for (book of current.response.content; track book.id) {
               <li>
                 <app-book-card
                   [book]="book"
+                  [compact]="compactCards()"
                   [membership]="membership"
                   [catalogParams]="catalogParams()"
                   [deleting]="deletingId() === book.id"

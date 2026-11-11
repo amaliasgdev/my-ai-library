@@ -75,16 +75,63 @@ h1 {
   color: var(--mat-sys-on-error-container);
 }
 
+.catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-block: 1rem;
+
+  .catalog-status {
+    margin: 0;
+  }
+}
+
+.cards-per-row {
+  width: min(100%, 16rem);
+}
+
 .book-grid {
+  --book-gap: 1.5rem;
   display: grid;
+  // Automático: the original responsive layout (cards of at least 15rem).
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-  gap: 1.5rem;
+  gap: var(--book-gap);
   padding: 0;
   margin: 0;
   list-style: none;
 
   li {
     min-width: 0;
+  }
+
+  // Fixed density: up to --book-columns columns (set from the toolbar). A column is never narrower
+  // than --fixed-card-min, so phones and tablets drop columns automatically instead of scrolling
+  // sideways or squeezing the card text.
+  &.fixed-columns {
+    --book-gap: 1rem;
+    --fixed-card-min: 10rem;
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(
+        min(
+          100%,
+          max(
+            var(--fixed-card-min),
+            calc((100% - (var(--book-columns) - 1) * var(--book-gap)) / var(--book-columns))
+          )
+        ),
+        1fr
+      )
+    );
+  }
+
+  // 8 and 10 columns use the compact card, which can be narrower; a smaller gap and minimum let
+  // that many columns fit the content width. Still a maximum: narrower screens drop columns.
+  &.fixed-columns.compact-columns {
+    --book-gap: 0.5rem;
+    --fixed-card-min: 6rem;
   }
 }
 

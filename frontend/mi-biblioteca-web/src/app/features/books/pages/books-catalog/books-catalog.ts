@@ -16,6 +16,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -36,6 +37,13 @@ import { BookCard } from '../../components/book-card/book-card';
 import { IsbnScanDialog } from '../../components/isbn-scan-dialog/isbn-scan-dialog';
 import { BookIsbnImportDialog } from '../../components/book-isbn-import-dialog/book-isbn-import-dialog';
 import { BookFilters, FILTER_STATES, sameBookFilters } from '../../models/book-filters';
+import {
+  CARDS_PER_ROW_OPTIONS,
+  CardsPerRow,
+  isCardsPerRow,
+  isCompactCardsPerRow,
+} from '../../models/cards-per-row';
+import { registerAppIcons } from '../../../../core/icons/app-icons';
 import { bookFiltersFormValue, createBookFiltersForm, filtersFromForm } from './book-filters.form';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
@@ -122,6 +130,7 @@ function searchError(error: unknown): string {
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatIconModule,
   ],
   providers: [ReadingListMembership, { provide: MatPaginatorIntl, useFactory: spanishPaginator }],
   templateUrl: './books-catalog.html',
@@ -150,6 +159,14 @@ export class BooksCatalog {
     { value: 'rating', label: 'Valoración' },
   ];
   private readonly reloadRequested = new Subject<CatalogReload>();
+  /** Visual density only: never part of the URL, the query or any request. */
+  readonly cardsPerRow = signal<CardsPerRow>('auto');
+  protected readonly cardsPerRowOptions = CARDS_PER_ROW_OPTIONS;
+  protected readonly gridColumns = computed(() => {
+    const value = this.cardsPerRow();
+    return value === 'auto' ? null : value;
+  });
+  protected readonly compactCards = computed(() => isCompactCardsPerRow(this.cardsPerRow()));
   private appliedQuery: BookCatalogQuery | null = null;
   private requestGeneration = 0;
   readonly catalogParams = computed(() =>
@@ -204,6 +221,7 @@ export class BooksCatalog {
   });
 
   constructor() {
+    registerAppIcons();
     this.route.queryParamMap
       .pipe(
         map((params) => {
@@ -410,6 +428,11 @@ export class BooksCatalog {
   onSortByChange(sortBy: BookCatalogSort['sortBy']): void {
     if (!this.sortOptions.some((option) => option.value === sortBy)) return;
     this.applySort({ ...this.currentSort(), sortBy });
+  }
+
+  onCardsPerRowChange(value: unknown): void {
+    // Layout preference: no navigation, reload or state beyond the signal.
+    if (isCardsPerRow(value) && value !== this.cardsPerRow()) this.cardsPerRow.set(value);
   }
 
   onSortDirectionChange(direction: BookCatalogSort['direction']): void {
