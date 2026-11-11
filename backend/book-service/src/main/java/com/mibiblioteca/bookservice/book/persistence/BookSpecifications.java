@@ -1,6 +1,9 @@
 package com.mibiblioteca.bookservice.book.persistence;
 
 import com.mibiblioteca.bookservice.book.dto.BookFilterRequest;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,7 +25,9 @@ public final class BookSpecifications {
         if (filters.yearTo() != null) {
             spec = spec.and((root, query, cb) -> cb.le(root.get("publicationYear"), filters.yearTo()));
         }
-        if (filters.genre() != null) spec = spec.and(genre(filters.genre()));
+        if (!filters.genres().isEmpty() || filters.genreUnassigned()) {
+            spec = spec.and(genres(filters.genres(), filters.genreUnassigned()));
+        }
         if (filters.language() != null) {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("language")), filters.language()));
         }
@@ -49,5 +54,18 @@ public final class BookSpecifications {
             builder.function("book_genre_matches", Boolean.class, root.get("genres"),
                 ((HibernateCriteriaBuilder) builder).value(genre))
         );
+    }
+
+    public static Specification<Book> genres(List<String> genres, boolean includeUnassigned) {
+        return (root, query, builder) -> {
+            List<Predicate> alternatives = new ArrayList<>();
+            for (String genre : genres) alternatives.add(builder.isTrue(
+                builder.function("book_genre_matches", Boolean.class, root.get("genres"),
+                    ((HibernateCriteriaBuilder) builder).value(genre))));
+            if (includeUnassigned) alternatives.add(builder.isTrue(
+                builder.function("book_has_no_genres", Boolean.class, root.get("genres"))));
+            if (alternatives.isEmpty()) return builder.conjunction();
+            return builder.or(alternatives.toArray(Predicate[]::new));
+        };
     }
 }

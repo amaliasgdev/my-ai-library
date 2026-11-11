@@ -170,8 +170,8 @@ class OpenApiDocumentationTest {
         Map<String, JsonNode> listParameters = parametersByName(paths.path("/api/books").path("get"));
         Map<String, JsonNode> searchParameters = parametersByName(paths.path("/api/books/search").path("get"));
 
-        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher");
-        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher"}) {
+        assertThat(searchParameters.keySet()).containsExactlyInAnyOrder("title", "author", "isbn", "page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "genreUnassigned", "language", "publisher");
+        for (String name : new String[] {"page", "size", "sortBy", "direction", "readingStatus", "ratingMin", "yearFrom", "yearTo", "genre", "genreUnassigned", "language", "publisher"}) {
             assertThat(searchParameters.get(name).path("schema")).isEqualTo(listParameters.get(name).path("schema"));
             assertThat(searchParameters.get(name).path("in").asText()).isEqualTo("query");
             assertThat(searchParameters.get(name).path("required").asBoolean()).isFalse();
@@ -180,6 +180,32 @@ class OpenApiDocumentationTest {
         assertThat(searchParameters.get("size").path("schema").path("default").asInt()).isEqualTo(20);
         assertThat(paths.path("/api/books/search").path("get").path("description").asText())
             .contains("sortBy=title", "direction=ASC");
+    }
+
+    @Test
+    void documentsRepeatedGenreFiltersAndDistinctGenresEndpoint() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths = document.path("paths");
+        var list = parametersByName(paths.path("/api/books").path("get"));
+        var search = parametersByName(paths.path("/api/books/search").path("get"));
+        for (Map<String, JsonNode> parameters : java.util.List.of(list, search)) {
+            var genre = parameters.get("genre");
+            assertThat(genre.path("style").asText()).isEqualTo("form");
+            assertThat(genre.path("explode").asBoolean()).isTrue();
+            assertThat(genre.path("schema").path("type").asText()).isEqualTo("array");
+            assertThat(genre.path("schema").path("items").path("maxLength").asInt()).isEqualTo(50);
+            assertThat(genre.path("description").asText()).contains("50", "accent-sensitive");
+            var unassigned = parameters.get("genreUnassigned");
+            assertThat(unassigned.path("schema").path("type").asText()).isEqualTo("boolean");
+            assertThat(unassigned.path("schema").path("default").asBoolean()).isFalse();
+            assertThat(unassigned.path("description").asText()).contains("no assigned genres");
+        }
+        var genres = paths.path("/api/books/genres").path("get");
+        assertThat(genres.path("summary").asText()).contains("distinct genres");
+        assertThat(genres.path("description").asText()).contains("Accent");
+        assertThat(genres.path("responses").path("200").path("content").path("*/*").path("schema").path("type").asText())
+            .isEqualTo("array");
     }
 
     private Map<String, JsonNode> parametersByName(JsonNode operation) {

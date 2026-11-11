@@ -29,8 +29,9 @@ class BookFilterControllerTest {
             Arguments.of("ratingMin", "0"), Arguments.of("ratingMin", "6"), Arguments.of("ratingMin", "1.5"), Arguments.of("ratingMin", ""),
             Arguments.of("yearFrom", "0"), Arguments.of("yearTo", "2101"), Arguments.of("yearTo", "abc"), Arguments.of("yearFrom", "999999999999"),
             Arguments.of("yearFrom", ""), Arguments.of("yearTo", ""), Arguments.of("yearFrom", "-1"), Arguments.of("yearTo", "2020.5"),
-            Arguments.of("genre", " "), Arguments.of("genre", "g".repeat(51)), Arguments.of("language", "zz"), Arguments.of("language", "es-ES"),
-            Arguments.of("language", ""), Arguments.of("publisher", " "), Arguments.of("publisher", "p".repeat(256))
+            Arguments.of("genre", " "), Arguments.of("genre", ""), Arguments.of("genre", "g".repeat(51)), Arguments.of("language", "zz"), Arguments.of("language", "es-ES"),
+            Arguments.of("language", ""), Arguments.of("publisher", " "), Arguments.of("publisher", "p".repeat(256)),
+            Arguments.of("genreUnassigned", ""), Arguments.of("genreUnassigned", "1"), Arguments.of("genreUnassigned", "TRUE")
         );
     }
     @ParameterizedTest @MethodSource("invalid") void rejectsInvalidBeforeService(String key, String value) throws Exception {
@@ -42,7 +43,7 @@ class BookFilterControllerTest {
     }
     @Test void rejectsAllRepeatedScalarFilters() throws Exception {
         for (String path : List.of("/api/books", "/api/books/search")) {
-            for (String key : List.of("ratingMin", "yearFrom", "yearTo", "genre", "language", "publisher")) {
+            for (String key : List.of("ratingMin", "yearFrom", "yearTo", "genreUnassigned", "language", "publisher")) {
                 mvc.perform(get(path).param("title", "a").param(key, "1", "1"))
                     .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors." + key).exists());
             }
@@ -66,5 +67,39 @@ class BookFilterControllerTest {
             "readingStatus", List.of("READ", "READING"), "ratingMin", List.of("4"), "yearFrom", List.of("2020"), "genre", List.of("Terror"), "language", List.of("es"), "publisher", List.of("Press"))));
         verify(service).findAll(eq(0), eq(20), eq("title"), any(), eq(filters));
         verify(service).search(any(), eq(0), eq(20), eq("title"), any(), eq(filters));
+    }
+
+    @Test
+    void acceptsRepeatedGenresAndDeduplicatesCaseAndOuterSpacesKeepingAccents() throws Exception {
+        when(service.findAll(anyInt(), anyInt(), anyString(), any(), any(BookFilterRequest.class)))
+            .thenReturn(new BookPageResponse(List.of(), 0, 20, 0, 0));
+        mvc.perform(get("/api/books")
+                .param("genre", " Terror ", "tERROR", "Fantasía", "Fantasia")
+                .param("genreUnassigned", "true"))
+            .andExpect(status().isOk());
+        var expected = BookFilterRequest.fromQuery(new org.springframework.util.LinkedMultiValueMap<>(java.util.Map.of(
+            "genre", List.of("Terror", "Fantasía", "Fantasia"), "genreUnassigned", List.of("true"))));
+        verify(service).findAll(eq(0), eq(20), eq("title"), any(), eq(expected));
+    }
+
+    @Test
+    void acceptsFiftyGenresAndRejectsFiftyOne() throws Exception {
+        when(service.findAll(anyInt(), anyInt(), anyString(), any(), any(BookFilterRequest.class)))
+            .thenReturn(new BookPageResponse(List.of(), 0, 20, 0, 0));
+        String[] fifty = java.util.stream.IntStream.range(0, 50).mapToObj(i -> "genre-" + i).toArray(String[]::new);
+        String[] fiftyOne = java.util.stream.IntStream.range(0, 51).mapToObj(i -> "genre-" + i).toArray(String[]::new);
+        mvc.perform(get("/api/books").param("genre", fifty)).andExpect(status().isOk());
+        mvc.perform(get("/api/books").param("genre", fiftyOne))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.genre").exists());
+    }
+
+    @Test
+    void exposesDistinctGenresAsJsonArray() throws Exception {
+        when(service.findDistinctGenres()).thenReturn(List.of("Fantasía", "Terror"));
+        mvc.perform(get("/api/books/genres"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$[0]").value("Fantasía"))
+            .andExpect(jsonPath("$[1]").value("Terror"));
     }
 }

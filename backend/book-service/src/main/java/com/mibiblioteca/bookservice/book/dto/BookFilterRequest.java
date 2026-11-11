@@ -3,6 +3,8 @@ package com.mibiblioteca.bookservice.book.dto;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.validation.IsoLanguageValidator;
 import com.mibiblioteca.bookservice.common.exception.InvalidBookFilterException;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.util.MultiValueMap;
@@ -13,23 +15,24 @@ public record BookFilterRequest(
     Integer ratingMin,
     Integer yearFrom,
     Integer yearTo,
-    String genre,
+    List<String> genres,
+    boolean genreUnassigned,
     String language,
     String publisher
 ) {
-    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, null, null, null);
+    public static final BookFilterRequest EMPTY = new BookFilterRequest(List.of(), null, null, null, List.of(), false, null, null);
 
     public BookFilterRequest {
         readingStatus = readingStatus == null ? List.of() : List.copyOf(readingStatus);
         if (readingStatus.size() > 4) fail("readingStatus", "At most four states are allowed");
         readingStatus = readingStatus.stream().distinct().sorted().toList();
+        genres = normalizeGenres(genres);
         range("ratingMin", ratingMin, 5);
         range("yearFrom", yearFrom, 2100);
         range("yearTo", yearTo, 2100);
         if (yearFrom != null && yearTo != null && yearFrom > yearTo) {
             fail("yearTo", "Must not be earlier than yearFrom");
         }
-        genre = text("genre", genre, 50);
         publisher = text("publisher", publisher, 255);
         language = text("language", language, 2);
         if (!new IsoLanguageValidator().isValid(language, null)) {
@@ -45,8 +48,33 @@ public record BookFilterRequest(
         List<String> raw = params.getOrDefault("readingStatus", List.of());
         if (raw.size() > 4) fail("readingStatus", "At most four occurrences are allowed");
         List<ReadingStatus> states = raw.stream().map(BookFilterRequest::state).toList();
+        List<String> rawGenres = params.getOrDefault("genre", List.of());
+        if (rawGenres.size() > 50) fail("genre", "At most 50 occurrences are allowed");
+        boolean genreUnassigned = booleanValue(single(params, "genreUnassigned"));
         return new BookFilterRequest(states, integer(params, "ratingMin"), integer(params, "yearFrom"),
-            integer(params, "yearTo"), single(params, "genre"), single(params, "language"), single(params, "publisher"));
+            integer(params, "yearTo"), rawGenres, genreUnassigned, single(params, "language"), single(params, "publisher"));
+    }
+
+    private static List<String> normalizeGenres(List<String> values) {
+        if (values == null || values.isEmpty()) return List.of();
+        if (values.size() > 50) fail("genre", "At most 50 occurrences are allowed");
+        var unique = new LinkedHashSet<String>();
+        var keys = new HashSet<String>();
+        for (String value : values) {
+            if (value == null) fail("genre", "Must be nonblank and at most 50 characters");
+            String normalized = text("genre", value, 50);
+            String key = normalized.toLowerCase(Locale.ROOT);
+            if (keys.add(key)) unique.add(normalized);
+        }
+        return List.copyOf(unique);
+    }
+
+    private static boolean booleanValue(String value) {
+        if (value == null) return false;
+        if ("true".equals(value)) return true;
+        if ("false".equals(value)) return false;
+        fail("genreUnassigned", "Must be true or false");
+        return false;
     }
 
     private static ReadingStatus state(String value) {

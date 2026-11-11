@@ -129,6 +129,11 @@ export class BooksService {
     return this.http.get<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}`);
   }
 
+  /** Distinct genres currently used by the catalog; no book list is downloaded. */
+  getGenres(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiConfig.apiBaseUrl}/books/genres`);
+  }
+
   updateBook(id: number, request: BookRequest): Observable<BookResponse> {
     return this.http.put<BookResponse>(`${this.apiConfig.apiBaseUrl}/books/${id}`, request);
   }

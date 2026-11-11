@@ -51,6 +51,28 @@ class BookGenreSpecificationTest {
         assertThat(SqlCapture.queries).noneMatch(sql -> sql.contains("TERROR") || sql.contains("OR 1=1"));
     }
 
+    @Test
+    void multipleGenresUseOrInsideTheGroupAndUnassignedCombinesWithOr() {
+        repository.deleteAll();
+        Book terror = save("Terror", List.of("Terror"));
+        Book fantasy = save("Fantasy", List.of("Fantasía"));
+        Book none = save("None", List.of());
+        Book both = save("Both", List.of("TERROR", "fantasía"));
+
+        var multiple = BookSpecifications.genres(List.of("terror", "FANTASÍA"), false);
+        assertThat(repository.count(multiple)).isEqualTo(3);
+        assertThat(repository.findAll(multiple, PageRequest.of(0, 2, Sort.by("title", "id"))).getTotalElements())
+            .isEqualTo(3);
+        assertThat(repository.findAll(multiple, PageRequest.of(0, 10, Sort.by("title", "id"))).getContent())
+            .extracting(Book::getId).containsExactlyInAnyOrder(terror.getId(), fantasy.getId(), both.getId());
+
+        assertThat(repository.count(BookSpecifications.genres(List.of(), true))).isEqualTo(1);
+        assertThat(repository.findAll(BookSpecifications.genres(List.of(), true)))
+            .extracting(Book::getId).containsExactly(none.getId());
+        assertThat(repository.count(BookSpecifications.genres(List.of("Terror"), true))).isEqualTo(3);
+        assertThat(repository.count(BookSpecifications.genres(List.of("Fantasia"), false))).isZero();
+    }
+
     private Book save(String title, List<String> genres) {
         Book book = new Book();
         book.setTitle(title);

@@ -67,7 +67,7 @@ describe('ISBN import routing and catalog context', () => {
     );
     expect(page.text.value).toBe('');
     expect(page.rows()).toEqual([]);
-    expect(page.catalogParams).toEqual({ genre: 'Terror' });
+    expect(page.catalogParams).toEqual({ genre: ['Terror'] });
     http.expectNone(() => true);
     harness.fixture.destroy();
     http.verify();

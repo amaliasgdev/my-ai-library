@@ -18,7 +18,8 @@ describe('BooksService shared filter serialization', () => {
       ratingMin: 4,
       yearFrom: 2020,
       yearTo: 2021,
-      genre: ' Terror ',
+      genre: [' Terror ', 'Fantasía', 'terror'],
+      genreUnassigned: true,
       language: ' ES ',
       publisher: '100%_Press',
     };
@@ -31,11 +32,12 @@ describe('BooksService shared filter serialization', () => {
     );
     expect(req.request.method).toBe('GET');
     expect(req.request.params.getAll('readingStatus')).toEqual(['READING', 'READ']);
+    expect(req.request.params.getAll('genre')).toEqual(['Fantasía', 'Terror']);
+    expect(req.request.params.get('genreUnassigned')).toBe('true');
     for (const [key, value] of Object.entries({
       ratingMin: '4',
       yearFrom: '2020',
       yearTo: '2021',
-      genre: 'Terror',
       language: 'es',
       publisher: '100%_Press',
       page: '2',
@@ -49,7 +51,8 @@ describe('BooksService shared filter serialization', () => {
     const service = TestBed.inject(BooksService);
     const filters = {
       readingStatus: [],
-      genre: ' ',
+      genre: [' '],
+      genreUnassigned: false,
       publisher: '',
       language: '',
       ratingMin: undefined,
@@ -67,10 +70,19 @@ describe('BooksService shared filter serialization', () => {
       'yearFrom',
       'yearTo',
       'genre',
+      'genreUnassigned',
       'language',
       'publisher',
     ])
       expect(req.request.params.has(key)).toBe(false);
     req.flush(testBookPage());
+  });
+  it('gets distinct genres from the dedicated catalog endpoint', () => {
+    const service = TestBed.inject(BooksService);
+    service.getGenres().subscribe();
+    const req = TestBed.inject(HttpTestingController).expectOne('/api/books/genres');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.keys()).toEqual([]);
+    req.flush(['Fantasía', 'Terror']);
   });
 });

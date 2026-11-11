@@ -1,0 +1,119 @@
+<mat-form-field appearance="outline" class="genre-filter-field" subscriptSizing="dynamic">
+  <mat-label>Géneros</mat-label>
+  <input
+    #searchInput
+    id="genre-filter-search"
+    type="text"
+    matInput
+    [formControl]="search"
+    [matAutocomplete]="genreAuto"
+    [placeholder]="selected().length || genreUnassigned() ? 'Añadir género' : 'Todos los géneros'"
+    maxlength="50"
+    autocomplete="off"
+    aria-describedby="genre-filter-hint"
+    (focus)="requestOptions()"
+    (keydown.enter)="enter($event)"
+  />
+  <mat-hint id="genre-filter-hint">{{ hint() }}</mat-hint>
+</mat-form-field>
+
+@if (optionsLoading()) {
+  <p class="genre-status" role="status">Cargando géneros…</p>
+} @else if (optionsError()) {
+  <p class="genre-error" role="alert">
+    No se pudieron cargar los géneros.
+    <button mat-button type="button" (click)="retryOptions.emit()">Reintentar</button>
+  </p>
+}
+
+@if (notice()) {
+  <p class="genre-notice" role="alert">{{ notice() }}</p>
+}
+
+@if (selected().length > 0 || genreUnassigned()) {
+  <mat-chip-set class="genre-chips" [attr.aria-label]="chipsLabel()">
+    @for (genre of selected(); track genre) {
+      <mat-chip [disabled]="disabled()">
+        {{ genre }}
+        <button
+          matChipRemove
+          type="button"
+          [disabled]="disabled()"
+          [attr.aria-label]="'Eliminar género ' + genre"
+          (click)="remove(genre)"
+        >
+          ×
+        </button>
+      </mat-chip>
+    }
+    @if (genreUnassigned()) {
+      <mat-chip [disabled]="disabled()">
+        Sin género
+        <button
+          matChipRemove
+          type="button"
+          [disabled]="disabled()"
+          aria-label="Quitar el filtro Sin género"
+          (click)="removeUnassigned()"
+        >
+          ×
+        </button>
+      </mat-chip>
+    }
+  </mat-chip-set>
+}
+
+<div class="genre-filter-options">
+  <mat-checkbox
+    class="genre-unassigned"
+    [checked]="genreUnassigned()"
+    [disabled]="disabled()"
+    (change)="setUnassigned($event.checked)"
+  >
+    Sin género
+    <span class="genre-unassigned-hint">Incluye libros sin géneros asignados</span>
+  </mat-checkbox>
+  <button
+    mat-button
+    type="button"
+    [disabled]="disabled() || (!selected().length && !genreUnassigned())"
+    (click)="clear()"
+  >
+    Limpiar géneros
+  </button>
+</div>
+<p class="genre-count" aria-live="polite">{{ count() }}</p>
+
+<mat-autocomplete
+  #genreAuto="matAutocomplete"
+  [autoActiveFirstOption]="true"
+  (optionSelected)="selectOption($event)"
+>
+  @if (optionsLoading()) {
+    <mat-option [disabled]="true" class="genre-empty">Cargando géneros…</mat-option>
+  } @else if (optionsError()) {
+    <mat-option [disabled]="true" class="genre-empty">
+      No se pudieron cargar los géneros
+    </mat-option>
+  } @else if (matches().length === 0) {
+    <mat-option [disabled]="true" class="genre-empty">{{ emptyMessage() }}</mat-option>
+  } @else {
+    @for (option of matches(); track option) {
+      <mat-option
+        [value]="option"
+        class="genre-option"
+        [attr.aria-label]="option + (isSelected(option) ? ', seleccionado' : ', no seleccionado')"
+      >
+        <mat-checkbox
+          [checked]="isSelected(option)"
+          aria-hidden="true"
+          tabindex="-1"
+          (click)="$event.stopPropagation()"
+          (change)="setCheckbox(option, $event.checked)"
+        >
+          {{ option }}
+        </mat-checkbox>
+      </mat-option>
+    }
+  }
+</mat-autocomplete>

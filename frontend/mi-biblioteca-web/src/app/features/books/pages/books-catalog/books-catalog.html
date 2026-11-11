@@ -139,12 +139,15 @@
         <input matInput type="number" min="1" max="2100" step="1" formControlName="yearTo" />
         <mat-error>Introduce un año entero entre 1 y 2100</mat-error>
       </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Género</mat-label>
-        <input matInput formControlName="genre" />
-        <mat-hint>Coincidencia exacta, sin distinguir mayúsculas</mat-hint>
-        <mat-error>Máximo 50 caracteres</mat-error>
-      </mat-form-field>
+      <app-genre-filter-select
+        formControlName="genre"
+        [options]="genreOptions()"
+        [optionsLoading]="genreOptionsState() === 'loading'"
+        [optionsError]="genreOptionsState() === 'error'"
+        [selectionDisabled]="deletingId() !== null"
+        (interaction)="loadGenres()"
+        (retryOptions)="loadGenres(true)"
+      />
       <mat-form-field appearance="outline">
         <mat-label>Idioma</mat-label>
         <input matInput formControlName="language" />

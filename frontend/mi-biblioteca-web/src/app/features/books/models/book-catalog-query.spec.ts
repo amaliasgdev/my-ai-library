@@ -24,7 +24,8 @@ describe('book catalog URL query', () => {
       ratingMin: '4',
       yearFrom: '1960',
       yearTo: '2026',
-      genre: 'Ciencia ficción',
+      genre: ['Ciencia ficción', 'Fantasía'],
+      genreUnassigned: 'true',
       language: 'es',
       publisher: 'Editorial',
     };
