@@ -4,8 +4,12 @@ import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaPageResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaProgressResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaRequest;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaResponse;
+import static java.util.stream.Collectors.toMap;
 
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -16,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class SagaService {
 
     private final SagaRepository repository;
+    private final SagaVolumeRepository volumes;
 
-    public SagaService(SagaRepository repository) {
+    public SagaService(SagaRepository repository, SagaVolumeRepository volumes) {
         this.repository = repository;
+        this.volumes = volumes;
     }
 
     @Transactional(readOnly = true)
@@ -28,8 +34,12 @@ public class SagaService {
         Page<Saga> sagas = normalizedName == null
             ? repository.findAll(pageable)
             : repository.findByNameContainingIgnoreCase(normalizedName, pageable);
+        Map<Long, SagaProgressResponse> progress = progressBySaga(
+            sagas.getContent().stream().map(Saga::getId).toList());
         return new SagaPageResponse(
-            sagas.getContent().stream().map(this::toResponse).toList(),
+            sagas.getContent().stream()
+                .map(saga -> toResponse(saga, progress.getOrDefault(saga.getId(), SagaProgressResponse.zero())))
+                .toList(),
             sagas.getNumber(),
             sagas.getSize(),
             sagas.getTotalElements(),
@@ -39,7 +49,13 @@ public class SagaService {
 
     @Transactional(readOnly = true)
     public SagaResponse findById(Long id) {
-        return toResponse(find(id));
+        Saga saga = find(id);
+        return toResponse(saga, progress(id));
+    }
+
+    @Transactional(readOnly = true)
+    public SagaProgressResponse progress(Long sagaId) {
+        return progressBySaga(List.of(sagaId)).getOrDefault(sagaId, SagaProgressResponse.zero());
     }
 
     @Transactional
@@ -47,34 +63,47 @@ public class SagaService {
         Saga saga = new Saga(normalizeRequired(request.name()), trimToNull(request.author()),
             request.description(), request.imageUrl());
         repository.saveAndFlush(saga);
-        return toResponse(saga);
+        return toResponse(saga, SagaProgressResponse.zero());
     }
 
     @Transactional
     public SagaResponse update(Long id, SagaRequest request, String expectedRevision) {
-        Saga saga = lockAndCheck(id, SagaParameters.revision(expectedRevision));
+        Saga saga = SagaRevisions.lockAndCheck(repository, id, SagaParameters.revision(expectedRevision));
         apply(saga, request);
-        increment(saga);
+        SagaRevisions.increment(saga);
         repository.flush();
-        return toResponse(saga);
+        return toResponse(saga, progress(id));
     }
 
     @Transactional
     public void delete(Long id, String expectedRevision) {
-        Saga saga = lockAndCheck(id, SagaParameters.revision(expectedRevision));
+        Saga saga = SagaRevisions.lockAndCheck(repository, id, SagaParameters.revision(expectedRevision));
+        volumes.deleteAll(volumes.findBySagaIdOrderByPositionAsc(id));
+        volumes.flush();
         repository.delete(saga);
+        repository.flush();
     }
 
     private Saga find(Long id) {
         return repository.findById(id).orElseThrow(SagaException::notFound);
     }
 
-    private Saga lockAndCheck(Long id, long expectedRevision) {
-        Saga saga = repository.findByIdForUpdate(id).orElseThrow(SagaException::notFound);
-        if (saga.getRevision() != expectedRevision) {
-            throw SagaException.revisionConflict();
+    private Map<Long, SagaProgressResponse> progressBySaga(Collection<Long> sagaIds) {
+        if (sagaIds.isEmpty()) {
+            return Map.of();
         }
-        return saga;
+        return volumes.findProgressBySagaIds(sagaIds).stream().collect(toMap(
+            SagaVolumeRepository.Progress::getSagaId,
+            row -> new SagaProgressResponse(
+                (int) row.getTotal(),
+                (int) row.getLinked(),
+                (int) (row.getTotal() - row.getLinked()),
+                (int) row.getRead(),
+                (int) row.getReading(),
+                (int) row.getToRead(),
+                (int) row.getAbandoned()
+            )
+        ));
     }
 
     private void apply(Saga saga, SagaRequest request) {
@@ -84,14 +113,6 @@ public class SagaService {
         saga.setImageUrl(request.imageUrl());
     }
 
-    private void increment(Saga saga) {
-        if (saga.getRevision() == Long.MAX_VALUE) {
-            throw SagaException.revisionExhausted();
-        }
-        saga.setRevision(saga.getRevision() + 1);
-    }
-
-    /** Mirrors the unique index: outer spaces and case are irrelevant. */
     private String normalizeRequired(String value) {
         return value.trim();
     }
@@ -126,7 +147,7 @@ public class SagaService {
         };
     }
 
-    private SagaResponse toResponse(Saga saga) {
+    private SagaResponse toResponse(Saga saga, SagaProgressResponse progress) {
         return new SagaResponse(
             saga.getId(),
             saga.getName(),
@@ -136,7 +157,7 @@ public class SagaService {
             Long.toString(saga.getRevision()),
             saga.getCreatedAt(),
             saga.getUpdatedAt(),
-            SagaProgressResponse.zero()
+            progress
         );
     }
 }

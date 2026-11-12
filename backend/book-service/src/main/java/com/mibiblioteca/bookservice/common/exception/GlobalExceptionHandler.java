@@ -92,6 +92,30 @@ public class GlobalExceptionHandler {
                 return handleSaga(SagaException.duplicate());
             }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_saga_volume_book".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.duplicateBook());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_saga_volume_position".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.positionConflict());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23503".equals(violation.getSQLState()) && "fk_saga_volume_book".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.bookNotFound());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23503".equals(violation.getSQLState()) && "fk_saga_volume_saga".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.notFound());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23514".equals(violation.getSQLState()) && "ck_saga_volume_target".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.targetRequired());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23514".equals(violation.getSQLState()) && "ck_saga_volume_position".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.invalidPosition());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                 && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {
                 ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A book with this ISBN already exists");
                 problem.setTitle("Duplicate ISBN");

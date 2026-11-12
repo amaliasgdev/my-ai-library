@@ -41,6 +41,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
     com.mibiblioteca.bookservice.book.service.BookResponseMapper.class})
 class BookMetadataControllerTest {
     @MockBean private com.mibiblioteca.bookservice.readinglist.ReadingListService readingList;
+    @MockBean private com.mibiblioteca.bookservice.saga.SagaVolumeService sagaVolumes;
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private BookRepository bookRepository;

@@ -16,6 +16,7 @@ import com.mibiblioteca.bookservice.book.lookup.IsbnNormalizer;
 import com.mibiblioteca.bookservice.book.cover.CoverLifecycle;
 import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.readinglist.ReadingListService;
+import com.mibiblioteca.bookservice.saga.SagaVolumeService;
 import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import com.mibiblioteca.bookservice.common.exception.DuplicateIsbnException;
 import com.mibiblioteca.bookservice.common.exception.InvalidSearchCriteriaException;
@@ -39,14 +40,16 @@ public class BookService {
     private final CoverLifecycle covers;
     private final BookResponseMapper mapper;
     private final ReadingListService readingList;
+    private final SagaVolumeService sagaVolumes;
 
     public BookService(BookRepository bookRepository, IsbnNormalizer isbnNormalizer, CoverLifecycle covers,
-                       BookResponseMapper mapper, ReadingListService readingList) {
+                       BookResponseMapper mapper, ReadingListService readingList, SagaVolumeService sagaVolumes) {
         this.bookRepository = bookRepository;
         this.isbnNormalizer = isbnNormalizer;
         this.covers = covers;
         this.mapper = mapper;
         this.readingList = readingList;
+        this.sagaVolumes = sagaVolumes;
     }
 
     @Transactional
@@ -204,9 +207,11 @@ public class BookService {
 
     @Transactional
     public void delete(Long id) {
-        // Lock order is always singleton -> Book, including books not yet in the list.
+        // Lock order is always reading_list -> Book -> saga, including books not yet linked.
         readingList.removeBookBeforeDeletion(id);
-        Book book = findBook(id);
+        Book book = bookRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> new BookNotFoundException(id));
+        sagaVolumes.detachBookBeforeDeletion(id);
         String previousCover = book.getCoverUrl();
         bookRepository.deleteById(id);
         covers.afterCommit(id, previousCover, null);

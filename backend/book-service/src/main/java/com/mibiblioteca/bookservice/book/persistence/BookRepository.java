@@ -14,6 +14,15 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     @Query("select book from Book book where book.id = :id")
     Optional<Book> findForReadingList(@Param("id") Long id);
 
+    /** Shares the book while a saga volume references it; book deletion takes the exclusive lock. */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select book from Book book where book.id = :id")
+    Optional<Book> findForSagaLink(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select book from Book book where book.id = :id")
+    Optional<Book> findByIdForUpdate(@Param("id") Long id);
+
     boolean existsByIsbn(String isbn);
 
     boolean existsByIsbnAndIdNot(String isbn, Long id);
