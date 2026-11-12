@@ -130,7 +130,9 @@ h1 {
 
 .catalog-results-heading {
   display: grid;
+  flex: 1 1 12rem;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .catalog-results-heading h2 {
@@ -161,6 +163,7 @@ h1 {
 }
 
 .cards-per-row {
+  flex: 0 1 16rem;
   width: min(100%, 16rem);
 }
 
@@ -208,6 +211,7 @@ h1 {
 }
 
 mat-paginator {
+  max-width: 100%;
   margin-block-start: 1.5rem;
   background: transparent;
 }

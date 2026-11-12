@@ -196,6 +196,13 @@ describe('BookCard', () => {
     fixture.componentRef.setInput('book', testBook({ readingStatus }));
     fixture.detectChanges();
     expect(element.querySelector('.status-badge')?.textContent).toContain(label);
+    expect(element.querySelector('.status-badge')?.getAttribute('aria-label')).toBe(
+      `Estado de lectura: ${label}`,
+    );
+    expect(element.querySelector('h2')?.getAttribute('title')).toBe('Libro de prueba');
+    expect(element.querySelector('mat-card-subtitle')?.getAttribute('title')).toBe(
+      'Autora de prueba',
+    );
   });
 
   it('should show the confirmed rating as accessible stars, and Sin valorar when null', () => {
@@ -478,6 +485,9 @@ describe('BookCard', () => {
       expect(element.querySelector('app-star-rating, mat-select, .date-actions')).toBeNull();
       expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
       expect(element.querySelector('.compact-status')?.textContent).toContain('Por leer');
+      expect(element.querySelector('.compact-status')?.getAttribute('aria-label')).toBe(
+        'Estado de lectura: Por leer',
+      );
       expect(element.querySelector('a.compact-detail')?.getAttribute('aria-label')).toBe(
         'Ver detalle de Libro de prueba',
       );
