@@ -176,7 +176,15 @@ describe('Application routes', () => {
     expect(list.request.params.get('page')).toBe('2');
     list.flush(testBookPage({ page: 2, size: 50 }));
     await harness.fixture.whenStable();
-    click('Editar');
+    (
+      harness.routeNativeElement!.querySelector(
+        'app-book-card .card-menu-trigger',
+      ) as HTMLButtonElement
+    ).click();
+    await harness.fixture.whenStable();
+    (
+      document.querySelector('a.mat-mdc-menu-item[aria-label^="Editar "]') as HTMLAnchorElement
+    ).click();
     await harness.fixture.whenStable();
     http.expectOne('/api/books/1').flush(testBook());
     await harness.fixture.whenStable();
@@ -229,9 +237,13 @@ describe('Application routes', () => {
     http.expectOne((req) => req.url === '/api/books').flush(testBookPage());
     await harness.fixture.whenStable();
     (
-      harness.routeNativeElement?.querySelector(
-        'app-book-card a[aria-label^="Editar "]',
-      ) as HTMLAnchorElement
+      harness.routeNativeElement!.querySelector(
+        'app-book-card .card-menu-trigger',
+      ) as HTMLButtonElement
+    ).click();
+    await harness.fixture.whenStable();
+    (
+      document.querySelector('a.mat-mdc-menu-item[aria-label^="Editar "]') as HTMLAnchorElement
     ).click();
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/books/1/edit');

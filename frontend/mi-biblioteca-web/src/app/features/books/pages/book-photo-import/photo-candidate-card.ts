@@ -1,6 +1,7 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import { PhotoImportCandidate } from './photo-import-workflow';
 
 /** Advisory only: identical bibliographic text does not prove the same physical copy. */
@@ -20,7 +21,7 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
 
 @Component({
   selector: 'app-photo-candidate-card',
-  imports: [MatButtonModule, MatCardModule],
+  imports: [MatButtonModule, MatCardModule, InlineFeedback],
   template: `
     <mat-card appearance="outlined" [attr.data-state]="row().state">
       <mat-card-content>
@@ -56,13 +57,15 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
           </div>
         </div>
         @if (batchDuplicate()) {
-          <p class="warning">
+          <app-inline-feedback variant="warning">
             Posible duplicado en el lote. Podrían ser ejemplares distintos: revisa antes de
             descartar.
-          </p>
+          </app-inline-feedback>
         }
         @if (row().state === 'possible') {
-          <p class="warning">Posible duplicado en el catálogo.</p>
+          <app-inline-feedback variant="warning">
+            Posible duplicado en el catálogo.
+          </app-inline-feedback>
         }
       </mat-card-content>
       <mat-card-actions>
@@ -142,9 +145,8 @@ export function batchDuplicateIds(rows: readonly PhotoImportCandidate[]): Readon
     [data-state='error'] .state {
       color: var(--mat-sys-error);
     }
-    .warning {
-      background: var(--mat-sys-surface-container);
-      padding: 0.5rem;
+    app-inline-feedback {
+      margin-block: 0.5rem;
     }
     mat-card-actions {
       flex-wrap: wrap;

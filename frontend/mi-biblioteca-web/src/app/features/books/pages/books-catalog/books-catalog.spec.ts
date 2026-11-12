@@ -57,7 +57,11 @@ describe('BooksCatalog', () => {
   }
 
   async function deleteFirstBook() {
-    (element.querySelector('app-book-card mat-card-actions button') as HTMLButtonElement).click();
+    (element.querySelector('app-book-card .card-menu-trigger') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item'))
+      .find((item) => item.textContent?.trim() === 'Eliminar')!
+      .click();
     await fixture.whenStable();
     const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
     await (
@@ -117,15 +121,24 @@ describe('BooksCatalog', () => {
     expect(deletion.request.method).toBe('DELETE');
     expect(fixture.componentInstance.deletingId()).toBe(42);
     expect(paginator().disabled).toBe(true);
+    const cards = element.querySelectorAll('app-book-card');
+    expect(cards[0].querySelector<HTMLButtonElement>('.card-menu-trigger')?.disabled).toBe(true);
+    expect(cards[0].querySelector('.detail-link')?.getAttribute('href')).toBeNull();
+    expect(cards[1].querySelector<HTMLButtonElement>('.card-menu-trigger')?.disabled).toBe(false);
+    (cards[1].querySelector('.card-menu-trigger') as HTMLButtonElement).click();
+    await fixture.whenStable();
     expect(
-      Array.from(element.querySelectorAll('app-book-card mat-card-actions button')).every(
-        (button) => (button as HTMLButtonElement).disabled,
-      ),
-    ).toBe(true);
-    expect(element.querySelector('app-book-card a')?.getAttribute('href')).toBeNull();
-    expect(
-      element.querySelectorAll('app-book-card a[aria-label^="Editar "]')[1].getAttribute('href'),
+      document.querySelector('a.mat-mdc-menu-item[aria-label^="Editar "]')?.getAttribute('href'),
     ).toBe('/books/43/edit');
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item')).find(
+        (item) => item.textContent?.trim() === 'Eliminar',
+      )?.disabled,
+    ).toBe(true);
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+    );
+    await fixture.whenStable();
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/books/new');
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
     fixture.componentInstance.openDeleteDialog(testBook({ id: 43 }));
@@ -257,8 +270,13 @@ describe('BooksCatalog', () => {
     await fixture.whenStable();
     expect(element.textContent).toContain('No se puede conectar con el servidor');
     http.expectNone((req) => req.method === 'DELETE');
-    (element.querySelector('app-book-card mat-card-actions button') as HTMLButtonElement).click();
+    (element.querySelector('app-book-card .card-menu-trigger') as HTMLButtonElement).click();
     await fixture.whenStable();
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item'))
+      .find((item) => item.textContent?.trim() === 'Eliminar')!
+      .click();
+    await fixture.whenStable();
+    expect(TestBed.inject(MatDialog).openDialogs).toHaveLength(1);
     http.expectNone((req) => req.method === 'DELETE');
     TestBed.inject(MatDialog).closeAll();
     await fixture.whenStable();

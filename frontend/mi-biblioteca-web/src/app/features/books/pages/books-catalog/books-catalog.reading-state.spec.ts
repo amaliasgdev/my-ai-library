@@ -96,6 +96,19 @@ describe('BooksCatalog reading state', () => {
   function firstCard() {
     return element.querySelector('app-book-card')!;
   }
+
+  async function editHref(index = 0): Promise<string | null | undefined> {
+    element.querySelectorAll<HTMLButtonElement>('app-book-card .card-menu-trigger')[index].click();
+    await fixture.whenStable();
+    const href = document
+      .querySelector<HTMLAnchorElement>('a.mat-mdc-menu-item[aria-label^="Editar "]')
+      ?.getAttribute('href');
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+    );
+    await fixture.whenStable();
+    return href;
+  }
   function expectQuery(request: ReturnType<typeof listRequest>, sortBy: string, direction = 'ASC') {
     expect(request.request.params.get('page')).toBe('1');
     expect(request.request.params.get('size')).toBe('50');
@@ -125,7 +138,10 @@ describe('BooksCatalog reading state', () => {
       expect(await control.getValueText()).toBe(label);
       expect(await control.isDisabled()).toBe(false);
       expect(
-        element.querySelectorAll('app-book-card')[1].querySelector('.reading-status')?.textContent,
+        element
+          .querySelectorAll('app-book-card')[1]
+          .querySelector('.status-badge')
+          ?.textContent?.trim(),
       ).toBe('Por leer');
       expect(paginator().pageIndex).toBe(1);
       expect(paginator().pageSize).toBe(50);
@@ -157,7 +173,7 @@ describe('BooksCatalog reading state', () => {
       await fixture.whenStable();
       expect(ratingOf()).toBe(`${rating} de 5`);
       expect(cardStars().every((star) => !star.disabled)).toBe(true);
-      expect(firstCard().querySelector('.reading-status')?.textContent).toBe('Por leer');
+      expect(firstCard().querySelector('.status-badge')?.textContent?.trim()).toBe('Por leer');
       http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
     },
   );
@@ -172,7 +188,7 @@ describe('BooksCatalog reading state', () => {
     http.expectOne('/api/books/1/rating').flush({ ...original(), rating: 4 });
     await fixture.whenStable();
     expect(ratingOf()).toBe('4 de 5');
-    expect(firstCard().querySelector('.reading-status')?.textContent).toBe('Por leer');
+    expect(firstCard().querySelector('.status-badge')?.textContent?.trim()).toBe('Por leer');
     expect(await (await selects())[0].getValueText()).toBe('Por leer');
   });
 
@@ -250,9 +266,10 @@ describe('BooksCatalog reading state', () => {
     cardStars(1)[4].click();
     const rating = http.expectOne('/api/books/2/rating');
     expect(fixture.componentInstance.pendingUpdates().size).toBe(2);
+    fixture.detectChanges();
     expect(
       Array.from(
-        element.querySelectorAll<HTMLButtonElement>('app-book-card mat-card-actions button'),
+        element.querySelectorAll<HTMLButtonElement>('app-book-card .card-menu-trigger'),
       ).every((button) => button.disabled),
     ).toBe(true);
     fixture.componentInstance.openDeleteDialog(original());
@@ -326,9 +343,7 @@ describe('BooksCatalog reading state', () => {
       expect(element.textContent).not.toContain('SECRET');
       expect(await (await selects())[0].getValueText()).toBe('Por leer');
       expect(fixture.componentInstance.pendingUpdates().size).toBe(0);
-      expect(firstCard().querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
-        '/books/1/edit?page=1&size=50',
-      );
+      expect(await editHref()).toBe('/books/1/edit?page=1&size=50');
       http.expectNone((req) => req.method === 'GET' && req.url !== '/api/reading-list/membership');
       await selectStatus();
       expect(firstCard().querySelector('[role="alert"]')).toBeNull();
@@ -434,9 +449,7 @@ describe('BooksCatalog reading state', () => {
     reload.flush(testBookPage({ content: [testBook({ id: 9 })] }));
     await fixture.whenStable();
     expect(element.querySelectorAll('app-book-card')).toHaveLength(1);
-    expect(
-      element.querySelector('app-book-card a[aria-label^="Editar "]')?.getAttribute('href'),
-    ).toBe('/books/9/edit?size=50&title=Other');
+    expect(await editHref()).toBe('/books/9/edit?size=50&title=Other');
   });
 
   it('should cancel intermediate GETs when concurrent writes both require a reload', async () => {

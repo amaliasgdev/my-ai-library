@@ -5,17 +5,17 @@
   </p>
 
   @if (analyzing()) {
-    <p role="status">
+    <app-inline-feedback variant="info">
       Analizando fotografías: {{ analysisCompleted() }} de {{ analysisTotal() }} finalizadas.
-    </p>
+    </app-inline-feedback>
     <button mat-button type="button" (click)="cancelAnalysis()">
       Detener análisis de fotografías
     </button>
   }
   @if (workflow.creating() || reading.pending()) {
-    <p role="status">
+    <app-inline-feedback variant="warning">
       Hay una operación de importación o lista de lectura en curso. Cambiar de paso no la cancela.
-    </p>
+    </app-inline-feedback>
     <button mat-button type="button" (click)="goToStep(3)">Ver progreso de importación</button>
   }
   <mat-stepper
@@ -27,31 +27,31 @@
     <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
     <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
     <mat-step label="Fotografías">
-      <p class="notice" id="recognition-notice">
+      <app-inline-feedback variant="neutral" [announce]="false" id="recognition-notice">
         @if (availabilityLoading()) {
           Consultando disponibilidad del reconocimiento…
         } @else if (available() && realProvider()) {
-          RECONOCIMIENTO REAL MEDIANTE OPENAI. Las fotografías se enviarán a OpenAI para identificar
-          los libros. El análisis puede generar un coste de API. El backend elimina metadatos
-          EXIF/GPS antes del envío. store=false no significa retención cero. Seleccionar fotografías
-          no inicia ningún envío. Los resultados pueden contener errores y requieren revisión y
-          confirmación antes de crear libros.
+          <strong>Reconocimiento real con OpenAI.</strong> Las fotografías se enviarán a OpenAI para
+          identificar los libros. El análisis puede generar un coste de API. Revisa y confirma los
+          resultados antes de crear libros.
         } @else if (available()) {
-          MODO SIMULADO DE DESARROLLO. Los resultados son ejemplos fijos y no identifican los libros
-          de tus fotografías. Solo al pulsar Analizar fotografías se envían al backend local; no se
-          envían a servicios externos. El análisis no crea libros: las altas requieren revisión de
-          datos reales y confirmación explícita.
+          <strong>MODO SIMULADO DE DESARROLLO.</strong> Los resultados son ejemplos fijos y no
+          identifican los libros de tus fotografías. El análisis no crea libros: cada alta requiere
+          revisión y confirmación explícita.
         } @else {
-          El reconocimiento todavía no está conectado o está deshabilitado. Puedes preparar
-          fotografías localmente, pero no analizarlas. Puedes añadir manualmente candidatos y
-          revisarlos. No se envían imágenes al seleccionar.
+          <strong>Reconocimiento no disponible.</strong> El reconocimiento todavía no está conectado
+          o está deshabilitado. Puedes preparar fotografías localmente y añadir candidatos
+          manualmente, pero no analizarlas. No se envían imágenes al seleccionar.
         }
-      </p>
+      </app-inline-feedback>
       @if (availabilityError()) {
-        <p role="alert">No se pudo consultar la disponibilidad. No se permite iniciar análisis.</p>
-        <button mat-button type="button" (click)="loadCapabilities()">
-          Reintentar disponibilidad
-        </button>
+        <app-inline-feedback
+          variant="error"
+          actionLabel="Reintentar disponibilidad"
+          (action)="loadCapabilities()"
+          >No se pudo consultar la disponibilidad. No se permite iniciar
+          análisis.</app-inline-feedback
+        >
       }
 
       <section
@@ -115,24 +115,75 @@
         </p>
       </section>
 
+      <div class="technical-panels">
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Privacidad y tratamiento de las fotografías</mat-panel-title>
+          </mat-expansion-panel-header>
+          @if (available() && realProvider()) {
+            <p>
+              El backend elimina metadatos EXIF/GPS antes del envío. store=false no significa
+              retención cero. Seleccionar fotografías no inicia ningún envío: solo se envían al
+              pulsar Analizar fotografías o Reintentar análisis.
+            </p>
+          } @else if (available()) {
+            <p>
+              Solo al pulsar Analizar fotografías se envían al backend local; no se envían a
+              servicios externos. Seleccionar imágenes no inicia ningún envío.
+            </p>
+          } @else {
+            <p>
+              Puedes preparar fotografías localmente sin enviarlas. El reconocimiento permanece
+              deshabilitado hasta que se configure.
+            </p>
+          }
+          <p>
+            Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la
+            selección.
+          </p>
+          <p id="photo-rotation-help">
+            La rotación ajusta la vista previa y queda pendiente. El archivo original no se
+            modifica: se envía junto al giro solicitado. El servidor aplica primero la orientación
+            EXIF y después este giro una sola vez, y elimina los metadatos. No se reduce la
+            resolución.
+          </p>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Coste, cancelación y reintentos</mat-panel-title>
+          </mat-expansion-panel-header>
+          @if (available() && realProvider()) {
+            <p>
+              El análisis puede generar coste en OpenAI. Cada análisis real requiere autorización
+              explícita y no se reintenta automáticamente.
+            </p>
+          } @else if (available()) {
+            <p>
+              El modo simulado no contacta con servicios externos ni genera coste. El análisis no
+              crea libros.
+            </p>
+          }
+          <p>
+            Cancelar detiene la cola y descarta respuestas tardías; el servidor puede terminar una
+            petición ya enviada y generar coste en OpenAI. No se reintenta automáticamente.
+          </p>
+        </mat-expansion-panel>
+      </div>
+
       <div aria-live="polite" aria-atomic="true">
         <p>{{ photos().length }} de {{ maxPhotos }} fotografías seleccionadas.</p>
       </div>
       @if (errors().length) {
-        <div class="error-panel" role="alert">
+        <app-inline-feedback variant="error">
           <ul>
             @for (error of errors(); track $index) {
               <li>{{ error }}</li>
             }
           </ul>
-        </div>
+        </app-inline-feedback>
       }
 
-      <p id="photo-rotation-help">
-        La rotación ajusta la vista previa y queda pendiente. El archivo original no se modifica: se
-        envía junto al giro solicitado. El servidor aplica primero la orientación EXIF y después
-        este giro una sola vez, y elimina los metadatos. No se reduce la resolución.
-      </p>
       <div class="photo-grid">
         @for (photo of photos(); track photo.id) {
           <mat-card appearance="outlined">
@@ -232,19 +283,11 @@
           {{ analysisCompleted() }} de {{ analysisTotal() }} análisis finalizados.
         </p>
       }
-      <p>
-        Cancelar detiene la cola y descarta respuestas tardías; el servidor puede terminar una
-        petición ya enviada y generar coste en OpenAI. No se reintenta automáticamente; cada nuevo
-        análisis real requiere autorización.
-      </p>
-      <p>
-        Las fotografías solo permanecen en esta página. Al salir o recargar se perderá la selección.
-      </p>
       <button mat-button type="button" (click)="goToStep(1)">Ver resultados</button>
     </mat-step>
     <mat-step label="Resultados">
       <h2>Libros identificados</h2>
-      <mat-form-field
+      <mat-form-field appearance="outline"
         ><mat-label>Idioma preferido de búsqueda</mat-label
         ><mat-select
           [value]="preferredLanguage()"
@@ -327,8 +370,14 @@
                   [style.transform]="'rotate(' + group.photo.rotationDegrees + 'deg)'"
                 />
               </div>
-              @for (warning of result.warnings; track $index) {
-                <p>{{ warning }}</p>
+              @if (result.warnings.length) {
+                <app-inline-feedback variant="warning">
+                  <ul>
+                    @for (warning of result.warnings; track $index) {
+                      <li>{{ warning }}</li>
+                    }
+                  </ul>
+                </app-inline-feedback>
               }
             </mat-expansion-panel>
           } @else {
@@ -445,8 +494,14 @@
                   Texto visible (evidencia): {{ observation.visibleText ?? 'Sin texto' }}
                 </p>
                 <p>ISBN visible propuesto: {{ observation.rawIsbn ?? 'No visible' }}</p>
-                @for (warning of observation.warnings; track $index) {
-                  <p>{{ warning }}</p>
+                @if (observation.warnings.length) {
+                  <app-inline-feedback variant="warning">
+                    <ul>
+                      @for (warning of observation.warnings; track $index) {
+                        <li>{{ warning }}</li>
+                      }
+                    </ul>
+                  </app-inline-feedback>
                 }
               </mat-expansion-panel>
               <app-photo-metadata-candidate

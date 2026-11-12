@@ -76,6 +76,14 @@ describe('AppShell theme preference', () => {
     fixture.detectChanges();
   };
 
+  it('provides a skip link to the main content and a labelled main navigation', () => {
+    boot();
+    const skip = element.querySelector<HTMLAnchorElement>('a.skip-link')!;
+    expect(skip.getAttribute('href')).toBe('#main-content');
+    expect(element.querySelector('main#main-content')?.getAttribute('tabindex')).toBe('-1');
+    expect(element.querySelector('nav')?.getAttribute('aria-label')).toBe('Navegación principal');
+  });
+
   it('renders an accessible theme cycle button showing the current preference', () => {
     boot();
     expect(themeButton().getAttribute('aria-label')).toBe('Cambiar tema (actual: Automático)');

@@ -19,7 +19,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   EMPTY,
@@ -45,6 +44,10 @@ import {
 } from '../../../../core/preferences/cards-per-row';
 import { UiPreferencesService } from '../../../../core/preferences/ui-preferences.service';
 import { registerAppIcons } from '../../../../core/icons/app-icons';
+import { EmptyState } from '../../../../core/ui/feedback/empty-state';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
+import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 import { bookFiltersFormValue, createBookFiltersForm, filtersFromForm } from './book-filters.form';
 import { isValidBarcodeIsbn13 } from '../../models/isbn-barcode';
 import {
@@ -128,7 +131,9 @@ function searchError(error: unknown): string {
     GenreFilterSelect,
     MatButtonModule,
     MatPaginatorModule,
-    MatProgressSpinnerModule,
+    EmptyState,
+    InlineFeedback,
+    LoadingState,
     RouterLink,
     ReactiveFormsModule,
     MatFormFieldModule,
@@ -149,6 +154,7 @@ export class BooksCatalog {
   private readonly injector = inject(Injector);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly feedback = inject(FeedbackService);
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private datesDialog: MatDialogRef<BookReadingDatesDialog> | null = null;
   private scanDialog: MatDialogRef<IsbnScanDialog, string> | null = null;
@@ -172,6 +178,15 @@ export class BooksCatalog {
     return value === 'auto' ? null : value;
   });
   protected readonly compactCards = computed(() => isCompactCardsPerRow(this.cardsPerRow()));
+  /** Few results should not stay as tiny 8/10-column cards. */
+  protected readonly fewResults = computed(() => {
+    const state = this.state();
+    return (
+      state.status === 'success' &&
+      state.response.content.length > 0 &&
+      state.response.content.length <= 3
+    );
+  });
   private appliedQuery: BookCatalogQuery | null = null;
   private requestGeneration = 0;
   readonly catalogParams = computed(() =>
@@ -185,6 +200,9 @@ export class BooksCatalog {
   );
   readonly currentSearch = signal<BookSearchRequest | null>(null);
   readonly currentFilters = signal<BookFilters>({});
+  protected readonly hasAppliedFilters = computed(
+    () => Object.keys(this.currentFilters()).length > 0,
+  );
   readonly filtersForm = createBookFiltersForm();
   protected readonly genreOptions = signal<readonly string[]>([]);
   protected readonly genreOptionsState = signal<GenreOptionsState>('idle');
@@ -217,13 +235,8 @@ export class BooksCatalog {
   protected readonly pageSizeOptions = [10, 20, 50, 100];
   protected readonly announcement = computed(() => {
     const state = this.state();
-    if (state.status === 'loading') return 'Cargando libros…';
-    if (state.status === 'error') return '';
-    if (state.response.totalElements === 0)
-      return this.currentSearch() || Object.keys(this.currentFilters()).length > 0
-        ? 'No se encontraron libros'
-        : 'Tu biblioteca todavía no tiene libros';
-    if (state.response.content.length === 0) return 'No hay libros en esta página';
+    if (state.status !== 'success') return '';
+    if (state.response.totalElements === 0 || state.response.content.length === 0) return '';
     return `Mostrando ${state.response.content.length} de ${state.response.totalElements} libros`;
   });
 
@@ -525,6 +538,7 @@ export class BooksCatalog {
       )
       .subscribe({
         next: () => {
+          this.feedback.success('Libro eliminado.');
           this.refreshGenresAfterDelete();
           this.restoreFocusAfterReload = true;
           this.reloadCurrentQuery(true);

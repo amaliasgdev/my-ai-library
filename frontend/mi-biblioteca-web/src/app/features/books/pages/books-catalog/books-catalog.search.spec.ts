@@ -77,7 +77,11 @@ describe('BooksCatalog search', () => {
     fixture.detectChanges();
   }
   async function confirmDelete() {
-    (element.querySelector('app-book-card mat-card-actions button') as HTMLButtonElement).click();
+    (element.querySelector('app-book-card .card-menu-trigger') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item'))
+      .find((item) => item.textContent?.trim() === 'Eliminar')!
+      .click();
     await fixture.whenStable();
     const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
     await (await loader.getHarness(MatButtonHarness.with({ selector: '.confirm-delete' }))).click();

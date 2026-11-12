@@ -176,7 +176,7 @@ describe('BooksCatalog cards per row', () => {
       for (const card of cards) {
         expect(card.querySelectorAll('app-star-rating button[role="radio"]')).toHaveLength(5);
         expect(card.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(
-          3,
+          2,
         );
       }
     }
@@ -202,8 +202,10 @@ describe('BooksCatalog cards per row', () => {
     const counter = toolbar.querySelector('.catalog-status')!;
     expect(counter.getAttribute('role')).toBe('status');
     expect(counter.textContent).toContain('Mostrando 2 de 45 libros');
+    expect(toolbar.querySelector('.catalog-results-heading h2')?.textContent).toBe('Libros');
     const field = toolbar.querySelector('mat-form-field.cards-per-row')!;
-    expect(counter.nextElementSibling).toBe(field);
+    expect(counter.closest('.catalog-results-heading')).not.toBeNull();
+    expect(toolbar.querySelector('.catalog-results-heading')?.nextElementSibling).toBe(field);
     const select = field.querySelector('mat-select')!;
     const label = field.querySelector('mat-label')!;
     expect(label.textContent).toBe('Tarjetas por fila');

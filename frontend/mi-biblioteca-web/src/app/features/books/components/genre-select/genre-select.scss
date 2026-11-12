@@ -7,13 +7,20 @@ mat-form-field {
 }
 
 .genre-notice {
-  margin: 0.25rem 0 0;
-  color: var(--mat-sys-error);
+  margin-block: 0.5rem;
 }
 
 .genre-hint {
-  margin: -0.75rem 0 0.5rem;
+  margin: 0.25rem 0 0.5rem;
   color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.genre-chips {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+  background: var(--mat-sys-surface-container-low);
 }
 
 .genre-option mat-checkbox {

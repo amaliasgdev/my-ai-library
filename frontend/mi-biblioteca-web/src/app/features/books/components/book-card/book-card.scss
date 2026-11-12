@@ -5,6 +5,8 @@
 }
 
 mat-card {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
   border-radius: var(--app-panel-radius);
@@ -29,59 +31,133 @@ mat-card {
   color: var(--mat-sys-on-surface-variant);
 }
 
+mat-card-header {
+  padding: 0.75rem 0.75rem 0;
+}
+
 h2 {
+  display: -webkit-box;
   margin: 0;
-  font: inherit;
+  overflow: hidden;
+  font: var(--mat-sys-title-small);
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 mat-card-subtitle {
-  margin-block-start: 0.5rem;
+  display: -webkit-box;
+  margin-block-start: 0.25rem;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 
-.reading-status {
-  color: var(--mat-sys-primary);
-  font-weight: 600;
-}
-
-.rating {
+mat-card-content {
   display: flex;
-  justify-content: flex-start;
-  color: var(--mat-sys-on-surface-variant);
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  padding: 0.75rem;
 }
 
-.reading-controls {
-  display: grid;
-  gap: 0.25rem;
-
-  mat-form-field {
-    width: 100%;
-    min-width: 0;
-  }
-}
-
-.update-error {
-  color: var(--mat-sys-error);
-}
-
-.reading-dates {
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
-}
-.date-actions {
+.card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
-.date-actions small {
-  flex-basis: 100%;
+
+.status-badge,
+.compact-status {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font: var(--mat-sys-label-small);
+  overflow-wrap: anywhere;
+}
+
+.status--to-read {
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+}
+
+.status--reading {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.status--read {
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.status--abandoned {
+  background: var(--mat-sys-surface-container-highest);
   color: var(--mat-sys-on-surface-variant);
 }
-.list-action {
-  padding: 0.5rem 1rem;
+
+.rating {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.status-field {
+  width: 100%;
+  min-width: 0;
+}
+
+app-inline-feedback {
+  margin-block: 0.25rem;
+}
+
+.reading-dates {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
   overflow-wrap: anywhere;
+}
+
+.card-progress {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.detail-link {
+  min-width: 0;
+}
+
+.card-menu-trigger {
+  flex: none;
+}
+
+.detail-link:focus-visible,
+.card-menu-trigger:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.delete-action {
+  color: var(--mat-sys-error);
 }
 
 // Compact variant (8 and 10 columns): cover first, a short title, and everything else in a menu.
@@ -108,6 +184,13 @@ mat-card-subtitle {
   }
 }
 
+.compact-status {
+  padding: 0.0625rem 0.25rem;
+  margin-block-start: 0.25rem;
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+
 .compact-progress {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
@@ -117,7 +200,7 @@ mat-card-subtitle {
   }
 }
 
-.compact-content .update-error {
+.compact-content app-inline-feedback {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
 }

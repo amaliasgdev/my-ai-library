@@ -95,6 +95,25 @@ describe('ReadingList', () => {
     ).toBe(true);
   });
 
+  it('groups secondary reading actions in an accessible menu and separates list removal', async () => {
+    load();
+    const trigger = dom().querySelector<HTMLButtonElement>('mat-card .reading-menu-trigger')!;
+    expect(trigger.getAttribute('aria-label')).toBe('Acciones de Primero');
+    trigger.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.mat-mdc-menu-item'));
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      'Iniciar lectura',
+      'Finalizar lectura',
+      'Gestionar fechas',
+      'Retirar de la lista',
+    ]);
+    expect(document.querySelector('.mat-mdc-menu-panel mat-divider')).not.toBeNull();
+    expect(items.at(-1)?.classList).toContain('remove-action');
+    expect(items.at(-1)?.getAttribute('aria-label')).toBe('Retirar de la lista: Primero');
+  });
+
   it('uses fallback on missing or failed covers', () => {
     data.items[0].book.coverUrl = null;
     data.items[1].book.coverUrl = 'https://example.org/a.jpg';

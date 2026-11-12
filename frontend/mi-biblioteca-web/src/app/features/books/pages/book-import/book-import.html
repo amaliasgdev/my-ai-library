@@ -3,7 +3,7 @@
   <p>Pega hasta 25 ISBN-13 únicos. Revisa y confirma cada libro antes de importarlo.</p>
   <p>Los metadatos se consultan mediante backend/Open Library. Este flujo no es offline.</p>
   @if (rows().length) {
-    <p role="note">
+    <p role="note" class="batch-note">
       El lote vive solo en esta página. Recargar o salir pierde el trabajo pendiente. Cancelar no
       revierte libros ya creados ni una petición enviada.
     </p>
@@ -34,7 +34,7 @@
     }
   </div>
   @if (error()) {
-    <p role="alert">{{ error() }}</p>
+    <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
   }
   @if (checking()) {
     <h2>2. Analizar / consultar</h2>

@@ -85,6 +85,17 @@ describe('GenreFilterSelect catalog multi-select', () => {
     expect(host.interactions).toBe(1);
   });
 
+  it('keeps the selection count in the field hint and groups chips in a delimited area', async () => {
+    host.filter.setValue({ genres: ['Fantasía'], genreUnassigned: true });
+    await stabilize();
+    expect(fixture.nativeElement.querySelector('mat-hint')?.textContent).toContain(
+      'Géneros seleccionados: 1 de 50',
+    );
+    expect(fixture.nativeElement.querySelector('.genre-selection')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('p.genre-count')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.genre-selection mat-chip')).toHaveLength(2);
+  });
+
   it('searches, selects several genres with checkboxes and keeps the panel open', async () => {
     await openPanel('fan');
     expect(options()).toHaveLength(1);
@@ -171,7 +182,9 @@ describe('GenreFilterSelect catalog multi-select', () => {
     host.loading.set(false);
     host.error.set(true);
     await stabilize();
-    expect(fixture.nativeElement.querySelector('.genre-error')?.getAttribute('role')).toBe('alert');
+    expect(
+      fixture.nativeElement.querySelector('.genre-error [role="alert"]')?.textContent,
+    ).toContain('No se pudieron cargar los géneros');
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLButtonElement>('.genre-error button')!
       .click();

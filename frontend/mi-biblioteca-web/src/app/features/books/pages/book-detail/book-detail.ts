@@ -8,7 +8,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { StarRating } from '../../components/star-rating/star-rating';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   catchError,
@@ -34,6 +33,9 @@ import { parseBookId } from '../../models/book-id';
 import { BookResponse } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
+import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 
 type DetailState =
   | { status: 'loading' }
@@ -55,7 +57,8 @@ function loadError(error: unknown): string {
     RouterLink,
     MatButtonModule,
     MatChipsModule,
-    MatProgressSpinnerModule,
+    InlineFeedback,
+    LoadingState,
     ReadingListAction,
     StarRating,
   ],
@@ -70,6 +73,7 @@ export class BookDetail {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly feedback = inject(FeedbackService);
   private readonly retryRequested = new Subject<void>();
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private deleteSubscription: Subscription | null = null;
@@ -166,6 +170,7 @@ export class BookDetail {
       .subscribe({
         next: () => {
           if (generation === this.generation) {
+            this.feedback.success('Libro eliminado.');
             const queryParams = this.catalogParams();
             if (Object.keys(queryParams).length)
               void this.router.navigate(['/books'], { queryParams });

@@ -2,6 +2,7 @@ import { Component, computed, input, OnChanges, output, signal } from '@angular/
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatMenuModule } from '@angular/material/menu';
 import { registerAppIcons } from '../../../../core/icons/app-icons';
 import { Params, RouterLink } from '@angular/router';
@@ -10,8 +11,8 @@ import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import { BookResponse, BookUpdateAction, ReadingStatus } from '../../models/book.models';
 import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-display';
 import { ReadingListMembership } from '../../../reading-list/reading-list-membership';
-import { ReadingListAction } from '../../../reading-list/reading-list-action';
 import { StarRating } from '../star-rating/star-rating';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-book-card',
@@ -22,9 +23,10 @@ import { StarRating } from '../star-rating/star-rating';
     MatFormFieldModule,
     MatSelectModule,
     MatIconModule,
+    MatDividerModule,
     MatMenuModule,
-    ReadingListAction,
     StarRating,
+    InlineFeedback,
   ],
   templateUrl: './book-card.html',
   styleUrl: './book-card.scss',

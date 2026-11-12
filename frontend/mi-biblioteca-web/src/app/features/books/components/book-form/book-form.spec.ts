@@ -13,6 +13,20 @@ describe('BookForm without HTTP or routing providers', () => {
     fixture.detectChanges();
   });
 
+  it('uses outline fields and gives ISBN lookup its own full-width panel', () => {
+    fixture.componentRef.setInput('lookupEnabled', true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const fields = [...element.querySelectorAll('mat-form-field')];
+    expect(fields.length).toBeGreaterThan(0);
+    expect(
+      fields.every((field) => field.classList.contains('mat-form-field-appearance-outline')),
+    ).toBe(true);
+    const lookup = element.querySelector('.isbn-lookup');
+    expect(lookup?.classList).toContain('full-width');
+    expect(lookup?.querySelectorAll('app-inline-feedback').length).toBeGreaterThan(0);
+  });
+
   it('should synchronize only coverUrl without clearing other values or control states', () => {
     component.form.patchValue({ title: 'Draft', description: 'Exact', pageCount: 100 });
     component.form.controls.title.markAsDirty();

@@ -24,6 +24,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import { MAX_BOOK_GENRES, normalizeGenreKey } from '../../models/genre-key';
 import { GENRE_SUGGESTIONS } from './genre-suggestions';
 
@@ -41,6 +42,7 @@ import { GENRE_SUGGESTIONS } from './genre-suggestions';
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
+    InlineFeedback,
   ],
   templateUrl: './genre-select.html',
   styleUrl: './genre-select.scss',

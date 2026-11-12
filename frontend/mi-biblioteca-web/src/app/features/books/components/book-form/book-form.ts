@@ -17,10 +17,18 @@ import { BookLookupResponse, BookRequest, BookResponse } from '../../models/book
 import { BookFormValue, bookFormValue, buildBookRequest } from './book-form.helpers';
 import { createBookForm } from './book-form.factory';
 import { GenreSelect } from '../genre-select/genre-select';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-book-form',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, GenreSelect],
+  imports: [
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    GenreSelect,
+    InlineFeedback,
+  ],
   templateUrl: './book-form.html',
   styleUrl: './book-form.scss',
 })

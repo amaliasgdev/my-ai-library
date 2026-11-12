@@ -4,7 +4,7 @@
   Puedes ordenar con el asa de arrastre o con los botones Subir y Bajar, también mediante teclado.
 </p>
 <button mat-button [disabled]="busy()" (click)="retry()">Actualizar lista</button>
-<mat-form-field>
+<mat-form-field appearance="outline">
   <mat-label>Estado de lectura</mat-label>
   <mat-select [value]="filter()" [disabled]="busy()" (selectionChange)="changeFilter($event.value)">
     <mat-option [value]="null">Todos</mat-option>
@@ -18,30 +18,38 @@
 @if (filter()) {
   <p>Para cambiar el orden, selecciona Todos. Las posiciones son globales.</p>
 }
-<p role="status" aria-live="polite">{{ notice() }}</p>
+@if (notice()) {
+  <app-inline-feedback
+    [variant]="noticeVariant()"
+    [dismissible]="true"
+    (dismissed)="notice.set('')"
+    >{{ notice() }}</app-inline-feedback
+  >
+}
 @let load = state();
 @if (load.status === 'loading') {
-  <p role="status">Cargando lista de lectura…</p>
+  <app-loading-state message="Cargando lista de lectura…" />
 } @else if (load.status === 'error') {
-  <div role="alert">
-    <p>
-      {{
-        synchronizing()
-          ? 'No se pudo confirmar el estado actual. Las escrituras siguen bloqueadas.'
-          : 'No se pudo cargar la lista de lectura.'
-      }}
-    </p>
-    <button mat-button (click)="retry()">Reintentar consulta</button>
-  </div>
+  <app-inline-feedback variant="error" actionLabel="Reintentar consulta" (action)="retry()">{{
+    synchronizing()
+      ? 'No se pudo confirmar el estado actual. Las escrituras siguen bloqueadas.'
+      : 'No se pudo cargar la lista de lectura.'
+  }}</app-inline-feedback>
 } @else {
   @if (load.response.items.length === 0) {
-    <p>
-      {{
+    <app-empty-state
+      [title]="
         load.response.totalItems === 0
-          ? 'Tu lista de lectura está vacía.'
-          : 'No hay libros con este estado en la lista.'
-      }}
-    </p>
+          ? 'Tu lista de lectura está vacía'
+          : 'No hay libros con este estado en la lista'
+      "
+      [description]="
+        load.response.totalItems === 0
+          ? 'Añade libros desde el catálogo para crear tu orden personal de lectura.'
+          : 'Cambia el filtro de estado para ver otros libros de tu lista.'
+      "
+      [live]="true"
+    />
   }
   <div
     class="entries"
@@ -91,12 +99,11 @@
             }
           </div>
           <div class="content">
-            <p>Posición {{ item.position }}</p>
+            <p class="position">Posición {{ item.position }}</p>
             <h2>
               <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
             </h2>
-            <p>{{ item.book.author }}</p>
-            <p>{{ labels[item.book.readingStatus] }}</p>
+            <p class="author">{{ item.book.author }}</p>
             @if (item.book.startedOn) {
               <p>Inicio: {{ displayDate(item.book.startedOn) }}</p>
             }
@@ -105,7 +112,7 @@
                 Fin: {{ displayDate(item.book.finishedOn) }}
               </p>
             }
-            <mat-form-field>
+            <mat-form-field appearance="outline" class="status-field" subscriptSizing="dynamic">
               <mat-label>Estado de {{ item.book.title }}</mat-label>
               <mat-select
                 [value]="item.book.readingStatus"
@@ -137,16 +144,21 @@
                 Bajar
               </button>
               <button
-                mat-button
+                mat-icon-button
+                type="button"
+                class="reading-menu-trigger"
+                [matMenuTriggerFor]="itemActions"
                 [disabled]="busy()"
-                [attr.aria-label]="'Retirar de la lista: ' + item.book.title"
-                (click)="remove(item)"
+                [attr.aria-label]="'Acciones de ' + item.book.title"
               >
-                Retirar de la lista
+                <mat-icon svgIcon="mb-more-vert" aria-hidden="true" />
               </button>
+            </div>
+            <mat-menu #itemActions="matMenu">
               @if (item.book.readingStatus === 'TO_READ') {
                 <button
-                  mat-button
+                  mat-menu-item
+                  type="button"
                   [disabled]="busy()"
                   [attr.aria-label]="'Iniciar lectura: ' + item.book.title"
                   (click)="quickReading(item, 'start')"
@@ -156,7 +168,8 @@
               }
               @if (item.book.readingStatus === 'TO_READ' || item.book.readingStatus === 'READING') {
                 <button
-                  mat-button
+                  mat-menu-item
+                  type="button"
                   [disabled]="busy()"
                   [attr.aria-label]="'Finalizar lectura: ' + item.book.title"
                   (click)="quickReading(item, 'finish')"
@@ -165,14 +178,26 @@
                 </button>
               }
               <button
-                mat-button
+                mat-menu-item
+                type="button"
                 [disabled]="busy()"
                 [attr.aria-label]="'Gestionar fechas: ' + item.book.title"
                 (click)="manageDates(item)"
               >
                 Gestionar fechas
               </button>
-            </div>
+              <mat-divider />
+              <button
+                mat-menu-item
+                type="button"
+                class="remove-action"
+                [disabled]="busy()"
+                [attr.aria-label]="'Retirar de la lista: ' + item.book.title"
+                (click)="remove(item)"
+              >
+                Retirar de la lista
+              </button>
+            </mat-menu>
           </div>
         </div>
       </mat-card>

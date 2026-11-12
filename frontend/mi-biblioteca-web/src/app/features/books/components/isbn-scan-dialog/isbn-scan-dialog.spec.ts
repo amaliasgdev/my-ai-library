@@ -90,6 +90,10 @@ describe('IsbnScanDialog accessible lifecycle', () => {
     expect(dialog.querySelector('video')!.hasAttribute('muted')).toBe(true);
     expect(dialog.querySelector('video')!.hasAttribute('autoplay')).toBe(false);
     expect(dialog.querySelector('[role="status"]')).not.toBeNull();
+    expect(dialog.querySelector('.scan-view')).not.toBeNull();
+    expect(dialog.querySelectorAll('.scan-note')).toHaveLength(3);
+    expect(dialog.querySelector('.scan-actions')).not.toBeNull();
+    expect(dialog.querySelector('.diagnostics-toggle')).not.toBeNull();
   });
   it('shows an accessible guide without cropping or enabling autoplay', async () => {
     await open();

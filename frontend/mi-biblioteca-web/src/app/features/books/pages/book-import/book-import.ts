@@ -32,6 +32,8 @@ import {
 } from '../../models/bulk-isbn-import';
 import { BookRequest } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
+import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-book-import',
@@ -43,6 +45,7 @@ import { BooksService } from '../../services/books.service';
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
+    InlineFeedback,
   ],
   templateUrl: './book-import.html',
   styleUrl: './book-import.scss',
@@ -51,6 +54,7 @@ export class BookImport {
   private readonly service = inject(BooksService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly feedback = inject(FeedbackService);
   readonly catalogParams = serializeBookCatalogQuery(
     parseBookCatalogQuery(inject(ActivatedRoute).snapshot.queryParamMap),
   );
@@ -301,6 +305,10 @@ export class BookImport {
     const row = this.stopped() ? undefined : queue.shift();
     if (!row) {
       this.creating.set(false);
+      if (this.writeCompleted() > 0) {
+        if (this.stopped()) this.feedback.info('Importación detenida.');
+        else this.feedback.success('Importación completada.');
+      }
       return;
     }
     this.update(row.id, { creation: 'creating', message: null });

@@ -1,3 +1,9 @@
+app-inline-feedback,
+app-empty-state,
+app-loading-state {
+  margin-block: 1rem;
+}
+
 .entries {
   display: grid;
   gap: 1rem;
@@ -40,13 +46,30 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.position {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+}
 h2 {
-  margin-block: 0.5rem;
+  margin-block: 0.25rem 0.5rem;
+  font: var(--mat-sys-title-medium);
+}
+.author {
+  margin-block: 0 0.5rem;
+  color: var(--mat-sys-on-surface-variant);
 }
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+.reading-menu-trigger {
+  flex: none;
+}
+.remove-action {
+  color: var(--mat-sys-tertiary);
 }
 .finished {
   font-weight: 700;
@@ -57,7 +80,14 @@ mat-card:focus-visible {
   outline-offset: 3px;
 }
 mat-form-field {
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.status-field {
+  max-width: 16rem;
+  margin-block: 0.5rem;
 }
 @media (max-width: 36rem) {
   .entry {

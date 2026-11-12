@@ -113,7 +113,7 @@ describe('BooksCatalog compact cards (8 and 10 per row)', () => {
     for (const card of cards()) {
       expect(card.querySelectorAll('app-star-rating button[role="radio"]')).toHaveLength(5);
       expect(card.querySelectorAll('mat-select')).toHaveLength(1);
-      expect(card.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(3);
+      expect(card.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(2);
       expect(card.querySelector('.compact-menu-trigger')).toBeNull();
     }
   });
@@ -338,6 +338,14 @@ describe('BooksCatalog compact cards (8 and 10 per row)', () => {
     fixture.detectChanges();
     expect(grid().classList.contains('compact-columns')).toBe(true);
     expect(await itemTexts('Uno')).toContain('Gestionar fechas');
+  });
+
+  it('keeps the 10-column preference while giving few results usable width', async () => {
+    await choose('10 tarjetas por fila');
+    expect(grid().style.getPropertyValue('--book-columns')).toBe('10');
+    expect(grid().classList.contains('compact-columns')).toBe(true);
+    expect(grid().classList.contains('few-results')).toBe(true);
+    expect(cards()).toHaveLength(2);
   });
 
   it('declares compact styles that clamp the title and add no horizontal scrolling', () => {

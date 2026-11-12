@@ -14,7 +14,7 @@ import { BookFormValue } from '../book-form/book-form.helpers';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Subscription } from 'rxjs';
@@ -29,6 +29,7 @@ import {
   normalizedMetadataIsbn,
 } from '../../models/book-metadata.models';
 import { BooksService } from '../../services/books.service';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 
 @Component({
   selector: 'app-photo-metadata-candidate',
@@ -39,6 +40,13 @@ import { BooksService } from '../../services/books.service';
     MatInputModule,
     MatSelectModule,
     MatExpansionModule,
+    InlineFeedback,
+  ],
+  providers: [
+    {
+      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+      useValue: { appearance: 'outline', subscriptSizing: 'fixed' },
+    },
   ],
   templateUrl: './photo-metadata-candidate.html',
   styleUrl: './photo-metadata-candidate.scss',

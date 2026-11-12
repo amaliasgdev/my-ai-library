@@ -3,14 +3,11 @@
   @switch (current.status) {
     @case ('loading') {
       <h1>Detalle del libro</h1>
-      <div class="loading" role="status" aria-live="polite">
-        <mat-spinner diameter="40" aria-hidden="true" />
-        <p>Cargando libro…</p>
-      </div>
+      <app-loading-state message="Cargando libro…" />
     }
     @case ('error') {
       <h1>Detalle del libro</h1>
-      <p class="error-panel" role="alert">{{ current.message }}</p>
+      <app-inline-feedback variant="error">{{ current.message }}</app-inline-feedback>
       @if (current.id !== null) {
         <button mat-button type="button" (click)="retry()">Reintentar</button>
       }
@@ -144,10 +141,16 @@
           Eliminar
         </button>
       </div>
-      <p role="status" aria-live="polite">{{ deleting() ? 'Eliminando libro…' : '' }}</p>
-      <p role="status" aria-live="polite">{{ membership.message() }}</p>
+      @if (deleting()) {
+        <app-inline-feedback variant="info">Eliminando libro…</app-inline-feedback>
+      }
+      @if (membership.message()) {
+        <app-inline-feedback [variant]="membership.messageVariant()">{{
+          membership.message()
+        }}</app-inline-feedback>
+      }
       @if (deleteError()) {
-        <p class="error-panel" role="alert">{{ deleteError() }}</p>
+        <app-inline-feedback variant="error">{{ deleteError() }}</app-inline-feedback>
       }
     }
   }

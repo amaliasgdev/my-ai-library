@@ -98,6 +98,12 @@ describe('BookEdit managed covers', () => {
     expect(image.alt).toBe('Portada de Libro de prueba');
     expect(button('Eliminar portada')).toBeDefined();
     expect(input().accept).toBe('image/jpeg,image/png');
+    expect(input().hidden).toBe(true);
+    expect(
+      Array.from(element.querySelectorAll<HTMLButtonElement>('button')).some(
+        (button) => button.textContent?.trim() === 'Seleccionar archivo',
+      ),
+    ).toBe(true);
     expect(element.querySelector('label[for="cover-file"]')?.textContent).toContain('JPEG o PNG');
     expect(element.textContent).toContain('Subir o eliminar una portada se guarda inmediatamente');
   });

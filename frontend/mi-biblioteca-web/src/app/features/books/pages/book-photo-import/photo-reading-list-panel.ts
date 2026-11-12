@@ -2,12 +2,13 @@ import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { RouterLink } from '@angular/router';
+import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import { PhotoImportWorkflow } from './photo-import-workflow';
 import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
 
 @Component({
   selector: 'app-photo-reading-list-panel',
-  imports: [MatButtonModule, MatCheckboxModule, RouterLink],
+  imports: [MatButtonModule, MatCheckboxModule, RouterLink, InlineFeedback],
   template: `
     <section aria-labelledby="photo-reading-list-heading">
       <h2 id="photo-reading-list-heading">Añadir a mi lista de lectura</h2>
@@ -116,7 +117,9 @@ import { PhotoReadingListWorkflow } from './photo-reading-list-workflow';
           Detener cola de lectura (esperar petición activa)
         </button>
       }
-      <p role="status">{{ reading.message() }}</p>
+      @if (reading.message()) {
+        <app-inline-feedback variant="info">{{ reading.message() }}</app-inline-feedback>
+      }
       <p>
         Añadidos: {{ reading.summary().added }} · Ya pertenecían: {{ reading.summary().included }} ·
         Errores: {{ reading.summary().errors }} · Inciertos: {{ reading.summary().uncertain }} ·

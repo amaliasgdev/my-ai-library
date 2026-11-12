@@ -76,20 +76,30 @@ describe('BooksCatalog reading dates', () => {
     expect(request.request.params.get('sortBy')).toBe(sortBy);
   }
 
+  async function openActions(): Promise<void> {
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('app-book-card .card-menu-trigger')!
+      .click();
+    await fixture.whenStable();
+  }
+  async function clickMenuItem(label: string): Promise<void> {
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item'))
+      .find((item) => item.textContent?.trim() === label)!
+      .click();
+    await fixture.whenStable();
+  }
+
   it('should wire card start/finish/date actions to catalog HTTP and the dedicated dialog', async () => {
-    const loader = TestbedHarnessEnvironment.loader(fixture);
-    const starts = await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Empezar lectura' }));
-    await starts[0].click();
+    await openActions();
+    await clickMenuItem('Empezar lectura');
     http.expectOne('/api/books/1/start-reading').flush({ ...original(), readingStatus: 'READING' });
     await fixture.whenStable();
-    const buttons = await loader.getAllHarnesses(
-      MatButtonHarness.with({ text: 'Finalizar lectura' }),
-    );
-    await buttons[0].click();
+    await openActions();
+    await clickMenuItem('Finalizar lectura (fecha de hoy)');
     http.expectOne('/api/books/1/finish-reading').flush({ ...original(), readingStatus: 'READ' });
     await fixture.whenStable();
-    const dates = await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Gestionar fechas' }));
-    await dates[0].click();
+    await openActions();
+    await clickMenuItem('Gestionar fechas');
     expect(TestBed.inject(MatDialog).openDialogs[0].componentInstance).toBeInstanceOf(
       BookReadingDatesDialog,
     );

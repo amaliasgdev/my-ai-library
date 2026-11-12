@@ -22,6 +22,28 @@ describe('BookCard', () => {
     fixture.detectChanges();
   });
 
+  async function openActions(): Promise<void> {
+    (element.querySelector('.card-menu-trigger') as HTMLButtonElement).click();
+    await fixture.whenStable();
+  }
+
+  function menuItems(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('.mat-mdc-menu-item'));
+  }
+
+  function menuItem(text: string): HTMLElement {
+    const item = menuItems().find((candidate) => candidate.textContent?.trim() === text);
+    if (!item) throw new Error(`Missing menu item ${text}`);
+    return item;
+  }
+
+  async function closeActions(): Promise<void> {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+    );
+    await fixture.whenStable();
+  }
+
   it('should render title, author and accessible edit/delete actions without extra metadata', async () => {
     fixture.componentRef.setInput(
       'book',
@@ -38,41 +60,72 @@ describe('BookCard', () => {
     expect(await card.getTitleText()).toBe('Libro de prueba');
     expect(await card.getSubtitleText()).toBe('Autora de prueba');
     expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
-    const link = element.querySelector('a[aria-label^="Editar "]');
+    expect(element.querySelector('.status-badge')?.textContent).toContain('Por leer');
+    await openActions();
+    const link = document.querySelector<HTMLAnchorElement>(
+      'a.mat-mdc-menu-item[aria-label^="Editar "]',
+    );
     expect(link?.textContent?.trim()).toBe('Editar');
     expect(link?.getAttribute('href')).toBe('/books/1/edit');
     expect(link?.getAttribute('aria-label')).toBe('Editar Libro de prueba');
-    const deletion = element.querySelector('mat-card-actions button');
-    expect(deletion?.textContent?.trim()).toBe('Eliminar');
-    expect(deletion?.getAttribute('aria-label')).toBe('Eliminar Libro de prueba');
-    expect(element.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(3);
+    const deletion = menuItem('Eliminar');
+    expect(deletion.getAttribute('aria-label')).toBe('Eliminar Libro de prueba');
+    expect(deletion.classList).toContain('delete-action');
+    expect(element.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(2);
     expect(element.textContent).not.toMatch(/Hidden|9780132350884|2008/);
   });
 
-  it('should emit the book to its parent without HTTP or a dialog', () => {
+  it('should emit the book to its parent without HTTP or a dialog', async () => {
     const detail = element.querySelector('a[aria-label^="Ver detalle de "]');
     expect(detail?.textContent?.trim()).toBe('Ver detalle');
     expect(detail?.getAttribute('href')).toBe('/books/1');
     expect(detail?.getAttribute('aria-label')).toBe('Ver detalle de Libro de prueba');
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
-    (element.querySelector('mat-card-actions button') as HTMLButtonElement).click();
+    await openActions();
+    menuItem('Eliminar').click();
     expect(requested).toHaveBeenCalledExactlyOnceWith(testBook());
   });
 
-  it('should disable only deletion for other cards during an active delete', () => {
+  it('should disable only deletion for other cards during an active delete', async () => {
     fixture.componentRef.setInput('deleteDisabled', true);
     fixture.detectChanges();
     const requested = vi.fn();
     fixture.componentInstance.deleteRequested.subscribe(requested);
-    expect((element.querySelector('mat-card-actions button') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    expect(element.querySelector('a[aria-label^="Editar "]')?.getAttribute('href')).toBe(
-      '/books/1/edit',
-    );
+    await openActions();
+    expect((menuItem('Eliminar') as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      document.querySelector('a.mat-mdc-menu-item[aria-label^="Editar "]')?.getAttribute('href'),
+    ).toBe('/books/1/edit');
     fixture.componentInstance.requestDelete();
     expect(requested).not.toHaveBeenCalled();
+  });
+
+  it('groups secondary actions in one accessible menu and separates delete', async () => {
+    const list = {
+      busy: signal(false),
+      state: () => 'absent',
+      add: vi.fn(),
+      refresh: vi.fn(),
+    } as unknown as ReadingListMembership;
+    fixture.componentRef.setInput('membership', list);
+    fixture.detectChanges();
+    await openActions();
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      'Editar',
+      'Empezar lectura',
+      'Finalizar lectura (fecha de hoy)',
+      'Gestionar fechas',
+      'Añadir a lista de lectura',
+      'Eliminar',
+    ]);
+    expect(document.querySelector('.mat-mdc-menu-panel mat-divider')).not.toBeNull();
+    expect(menuItem('Eliminar').classList).toContain('delete-action');
+    expect(
+      menuItems()
+        .filter((item) => item.textContent?.trim() !== 'Eliminar')
+        .every((item) => !item.classList.contains('delete-action')),
+    ).toBe(true);
   });
 
   it('should block edit and delete and announce progress for the affected book', () => {
@@ -142,7 +195,14 @@ describe('BookCard', () => {
   ])('should label %s as %s', (readingStatus, label) => {
     fixture.componentRef.setInput('book', testBook({ readingStatus }));
     fixture.detectChanges();
-    expect(element.querySelector('.reading-status')?.textContent).toBe(label);
+    expect(element.querySelector('.status-badge')?.textContent).toContain(label);
+    expect(element.querySelector('.status-badge')?.getAttribute('aria-label')).toBe(
+      `Estado de lectura: ${label}`,
+    );
+    expect(element.querySelector('h2')?.getAttribute('title')).toBe('Libro de prueba');
+    expect(element.querySelector('mat-card-subtitle')?.getAttribute('title')).toBe(
+      'Autora de prueba',
+    );
   });
 
   it('should show the confirmed rating as accessible stars, and Sin valorar when null', () => {
@@ -156,57 +216,67 @@ describe('BookCard', () => {
     expect(checkedStar()).toBe(4);
     expect(element.querySelectorAll('app-star-rating .star-button.filled')).toHaveLength(4);
     expect(element.querySelector('app-star-rating .summary')?.textContent).toBe('4 de 5');
-    expect(element.querySelector('mat-form-field + app-star-rating')).not.toBeNull();
+    expect(element.querySelector('.card-meta app-star-rating')).not.toBeNull();
   });
 
-  it('should always show both confirmed reading dates, including missing values', () => {
-    expect(element.querySelector('.reading-dates')?.textContent).toContain(
-      'Inicio: Sin fecha · Fin: Sin fecha',
-    );
+  it('should hide empty dates and show only the confirmed reading dates', () => {
+    expect(element.querySelector('.reading-dates')).toBeNull();
     fixture.componentRef.setInput('book', testBook({ startedOn: '2024-02-29', finishedOn: null }));
     fixture.detectChanges();
-    expect(element.querySelector('.reading-dates')?.textContent).toContain(
-      'Inicio: 29/02/2024 · Fin: Sin fecha',
-    );
+    expect(element.querySelector('.reading-dates')?.textContent).toContain('Inicio: 29/02/2024');
+    expect(element.querySelector('.reading-dates')?.textContent).not.toContain('Fin:');
     fixture.componentRef.setInput('book', testBook({ startedOn: null, finishedOn: '2026-10-12' }));
     fixture.detectChanges();
-    expect(element.querySelector('.reading-dates')?.textContent).toContain(
-      'Inicio: Sin fecha · Fin: 12/10/2026',
+    expect(element.querySelector('.reading-dates')?.textContent).toContain('Fin: 12/10/2026');
+    expect(element.querySelector('.reading-dates')?.textContent).not.toContain('Inicio:');
+    fixture.componentRef.setInput(
+      'book',
+      testBook({ startedOn: '2026-01-01', finishedOn: '2026-01-20' }),
     );
+    fixture.detectChanges();
+    expect(
+      element.querySelector('.reading-dates')?.textContent?.replace(/\s+/g, ' ').trim(),
+    ).toContain('Inicio: 01/01/2026 · Fin: 20/01/2026');
   });
 
   it.each(['TO_READ', 'READING', 'READ', 'ABANDONED'] as const)(
     'should expose only allowed reading actions in %s and emit guarded intents',
-    (readingStatus) => {
+    async (readingStatus) => {
       fixture.componentRef.setInput('book', testBook({ readingStatus }));
       fixture.detectChanges();
-      const buttons = Array.from(
-        element.querySelectorAll<HTMLButtonElement>('.date-actions button'),
-      );
-      expect(buttons.map((button) => button.textContent?.trim())).toEqual(
+      const expected =
         readingStatus === 'TO_READ'
-          ? ['Empezar lectura', 'Finalizar lectura', 'Gestionar fechas']
+          ? ['Empezar lectura', 'Finalizar lectura (fecha de hoy)', 'Gestionar fechas']
           : readingStatus === 'READING'
-            ? ['Finalizar lectura', 'Gestionar fechas']
-            : ['Gestionar fechas'],
+            ? ['Finalizar lectura (fecha de hoy)', 'Gestionar fechas']
+            : ['Gestionar fechas'];
+      await openActions();
+      const actions = menuItems().filter((item) =>
+        ['Empezar lectura', 'Finalizar lectura (fecha de hoy)', 'Gestionar fechas'].includes(
+          item.textContent?.trim() ?? '',
+        ),
       );
+      expect(actions.map((item) => item.textContent?.trim())).toEqual(expected);
       expect(
-        buttons.every((button) => button.getAttribute('aria-label')?.includes('Libro de prueba')),
+        actions.every((item) => item.getAttribute('aria-label')?.includes('Libro de prueba')),
       ).toBe(true);
+      await closeActions();
       const start = vi.fn();
       const finish = vi.fn();
       const dates = vi.fn();
       fixture.componentInstance.startReadingRequested.subscribe(start);
       fixture.componentInstance.finishReadingRequested.subscribe(finish);
       fixture.componentInstance.readingDatesRequested.subscribe(dates);
-      buttons.forEach((button) => button.click());
+      for (const label of expected) {
+        await openActions();
+        menuItem(label).click();
+        await fixture.whenStable();
+      }
       expect(start).toHaveBeenCalledTimes(readingStatus === 'TO_READ' ? 1 : 0);
       expect(finish).toHaveBeenCalledTimes(
         readingStatus === 'TO_READ' || readingStatus === 'READING' ? 1 : 0,
       );
       expect(dates).toHaveBeenCalledExactlyOnceWith(1);
-      if (readingStatus === 'TO_READ' || readingStatus === 'READING')
-        expect(element.textContent).toContain('Usa la fecha de hoy');
     },
   );
 
@@ -414,6 +484,10 @@ describe('BookCard', () => {
       expect(element.querySelector('.compact-card')).not.toBeNull();
       expect(element.querySelector('app-star-rating, mat-select, .date-actions')).toBeNull();
       expect(element.querySelector('h2')?.textContent).toBe('Libro de prueba');
+      expect(element.querySelector('.compact-status')?.textContent).toContain('Por leer');
+      expect(element.querySelector('.compact-status')?.getAttribute('aria-label')).toBe(
+        'Estado de lectura: Por leer',
+      );
       expect(element.querySelector('a.compact-detail')?.getAttribute('aria-label')).toBe(
         'Ver detalle de Libro de prueba',
       );
