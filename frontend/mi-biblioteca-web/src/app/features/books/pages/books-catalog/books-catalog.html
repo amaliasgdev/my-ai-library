@@ -233,6 +233,7 @@
             aria-label="Libros"
             [class.fixed-columns]="gridColumns() !== null"
             [class.compact-columns]="compactCards()"
+            [class.few-results]="fewResults()"
             [style.--book-columns]="gridColumns()"
           >
             @for (book of current.response.content; track book.id) {

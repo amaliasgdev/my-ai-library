@@ -178,6 +178,15 @@ export class BooksCatalog {
     return value === 'auto' ? null : value;
   });
   protected readonly compactCards = computed(() => isCompactCardsPerRow(this.cardsPerRow()));
+  /** Few results should not stay as tiny 8/10-column cards. */
+  protected readonly fewResults = computed(() => {
+    const state = this.state();
+    return (
+      state.status === 'success' &&
+      state.response.content.length > 0 &&
+      state.response.content.length <= 3
+    );
+  });
   private appliedQuery: BookCatalogQuery | null = null;
   private requestGeneration = 0;
   readonly catalogParams = computed(() =>

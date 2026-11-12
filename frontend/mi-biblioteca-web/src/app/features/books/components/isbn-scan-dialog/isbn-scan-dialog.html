@@ -1,21 +1,22 @@
 <h2 mat-dialog-title>Escanear ISBN</h2>
 <mat-dialog-content>
-  <p id="scan-guide">Coloca el código completo dentro del recuadro</p>
-  <div class="video-guide">
-    <video
-      #video
-      playsinline
-      muted
-      aria-label="Vista de cámara para escanear ISBN"
-      aria-describedby="scan-guide scan-help"
-    ></video>
-    <div class="barcode-guide" aria-hidden="true"></div>
+  <div class="scan-view">
+    <p id="scan-guide">Coloca el código completo dentro del recuadro</p>
+    <div class="video-guide">
+      <video
+        #video
+        playsinline
+        muted
+        aria-label="Vista de cámara para escanear ISBN"
+        aria-describedby="scan-guide scan-help"
+      ></video>
+      <div class="barcode-guide" aria-hidden="true"></div>
+    </div>
+    <p id="scan-help">
+      Barras verticales, márgenes blancos visibles y buena luz. Aléjate un poco si no enfoca.
+    </p>
   </div>
-  <p id="scan-help">
-    Barras verticales, márgenes blancos visibles y buena luz. Aléjate un poco si no enfoca.
-  </p>
-  <p>El código de barras se procesa en tu dispositivo.</p>
-  <p>Al detectar un ISBN, se consultarán sus datos para completar los campos vacíos.</p>
+
   <app-inline-feedback variant="info">
     @switch (state()) {
       @case ('requestingCamera') {
@@ -41,10 +42,42 @@
   @if (error()) {
     <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
   }
+
+  <input
+    #imageInput
+    type="file"
+    accept="image/jpeg,image/png"
+    aria-label="Seleccionar imagen del código de barras"
+    hidden
+    (change)="selectImage($event)"
+  />
+  <div class="scan-actions">
+    <button
+      mat-button
+      type="button"
+      [disabled]="state() === 'processingImage'"
+      (click)="imageInput.click()"
+    >
+      Seleccionar imagen
+    </button>
+    @if (state() === 'idle' || state() === 'error') {
+      <button mat-button type="button" (click)="startCamera()">Reintentar cámara</button>
+    }
+  </div>
+
+  <p class="scan-note">El código de barras se procesa en tu dispositivo.</p>
+  <p class="scan-note">
+    Al detectar un ISBN, se consultarán sus datos para completar los campos vacíos.
+  </p>
+  <p class="scan-note">
+    JPEG o PNG, hasta 10 MiB y 20 millones de píxeles. La imagen no se sube al servidor.
+  </p>
+
   @if (diagnosticsEnabled) {
     <button
       mat-button
       type="button"
+      class="diagnostics-toggle"
       [attr.aria-expanded]="showDiagnostics()"
       aria-controls="scan-diagnostics"
       (click)="showDiagnostics.set(!showDiagnostics())"
@@ -82,26 +115,6 @@
       </section>
     }
   }
-  <input
-    #imageInput
-    type="file"
-    accept="image/jpeg,image/png"
-    aria-label="Seleccionar imagen del código de barras"
-    hidden
-    (change)="selectImage($event)"
-  />
-  <button
-    mat-button
-    type="button"
-    [disabled]="state() === 'processingImage'"
-    (click)="imageInput.click()"
-  >
-    Seleccionar imagen
-  </button>
-  @if (state() === 'idle' || state() === 'error') {
-    <button mat-button type="button" (click)="startCamera()">Reintentar cámara</button>
-  }
-  <p>JPEG o PNG, hasta 10 MiB y 20 millones de píxeles. La imagen no se sube al servidor.</p>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button type="button" (click)="cancel()">Cancelar</button>

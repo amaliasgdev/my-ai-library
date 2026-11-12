@@ -72,6 +72,17 @@ describe('BookPhotoImport local photographs', () => {
     return event;
   }
 
+  it('keeps essential limits visible and groups technical details in accessible panels', () => {
+    const panels = root.querySelectorAll('mat-expansion-panel');
+    expect(panels).toHaveLength(2);
+    expect(panels[0].textContent).toContain('Privacidad y tratamiento de las fotografías');
+    expect(panels[1].textContent).toContain('Coste, cancelación y reintentos');
+    expect(root.querySelector('#photo-limits')?.textContent).toContain('Máximo 3 fotografías');
+    expect(root.querySelector('#photo-limits')?.textContent).toContain('5.242.880 bytes');
+    expect(root.textContent).toContain('Seleccionar fotografías');
+    expect(root.textContent).toContain('Tomar fotografía');
+  });
+
   it('starts empty with analysis disabled and explains local-only disconnected recognition', () => {
     expect(root.querySelector('h1')?.textContent).toBe('Importar libros desde fotografías');
     expect(root.textContent).toContain('0 de 3 fotografías seleccionadas');

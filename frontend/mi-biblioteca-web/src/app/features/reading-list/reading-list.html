@@ -99,12 +99,11 @@
             }
           </div>
           <div class="content">
-            <p>Posición {{ item.position }}</p>
+            <p class="position">Posición {{ item.position }}</p>
             <h2>
               <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
             </h2>
-            <p>{{ item.book.author }}</p>
-            <p>{{ labels[item.book.readingStatus] }}</p>
+            <p class="author">{{ item.book.author }}</p>
             @if (item.book.startedOn) {
               <p>Inicio: {{ displayDate(item.book.startedOn) }}</p>
             }
@@ -113,7 +112,7 @@
                 Fin: {{ displayDate(item.book.finishedOn) }}
               </p>
             }
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" class="status-field" subscriptSizing="dynamic">
               <mat-label>Estado de {{ item.book.title }}</mat-label>
               <mat-select
                 [value]="item.book.readingStatus"
@@ -145,16 +144,21 @@
                 Bajar
               </button>
               <button
-                mat-button
+                mat-icon-button
+                type="button"
+                class="reading-menu-trigger"
+                [matMenuTriggerFor]="itemActions"
                 [disabled]="busy()"
-                [attr.aria-label]="'Retirar de la lista: ' + item.book.title"
-                (click)="remove(item)"
+                [attr.aria-label]="'Acciones de ' + item.book.title"
               >
-                Retirar de la lista
+                <mat-icon svgIcon="mb-more-vert" aria-hidden="true" />
               </button>
+            </div>
+            <mat-menu #itemActions="matMenu">
               @if (item.book.readingStatus === 'TO_READ') {
                 <button
-                  mat-button
+                  mat-menu-item
+                  type="button"
                   [disabled]="busy()"
                   [attr.aria-label]="'Iniciar lectura: ' + item.book.title"
                   (click)="quickReading(item, 'start')"
@@ -164,7 +168,8 @@
               }
               @if (item.book.readingStatus === 'TO_READ' || item.book.readingStatus === 'READING') {
                 <button
-                  mat-button
+                  mat-menu-item
+                  type="button"
                   [disabled]="busy()"
                   [attr.aria-label]="'Finalizar lectura: ' + item.book.title"
                   (click)="quickReading(item, 'finish')"
@@ -173,14 +178,26 @@
                 </button>
               }
               <button
-                mat-button
+                mat-menu-item
+                type="button"
                 [disabled]="busy()"
                 [attr.aria-label]="'Gestionar fechas: ' + item.book.title"
                 (click)="manageDates(item)"
               >
                 Gestionar fechas
               </button>
-            </div>
+              <mat-divider />
+              <button
+                mat-menu-item
+                type="button"
+                class="remove-action"
+                [disabled]="busy()"
+                [attr.aria-label]="'Retirar de la lista: ' + item.book.title"
+                (click)="remove(item)"
+              >
+                Retirar de la lista
+              </button>
+            </mat-menu>
           </div>
         </div>
       </mat-card>

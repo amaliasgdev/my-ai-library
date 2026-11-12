@@ -12,6 +12,23 @@ h1 {
   margin-block: 1rem;
   border: 2px dashed var(--mat-sys-outline);
   border-radius: var(--app-panel-radius);
+  background: var(--mat-sys-surface-container-low);
+}
+
+.technical-panels {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+
+.technical-panels mat-expansion-panel {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--app-panel-radius);
+  box-shadow: none;
+}
+
+.technical-panels mat-expansion-panel p {
+  margin-block: 0.5rem;
 }
 
 .actions {
