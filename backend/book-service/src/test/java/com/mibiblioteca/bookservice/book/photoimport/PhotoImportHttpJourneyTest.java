@@ -119,7 +119,7 @@ class PhotoImportHttpJourneyTest {
             for (String field : List.of("coverUrl", "isbn", "startedOn", "finishedOn")) assertThat(book.path(field).isNull()).isTrue();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM public.reading_list_entry WHERE book_id=?", Long.class, id)).isEqualTo(1);
         }
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM public.flyway_schema_history WHERE success", Long.class)).isEqualTo(11);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM public.flyway_schema_history WHERE success", Long.class)).isEqualTo(12);
     }
 
     private long create(String title) throws Exception {
