@@ -113,7 +113,7 @@ describe('BooksCatalog compact cards (8 and 10 per row)', () => {
     for (const card of cards()) {
       expect(card.querySelectorAll('app-star-rating button[role="radio"]')).toHaveLength(5);
       expect(card.querySelectorAll('mat-select')).toHaveLength(1);
-      expect(card.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(3);
+      expect(card.querySelectorAll('mat-card-actions a, mat-card-actions button')).toHaveLength(2);
       expect(card.querySelector('.compact-menu-trigger')).toBeNull();
     }
   });

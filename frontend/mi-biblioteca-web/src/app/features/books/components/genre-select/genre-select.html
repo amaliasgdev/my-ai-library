@@ -1,4 +1,4 @@
-<mat-form-field>
+<mat-form-field appearance="outline">
   <mat-label>{{ label() }}</mat-label>
   <input
     #searchInput
@@ -23,22 +23,24 @@
 }
 
 @if (selected().length > 0) {
-  <mat-chip-set [attr.aria-label]="chipsLabel()">
-    @for (genre of selected(); track genre) {
-      <mat-chip [disabled]="blocked()">
-        {{ genre }}
-        <button
-          matChipRemove
-          type="button"
-          [disabled]="blocked()"
-          [attr.aria-label]="'Eliminar género ' + genre"
-          (click)="remove(genre)"
-        >
-          ×
-        </button>
-      </mat-chip>
-    }
-  </mat-chip-set>
+  <div class="genre-chips">
+    <mat-chip-set [attr.aria-label]="chipsLabel()">
+      @for (genre of selected(); track genre) {
+        <mat-chip [disabled]="blocked()">
+          {{ genre }}
+          <button
+            matChipRemove
+            type="button"
+            [disabled]="blocked()"
+            [attr.aria-label]="'Eliminar género ' + genre"
+            (click)="remove(genre)"
+          >
+            ×
+          </button>
+        </mat-chip>
+      }
+    </mat-chip-set>
+  </div>
 }
 
 <mat-autocomplete

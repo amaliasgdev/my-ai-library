@@ -63,7 +63,9 @@ mat-card:focus-visible {
   outline-offset: 3px;
 }
 mat-form-field {
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  max-width: 22rem;
 }
 @media (max-width: 36rem) {
   .entry {

@@ -46,9 +46,25 @@ describe('Reading list catalog/detail integration', () => {
     return page;
   }
 
+  async function openCardMenu(index = 0): Promise<void> {
+    (
+      harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>(
+        'app-book-card .card-menu-trigger',
+      )[index] as HTMLButtonElement
+    ).click();
+    await harness.fixture.whenStable();
+  }
+
+  async function closeMenu(): Promise<void> {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+    );
+    await harness.fixture.whenStable();
+  }
+
   it('queries the visible IDs in one batch and distinguishes pending, included and absent', async () => {
-    await catalog();
-    expect(harness.routeNativeElement!.textContent).toContain('Consultando lista');
+    const page = await catalog();
+    expect(page.membership.state(42)).toBe('loading');
     const request = batch();
     expect(request.request.params.getAll('bookId')).toEqual(['42', '43']);
     expect(request.request.params.keys()).toEqual(['bookId']);
@@ -60,10 +76,14 @@ describe('Reading list catalog/detail integration', () => {
       ],
     });
     harness.detectChanges();
-    const cards = harness.routeNativeElement!.querySelectorAll('app-book-card');
-    expect(cards[0].textContent).toContain('En mi lista');
-    expect(cards[0].textContent).not.toContain('Añadir a lista');
-    expect(cards[1].textContent).toContain('Añadir a lista de lectura');
+    expect(harness.routeNativeElement!.querySelectorAll('app-book-card')).toHaveLength(2);
+    await openCardMenu(0);
+    expect(document.body.textContent).toContain('En mi lista');
+    expect(document.body.textContent).not.toContain('Añadir a lista');
+    await closeMenu();
+    await openCardMenu(1);
+    expect(document.body.textContent).toContain('Añadir a lista de lectura');
+    await closeMenu();
   });
 
   it('keeps catalog functions and links usable when membership fails, without treating unknown as absent', async () => {
@@ -71,9 +91,11 @@ describe('Reading list catalog/detail integration', () => {
     batch().flush({ detail: 'SECRET' }, { status: 500, statusText: 'Error' });
     harness.detectChanges();
     expect(harness.routeNativeElement!.querySelectorAll('app-book-card')).toHaveLength(2);
-    expect(harness.routeNativeElement!.textContent).toContain('Pertenencia desconocida');
-    expect(harness.routeNativeElement!.textContent).not.toContain('SECRET');
-    expect(harness.routeNativeElement!.textContent).not.toContain('Añadir a lista de lectura');
+    await openCardMenu();
+    expect(document.body.textContent).toContain('Pertenencia desconocida');
+    expect(document.body.textContent).not.toContain('SECRET');
+    expect(document.body.textContent).not.toContain('Añadir a lista de lectura');
+    await closeMenu();
     page.membership.add(42);
     http.expectNone((req) => req.method === 'POST');
     expect(
@@ -83,16 +105,23 @@ describe('Reading list catalog/detail integration', () => {
     ).toContain('title=Dune');
     page.membership.refresh();
     flushMembership(true);
-    expect(harness.routeNativeElement!.textContent).toContain('En mi lista');
+    await openCardMenu();
+    expect(document.body.textContent).toContain('En mi lista');
+    await closeMenu();
   });
 
   it('adds once using string revision, refreshes membership and never repeats duplicates', async () => {
     const page = await catalog();
     flushMembership();
-    const button = harness.routeNativeElement!.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Añadir a lista"]',
-    )!;
-    button.click();
+    harness
+      .routeNativeElement!.querySelector<HTMLButtonElement>('app-book-card .card-menu-trigger')!
+      .click();
+    await harness.fixture.whenStable();
+    document
+      .querySelector<HTMLButtonElement>(
+        '.mat-mdc-menu-item[aria-label^="Añadir a lista de lectura"]',
+      )!
+      .click();
     const request = http.expectOne('/api/reading-list/items');
     expect(request.request.body).toEqual({ bookId: 42, expectedRevision: '9007199254740993' });
     page.membership.add(42);

@@ -1,20 +1,10 @@
 :host {
   display: block;
+  min-width: 0;
 }
 
 .genre-filter-field {
   width: 100%;
-}
-
-.genre-status,
-.genre-count {
-  margin: 0;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-small);
-}
-
-.genre-count {
-  margin-block-start: 0.25rem;
 }
 
 .genre-notice,
@@ -22,8 +12,12 @@
   margin-block: 0.5rem;
 }
 
-.genre-chips {
-  margin-block: 0.5rem 0.25rem;
+.genre-selection {
+  margin-block-start: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+  background: var(--mat-sys-surface-container-low);
 }
 
 .genre-filter-options {
@@ -32,6 +26,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  margin-block-start: 0.5rem;
 }
 
 .genre-unassigned-hint {

@@ -33,17 +33,17 @@ const SINGLE_LINE = /^[^\p{Cc}\p{Zl}\p{Zp}]*$/u;
           Se añade como candidato junto a los reconocidos. No se crea ningún libro ni se usa OpenAI;
           podrás buscar coincidencias, elegir edición y revisarlo antes de importar.
         </p>
-        <mat-form-field>
+        <mat-form-field appearance="outline">
           <mat-label>Título</mat-label>
           <input matInput formControlName="title" maxlength="255" required cdkFocusInitial />
           <mat-error>{{ error('title') }}</mat-error>
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field appearance="outline">
           <mat-label>Autor</mat-label>
           <input matInput formControlName="author" maxlength="255" required />
           <mat-error>{{ error('author') }}</mat-error>
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field appearance="outline">
           <mat-label>ISBN (opcional)</mat-label>
           <input matInput formControlName="isbn" maxlength="50" />
           <mat-error>{{ error('isbn') }}</mat-error>
@@ -60,7 +60,10 @@ const SINGLE_LINE = /^[^\p{Cc}\p{Zl}\p{Zp}]*$/u;
     form,
     mat-dialog-content {
       display: grid;
-      gap: 0.5rem;
+      gap: 0.75rem;
+    }
+    mat-form-field {
+      width: 100%;
     }
     mat-dialog-actions {
       flex-wrap: wrap;

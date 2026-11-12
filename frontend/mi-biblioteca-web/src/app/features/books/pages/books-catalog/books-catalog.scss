@@ -1,51 +1,120 @@
 :host {
   display: block;
+  min-width: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.catalog-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
 }
 
 .catalog-create-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
-.search-form {
-  margin-block: 1.5rem;
+.catalog-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.sort-controls {
-  margin-block: 1.5rem;
+.catalog-panel {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.search-form {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border-radius: var(--app-panel-radius);
+  background: var(--mat-sys-surface-container);
+}
+
+.sort-controls,
+.filters-form {
+  padding-block: 1rem;
+  border-block-start: 1px solid var(--mat-sys-outline-variant);
+}
+
+.search-form,
+.sort-controls,
+.filters-form {
+  margin-block: 1rem;
+}
+
+.catalog-panel h2 {
+  margin: 0 0 0.375rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.search-form h2 {
+  font: var(--mat-sys-title-large);
+}
+
+#search-rules,
+#filters-help {
+  margin: 0 0 1rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
 }
 
 .sort-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  align-items: start;
   gap: 1rem;
 }
 
 .search-fields {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: start;
   gap: 1rem;
 }
 
-.search-actions {
+.search-fields mat-form-field,
+.filters-fields mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.search-actions,
+.filters-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem;
+  margin-block-start: 1rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--mat-sys-outline-variant);
 }
 
 app-inline-feedback,
 app-empty-state,
 app-loading-state {
   margin-block: 1rem;
-}
-
-@media (max-width: 48rem) {
-  .search-fields,
-  .sort-fields {
-    grid-template-columns: 1fr;
-  }
 }
 
 h1 {
@@ -55,9 +124,23 @@ h1 {
   font-weight: 600;
 }
 
+.catalog-header h1 {
+  margin: 0;
+}
+
+.catalog-results-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.catalog-results-heading h2 {
+  margin: 0;
+  font: var(--mat-sys-title-large);
+}
+
 .catalog-status {
   color: var(--mat-sys-on-surface-variant);
-  font-size: 1.125rem;
+  font: var(--mat-sys-body-medium);
 }
 
 .catalog-content {
@@ -67,7 +150,7 @@ h1 {
 .catalog-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0.5rem 1rem;
   margin-block: 1rem;
@@ -128,19 +211,38 @@ mat-paginator {
   margin-block-start: 1.5rem;
   background: transparent;
 }
-:host .filters-form {
-  margin-block: 1.5rem;
-}
-
 .filters-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-  gap: 1.5rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: start;
+  gap: 1.25rem 1rem;
 }
 
-.filters-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-block-start: 1rem;
+.filters-fields app-genre-filter-select {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (max-width: 48rem) {
+  .catalog-header,
+  .catalog-create-actions,
+  .catalog-import-actions {
+    justify-content: flex-start;
+  }
+
+  .search-form {
+    padding: 1rem;
+  }
+
+  .search-actions,
+  .filters-actions {
+    align-items: stretch;
+  }
+
+  .search-actions button,
+  .search-actions a,
+  .filters-actions button,
+  .filters-actions a {
+    flex: 1 1 auto;
+  }
 }

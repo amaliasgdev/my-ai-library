@@ -29,19 +29,31 @@
           Subir o eliminar una portada se guarda inmediatamente, independientemente de Guardar los
           demás cambios.
         </p>
-        <label for="cover-file">Archivo de portada (JPEG o PNG, máximo 5 MiB)</label>
+        <label id="cover-file-label" for="cover-file" class="visually-hidden"
+          >Archivo de portada (JPEG o PNG, máximo 5 MiB)</label
+        >
         <input
           #coverFile
           id="cover-file"
           type="file"
           accept="image/jpeg,image/png"
           [disabled]="writesBlocked()"
+          hidden
           (change)="selectCover($event)"
         />
         @if (selectedFile(); as file) {
           <p>Archivo seleccionado: {{ file.name }}</p>
         }
         <div class="cover-actions">
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="writesBlocked()"
+            aria-describedby="cover-file-label"
+            (click)="coverFile.click()"
+          >
+            Seleccionar archivo
+          </button>
           <button
             mat-button
             type="button"

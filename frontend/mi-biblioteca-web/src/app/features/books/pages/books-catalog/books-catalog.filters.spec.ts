@@ -72,6 +72,16 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     expect(form.getAttribute('aria-labelledby')).toBe('filters-heading');
     expect(form.getAttribute('aria-describedby')).toBe('filters-help');
     expect(form.querySelectorAll('mat-label')).toHaveLength(7);
+    expect(form.classList).toContain('catalog-panel');
+    expect(harness.routeNativeElement!.querySelector('.search-form')?.classList).toContain(
+      'catalog-panel',
+    );
+    expect(
+      [
+        ...form.querySelectorAll('mat-form-field'),
+        ...harness.routeNativeElement!.querySelectorAll('.search-form mat-form-field'),
+      ].every((field) => field.classList.contains('mat-form-field-appearance-outline')),
+    ).toBe(true);
     expect(
       form.querySelector('mat-select[formControlName="readingStatus"]')?.hasAttribute('multiple'),
     ).toBe(true);

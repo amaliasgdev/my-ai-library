@@ -4,7 +4,7 @@
   Puedes ordenar con el asa de arrastre o con los botones Subir y Bajar, también mediante teclado.
 </p>
 <button mat-button [disabled]="busy()" (click)="retry()">Actualizar lista</button>
-<mat-form-field>
+<mat-form-field appearance="outline">
   <mat-label>Estado de lectura</mat-label>
   <mat-select [value]="filter()" [disabled]="busy()" (selectionChange)="changeFilter($event.value)">
     <mat-option [value]="null">Todos</mat-option>
@@ -113,7 +113,7 @@
                 Fin: {{ displayDate(item.book.finishedOn) }}
               </p>
             }
-            <mat-form-field>
+            <mat-form-field appearance="outline">
               <mat-label>Estado de {{ item.book.title }}</mat-label>
               <mat-select
                 [value]="item.book.readingStatus"
