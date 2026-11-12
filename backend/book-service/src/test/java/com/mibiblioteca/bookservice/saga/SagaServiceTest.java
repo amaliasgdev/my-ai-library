@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.mibiblioteca.bookservice.common.exception.InvalidSortParameterException;
+import com.mibiblioteca.bookservice.saga.SagaDtos.SagaProgressResponse;
 import com.mibiblioteca.bookservice.saga.SagaDtos.SagaRequest;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +24,7 @@ class SagaServiceTest {
 
     @Mock private SagaRepository repository;
     @Mock private SagaVolumeRepository volumes;
+    @Mock private SagaProgressService progressService;
 
     @InjectMocks private SagaService service;
 
@@ -90,7 +91,7 @@ class SagaServiceTest {
     void updateAppliesChangesAndIncrementsRevisionOnce() {
         Saga saga = saga(1L, 2);
         when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(saga));
-        when(volumes.findProgressBySagaIds(any())).thenReturn(List.of());
+        when(progressService.forSaga(1L)).thenReturn(SagaProgressResponse.zero());
 
         var response = service.update(1L, request("  Cambiada  "), "2");
 

@@ -116,6 +116,20 @@ public final class SagaDtos {
     ) {
     }
 
+    public record BookSagaResponse(
+        @Schema(description = "Saga identifier", example = "4")
+        Long sagaId,
+        @Schema(description = "Saga name", example = "Nacidos de la bruma")
+        String sagaName,
+        @Schema(description = "Volume row that links the book to the saga", example = "18")
+        Long volumeId,
+        @Schema(description = "Ordered position inside the saga", example = "3")
+        int position,
+        @Schema(description = "Visible volume label", example = "3", nullable = true)
+        String volumeLabel
+    ) {
+    }
+
     public record SagaVolumesResponse(
         String revision,
         SagaProgressResponse progress,

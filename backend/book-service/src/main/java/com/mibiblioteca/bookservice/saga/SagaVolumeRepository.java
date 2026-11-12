@@ -29,6 +29,10 @@ public interface SagaVolumeRepository extends JpaRepository<SagaVolume, Long> {
 
     List<SagaVolume> findByBookIdOrderBySagaIdAsc(Long bookId);
 
+    @Query("select volume from SagaVolume volume join fetch volume.saga saga "
+        + "where volume.book.id = :bookId order by lower(saga.name), saga.id")
+    List<SagaVolume> findByBookIdWithSagaOrderByName(@Param("bookId") Long bookId);
+
     @Query("select distinct volume.saga.id from SagaVolume volume where volume.book.id = :bookId")
     List<Long> findDistinctSagaIdsByBookId(@Param("bookId") Long bookId);
 

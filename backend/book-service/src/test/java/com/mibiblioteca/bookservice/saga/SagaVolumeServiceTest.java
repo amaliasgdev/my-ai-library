@@ -28,6 +28,7 @@ class SagaVolumeServiceTest {
     @Mock private SagaRepository sagas;
     @Mock private SagaVolumeRepository volumes;
     @Mock private BookRepository books;
+    @Mock private SagaProgressService progressService;
     @Mock private JdbcTemplate jdbc;
 
     @InjectMocks private SagaVolumeService service;

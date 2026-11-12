@@ -249,6 +249,14 @@ class OpenApiDocumentationTest {
             .contains("\"string\"");
         assertThat(schemas.path("SagaProgressResponse").path("properties").size()).isEqualTo(7);
         assertThat(schemas.path("SagaPageResponse").path("properties").has("content")).isTrue();
+
+        var bookSagas = paths.path("/api/books/{id}/sagas").path("get");
+        assertThat(bookSagas.has("responses")).isTrue();
+        assertThat(bookSagas.path("responses").has("200")).isTrue();
+        assertThat(bookSagas.path("responses").has("404")).isTrue();
+        assertThat(bookSagas.path("description").asText()).contains("ordered", "empty array", "BookResponse");
+        assertThat(fieldNames(schemas.path("BookSagaResponse").path("properties")))
+            .containsExactlyInAnyOrder("sagaId", "sagaName", "volumeId", "position", "volumeLabel");
     }
 
     @Test

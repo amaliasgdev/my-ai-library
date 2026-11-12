@@ -1,9 +1,9 @@
 package com.mibiblioteca.bookservice.saga;
 
 import static com.mibiblioteca.bookservice.saga.SagaDtos.AddSagaVolumeRequest;
+import static com.mibiblioteca.bookservice.saga.SagaDtos.BookSagaResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.LinkSagaVolumeRequest;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.MoveSagaVolumeRequest;
-import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaProgressResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaRevisionResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaVolumeBookResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaVolumeMoveResponse;
@@ -13,9 +13,9 @@ import static com.mibiblioteca.bookservice.saga.SagaDtos.SagaVolumesResponse;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.UnlinkSagaVolumeRequest;
 import static com.mibiblioteca.bookservice.saga.SagaDtos.UpdateSagaVolumeRequest;
 
-import com.mibiblioteca.bookservice.book.ReadingStatus;
 import com.mibiblioteca.bookservice.book.persistence.Book;
 import com.mibiblioteca.bookservice.book.persistence.BookRepository;
+import com.mibiblioteca.bookservice.common.exception.BookNotFoundException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,13 +35,15 @@ public class SagaVolumeService {
     private final SagaRepository sagas;
     private final SagaVolumeRepository volumes;
     private final BookRepository books;
+    private final SagaProgressService progress;
     private final JdbcTemplate jdbc;
 
     public SagaVolumeService(SagaRepository sagas, SagaVolumeRepository volumes,
-                             BookRepository books, JdbcTemplate jdbc) {
+                             BookRepository books, SagaProgressService progress, JdbcTemplate jdbc) {
         this.sagas = sagas;
         this.volumes = volumes;
         this.books = books;
+        this.progress = progress;
         this.jdbc = jdbc;
     }
 
@@ -49,8 +51,24 @@ public class SagaVolumeService {
     public SagaVolumesResponse findAll(Long sagaId) {
         Saga saga = sagas.findById(sagaId).orElseThrow(SagaException::notFound);
         List<SagaVolume> ordered = volumes.findDetailedBySagaIdOrderByPosition(sagaId);
-        return new SagaVolumesResponse(Long.toString(saga.getRevision()), progress(ordered),
+        return new SagaVolumesResponse(Long.toString(saga.getRevision()), progress.forSaga(sagaId),
             ordered.stream().map(this::toResponse).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookSagaResponse> findSagasForBook(Long bookId) {
+        if (!books.existsById(bookId)) {
+            throw new BookNotFoundException(bookId);
+        }
+        return volumes.findByBookIdWithSagaOrderByName(bookId).stream()
+            .map(volume -> new BookSagaResponse(
+                volume.getSaga().getId(),
+                volume.getSaga().getName(),
+                volume.getId(),
+                volume.getPosition(),
+                volume.getVolumeLabel()
+            ))
+            .toList();
     }
 
     @Transactional
@@ -236,29 +254,6 @@ public class SagaVolumeService {
 
     private SagaVolume findVolume(Long sagaId, Long volumeId) {
         return volumes.findByIdAndSagaId(volumeId, sagaId).orElseThrow(SagaException::volumeNotFound);
-    }
-
-    private SagaProgressResponse progress(List<SagaVolume> ordered) {
-        int total = ordered.size();
-        int linked = 0;
-        int read = 0;
-        int reading = 0;
-        int toRead = 0;
-        int abandoned = 0;
-        for (SagaVolume volume : ordered) {
-            if (volume.getBook() == null) {
-                continue;
-            }
-            linked++;
-            ReadingStatus status = volume.getBook().getReadingStatus();
-            switch (status) {
-                case READ -> read++;
-                case READING -> reading++;
-                case TO_READ -> toRead++;
-                case ABANDONED -> abandoned++;
-            }
-        }
-        return new SagaProgressResponse(total, linked, total - linked, read, reading, toRead, abandoned);
     }
 
     private SagaVolumeResponse toResponse(SagaVolume volume) {
