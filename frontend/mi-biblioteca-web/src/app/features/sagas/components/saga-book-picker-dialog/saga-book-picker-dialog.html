@@ -1,0 +1,100 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+<mat-dialog-content>
+  <p id="saga-book-picker-help">
+    Busca por título o autor. Los libros que ya forman parte de esta saga aparecen deshabilitados.
+  </p>
+  <form
+    class="search-form"
+    [formGroup]="searchForm"
+    (ngSubmit)="search()"
+    aria-describedby="saga-book-picker-help"
+  >
+    <div class="search-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Título</mat-label>
+        <input matInput formControlName="title" autocomplete="off" />
+        @if (searchForm.controls.title.hasError('maxlength')) {
+          <mat-error>El título no puede superar 255 caracteres</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Autor</mat-label>
+        <input matInput formControlName="author" autocomplete="off" />
+        @if (searchForm.controls.author.hasError('maxlength')) {
+          <mat-error>El autor no puede superar 255 caracteres</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    @if (criteriaError()) {
+      <app-inline-feedback variant="error">Introduce un título o un autor</app-inline-feedback>
+    }
+    <div class="search-actions">
+      <button mat-flat-button type="submit">Buscar</button>
+      <button mat-button type="button" (click)="clear()">Limpiar</button>
+    </div>
+  </form>
+
+  @if (loading()) {
+    <app-loading-state message="Buscando libros…" />
+  } @else if (error()) {
+    <app-inline-feedback variant="error">{{ error() }}</app-inline-feedback>
+    <button mat-button type="button" (click)="retry()">Reintentar</button>
+  } @else if (searched() && results() && totalElements() === 0) {
+    <app-empty-state
+      title="No se encontraron libros"
+      description="Prueba con otro título u autor."
+    />
+  } @else if (results(); as page) {
+    <div class="book-results">
+      @for (book of page.content; track book.id) {
+        <button
+          type="button"
+          class="book-result"
+          [class.selected]="selected()?.id === book.id"
+          [attr.aria-pressed]="selected()?.id === book.id"
+          [attr.aria-label]="'Seleccionar ' + book.title"
+          [disabled]="isExcluded(book.id)"
+          (click)="select(book)"
+        >
+          <span class="book-cover">
+            @if (book.coverUrl && !coverFailed(book.id)) {
+              <img
+                [src]="book.coverUrl"
+                [alt]="'Portada de ' + book.title"
+                loading="lazy"
+                (error)="markCoverFailed(book.id)"
+              />
+            } @else {
+              <span aria-hidden="true">Sin portada</span>
+            }
+          </span>
+          <span class="book-data">
+            <span class="book-title">{{ book.title }}</span>
+            <span class="book-author">{{ book.author }}</span>
+            @if (isExcluded(book.id)) {
+              <span class="book-excluded">Ya está en esta saga</span>
+            }
+          </span>
+        </button>
+      }
+    </div>
+    @if (page.totalPages > 1) {
+      <mat-paginator
+        [length]="totalElements()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="true"
+        (page)="onPageChange($event)"
+      />
+    }
+  } @else {
+    <p class="initial-help">Introduce un título o un autor y pulsa Buscar.</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Cancelar</button>
+  <button mat-flat-button type="button" [disabled]="!selected()" (click)="confirm()">
+    {{ data.actionLabel }}
+  </button>
+</mat-dialog-actions>

@@ -13,6 +13,7 @@ import { EmptyState } from '../../../../core/ui/feedback/empty-state';
 import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 import { readingPercent } from '../../models/saga-progress';
+import { spanishSagaPaginator } from '../../models/saga-paginator';
 import { SagaPageResponse } from '../../models/saga.models';
 import { SagasService } from '../../services/sagas.service';
 
@@ -20,22 +21,6 @@ type ListState =
   | { status: 'loading' }
   | { status: 'success'; response: SagaPageResponse }
   | { status: 'error'; message: string };
-
-function spanishPaginator(): MatPaginatorIntl {
-  const intl = new MatPaginatorIntl();
-  intl.itemsPerPageLabel = 'Sagas por página';
-  intl.nextPageLabel = 'Página siguiente';
-  intl.previousPageLabel = 'Página anterior';
-  intl.firstPageLabel = 'Primera página';
-  intl.lastPageLabel = 'Última página';
-  intl.getRangeLabel = (page, size, length) => {
-    if (length === 0 || size === 0) return `0 de ${length}`;
-    const start = page * size;
-    if (start >= length) return `0 de ${length}`;
-    return `${start + 1}-${Math.min(start + size, length)} de ${length}`;
-  };
-  return intl;
-}
 
 function listError(error: unknown): string {
   if (error instanceof HttpErrorResponse) {
@@ -61,7 +46,7 @@ function listError(error: unknown): string {
     InlineFeedback,
     LoadingState,
   ],
-  providers: [{ provide: MatPaginatorIntl, useFactory: spanishPaginator }],
+  providers: [{ provide: MatPaginatorIntl, useFactory: spanishSagaPaginator }],
   templateUrl: './sagas-list.html',
   styleUrl: './sagas-list.scss',
 })

@@ -1,0 +1,133 @@
+<mat-card appearance="outlined" class="volume-card">
+  <div class="volume-header">
+    <button
+      mat-icon-button
+      type="button"
+      class="drag-handle"
+      cdkDragHandle
+      [disabled]="busy()"
+      [attr.aria-label]="'Arrastrar ' + title()"
+    >
+      <span aria-hidden="true">⠿</span>
+    </button>
+    <div class="volume-position">
+      <span>Posición {{ volume().position }}</span>
+      @if (volume().volumeLabel) {
+        <span class="volume-label">{{ volume().volumeLabel }}</span>
+      }
+    </div>
+    <button
+      mat-icon-button
+      type="button"
+      class="volume-menu-trigger"
+      [matMenuTriggerFor]="volumeActions"
+      [disabled]="busy()"
+      [attr.aria-label]="'Acciones de ' + title()"
+    >
+      <mat-icon [svgIcon]="moreIcon" aria-hidden="true" />
+    </button>
+  </div>
+
+  <div class="volume-body">
+    <div class="volume-cover">
+      @if (volume().book; as book) {
+        @if (book.coverUrl && !imageFailed()) {
+          <img
+            [src]="book.coverUrl"
+            [alt]="'Portada de ' + title()"
+            loading="lazy"
+            (error)="imageError()"
+          />
+        } @else {
+          <span>Sin portada</span>
+        }
+      } @else {
+        <span>Sin portada</span>
+      }
+    </div>
+    <div class="volume-data">
+      <h3>
+        @if (volume().book; as book) {
+          <a [routerLink]="['/books', book.id]" [attr.aria-label]="'Ver ficha de ' + book.title">{{
+            book.title
+          }}</a>
+        } @else {
+          {{ title() }}
+        }
+      </h3>
+      @if (volume().book; as book) {
+        <p class="volume-author">{{ book.author }}</p>
+        <p class="volume-status">
+          <span
+            class="status"
+            [class.status--read]="book.readingStatus === 'READ'"
+            [class.status--reading]="book.readingStatus === 'READING'"
+            [class.status--abandoned]="book.readingStatus === 'ABANDONED'"
+            >{{ statusLabel() }}</span
+          >
+        </p>
+      } @else {
+        <p class="volume-author">Aún no está en la biblioteca</p>
+        <p class="volume-status">
+          <span class="pending-badge">Pendiente de incorporar</span>
+        </p>
+      }
+    </div>
+  </div>
+
+  <div class="volume-actions">
+    <button
+      mat-button
+      type="button"
+      [disabled]="busy() || first()"
+      [attr.aria-label]="'Subir ' + title()"
+      (click)="moveUp.emit(volume())"
+    >
+      Subir
+    </button>
+    <button
+      mat-button
+      type="button"
+      [disabled]="busy() || last()"
+      [attr.aria-label]="'Bajar ' + title()"
+      (click)="moveDown.emit(volume())"
+    >
+      Bajar
+    </button>
+  </div>
+
+  <mat-menu #volumeActions="matMenu">
+    <button mat-menu-item type="button" [disabled]="busy()" (click)="editRequested.emit(volume())">
+      Editar etiqueta{{ linked() ? '' : ' y título' }}
+    </button>
+    @if (linked()) {
+      <button
+        mat-menu-item
+        type="button"
+        [disabled]="busy()"
+        (click)="unlinkRequested.emit(volume())"
+      >
+        Desvincular libro
+      </button>
+    } @else {
+      <button
+        mat-menu-item
+        type="button"
+        [disabled]="busy()"
+        (click)="linkRequested.emit(volume())"
+      >
+        Vincular a un libro
+      </button>
+    }
+    <mat-divider />
+    <button
+      mat-menu-item
+      type="button"
+      class="remove-action"
+      [disabled]="busy()"
+      (click)="removeRequested.emit(volume())"
+    >
+      Quitar de la saga
+    </button>
+  </mat-menu>
+</mat-card>

@@ -15,7 +15,7 @@ import { SagasList } from './features/sagas/pages/sagas-list/sagas-list';
 import { SagaCreate } from './features/sagas/pages/saga-create/saga-create';
 import { SagaDetail } from './features/sagas/pages/saga-detail/saga-detail';
 import { SagaEdit } from './features/sagas/pages/saga-edit/saga-edit';
-import { testSaga, testSagaPage } from './features/sagas/models/saga.testing';
+import { testSaga, testSagaPage, testSagaVolumes } from './features/sagas/models/saga.testing';
 import { MatDialog, MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
 
 describe('Application routes', () => {
@@ -168,6 +168,7 @@ describe('Application routes', () => {
 
     await harness.navigateByUrl('/sagas/42', SagaDetail);
     http.expectOne('/api/sagas/42').flush(testSaga({ id: 42 }));
+    http.expectOne('/api/sagas/42/volumes').flush(testSagaVolumes());
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Saga de prueba');
     expect(title.getTitle()).toBe('Detalle de la saga | Mi Biblioteca');
@@ -195,6 +196,7 @@ describe('Application routes', () => {
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/sagas/7');
     http.expectOne('/api/sagas/7').flush(testSaga({ id: 7, name: 'Saga siete' }));
+    http.expectOne('/api/sagas/7/volumes').flush(testSagaVolumes());
     await harness.fixture.whenStable();
     const edit = Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
       (anchor) => anchor.textContent?.trim() === 'Editar',

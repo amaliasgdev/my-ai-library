@@ -37,11 +37,11 @@
             <div class="actions">
               <a
                 mat-stroked-button
-                [routerLink]="deleting() ? null : ['/sagas', current.saga.id, 'edit']"
-                [disabled]="deleting()"
+                [routerLink]="busy() ? null : ['/sagas', current.saga.id, 'edit']"
+                [disabled]="busy()"
                 >Editar</a
               >
-              <button mat-button type="button" [disabled]="deleting()" (click)="openDeleteDialog()">
+              <button mat-button type="button" [disabled]="busy()" (click)="openDeleteDialog()">
                 Eliminar
               </button>
             </div>
@@ -62,73 +62,144 @@
             <dl class="counters">
               <div>
                 <dt>Volúmenes</dt>
-                <dd>{{ current.saga.progress.total }}</dd>
+                <dd>{{ current.volumes.progress.total }}</dd>
               </div>
               <div>
                 <dt>En biblioteca</dt>
-                <dd>{{ current.saga.progress.linked }}</dd>
+                <dd>{{ current.volumes.progress.linked }}</dd>
               </div>
               <div>
                 <dt>Pendientes</dt>
-                <dd>{{ current.saga.progress.pending }}</dd>
+                <dd>{{ current.volumes.progress.pending }}</dd>
               </div>
               <div>
                 <dt>Leídos</dt>
-                <dd>{{ current.saga.progress.read }}</dd>
+                <dd>{{ current.volumes.progress.read }}</dd>
               </div>
               <div>
                 <dt>En curso</dt>
-                <dd>{{ current.saga.progress.reading }}</dd>
+                <dd>{{ current.volumes.progress.reading }}</dd>
               </div>
               <div>
                 <dt>Por leer</dt>
-                <dd>{{ current.saga.progress.toRead }}</dd>
+                <dd>{{ current.volumes.progress.toRead }}</dd>
               </div>
               <div>
                 <dt>Abandonados</dt>
-                <dd>{{ current.saga.progress.abandoned }}</dd>
+                <dd>{{ current.volumes.progress.abandoned }}</dd>
               </div>
             </dl>
 
             <div class="progress-grid">
               <div class="progress-card">
                 <h3>Cobertura de colección</h3>
-                <p class="progress-value">{{ collectionPercent(current.saga.progress) }}%</p>
+                <p class="progress-value">{{ collectionPercent(current.volumes.progress) }}%</p>
                 <p>
-                  {{ current.saga.progress.linked }} de {{ current.saga.progress.total }} volúmenes
-                  en la biblioteca
+                  {{ current.volumes.progress.linked }} de
+                  {{ current.volumes.progress.total }} volúmenes en la biblioteca
                 </p>
                 <mat-progress-bar
                   mode="determinate"
-                  [value]="collectionPercent(current.saga.progress)"
+                  [value]="collectionPercent(current.volumes.progress)"
                   aria-hidden="true"
                 />
               </div>
               <div class="progress-card">
                 <h3>Progreso de lectura</h3>
-                <p class="progress-value">{{ readingPercent(current.saga.progress) }}%</p>
+                <p class="progress-value">{{ readingPercent(current.volumes.progress) }}%</p>
                 <p>
-                  {{ current.saga.progress.read }} de {{ current.saga.progress.total }} volúmenes
-                  leídos
+                  {{ current.volumes.progress.read }} de
+                  {{ current.volumes.progress.total }} volúmenes leídos
                 </p>
                 <mat-progress-bar
                   mode="determinate"
-                  [value]="readingPercent(current.saga.progress)"
+                  [value]="readingPercent(current.volumes.progress)"
                   aria-hidden="true"
                 />
               </div>
             </div>
-            @if (current.saga.progress.total === 0) {
+            @if (current.volumes.progress.total === 0) {
               <p class="note">Esta saga todavía no tiene volúmenes.</p>
             }
           </section>
 
           <section aria-labelledby="saga-volumes-heading">
-            <h2 id="saga-volumes-heading">Volúmenes</h2>
-            <app-inline-feedback variant="neutral" [announce]="false">
-              La gestión visual de volúmenes estará disponible en la próxima fase. Mientras tanto,
-              puedes consultar el progreso de la saga.
-            </app-inline-feedback>
+            <header class="volumes-header">
+              <h2 id="saga-volumes-heading">Volúmenes</h2>
+              <div class="volumes-add-actions">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="busy()"
+                  (click)="openAddBook()"
+                >
+                  Añadir libro de la biblioteca
+                </button>
+                <button mat-button type="button" [disabled]="busy()" (click)="openAddPending()">
+                  Registrar volumen pendiente
+                </button>
+              </div>
+            </header>
+            <p id="volumes-help" class="volumes-help">
+              Los volúmenes nuevos se añaden al final. Usa el asa de arrastre o los botones Subir y
+              Bajar para cambiar el orden.
+            </p>
+
+            @if (current.volumes.volumes.length === 0) {
+              <app-empty-state
+                title="Esta saga todavía no tiene volúmenes"
+                description="Añade un libro de tu biblioteca o registra un volumen que aún no tienes."
+              />
+            } @else {
+              <div
+                class="volume-list"
+                cdkDropList
+                [cdkDropListDisabled]="volumeBusy()"
+                (cdkDropListDropped)="drop($event)"
+                aria-describedby="volumes-help"
+              >
+                @for (
+                  volume of current.volumes.volumes;
+                  track volume.id;
+                  let first = $first;
+                  let last = $last
+                ) {
+                  <app-saga-volume-card
+                    cdkDrag
+                    [cdkDragData]="volume"
+                    [cdkDragDisabled]="volumeBusy()"
+                    [volume]="volume"
+                    [first]="first"
+                    [last]="last"
+                    [busy]="volumeBusy()"
+                    (moveUp)="moveUp($event)"
+                    (moveDown)="moveDown($event)"
+                    (editRequested)="editVolume($event)"
+                    (linkRequested)="linkVolume($event)"
+                    (unlinkRequested)="unlinkVolume($event)"
+                    (removeRequested)="removeVolume($event)"
+                  />
+                }
+              </div>
+            }
+
+            <p class="visually-hidden" aria-live="polite" aria-atomic="true">
+              {{ announcement() }}
+            </p>
+            @if (volumeBusy()) {
+              <app-inline-feedback variant="info">Actualizando volúmenes…</app-inline-feedback>
+            }
+            @if (volumeError()) {
+              <app-inline-feedback variant="error">{{ volumeError() }}</app-inline-feedback>
+            }
+            @if (refreshError()) {
+              <app-inline-feedback
+                variant="warning"
+                actionLabel="Reintentar actualización"
+                (action)="retryRefresh()"
+                >{{ refreshError() }}</app-inline-feedback
+              >
+            }
           </section>
         </div>
       </article>

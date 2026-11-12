@@ -3,10 +3,19 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import {
+  AddSagaVolumeRequest,
+  LinkSagaVolumeRequest,
+  MoveSagaVolumeRequest,
   SagaListOptions,
   SagaPageResponse,
   SagaRequest,
   SagaResponse,
+  SagaRevisionResponse,
+  SagaVolumeMoveResponse,
+  SagaVolumeMutationResponse,
+  SagaVolumesResponse,
+  UnlinkSagaVolumeRequest,
+  UpdateSagaVolumeRequest,
 } from '../models/saga.models';
 
 @Injectable({ providedIn: 'root' })
@@ -43,5 +52,67 @@ export class SagasService {
     return this.http.delete<void>(`${this.url}/${id}`, {
       params: new HttpParams().set('expectedRevision', expectedRevision),
     });
+  }
+
+  getVolumes(sagaId: number): Observable<SagaVolumesResponse> {
+    return this.http.get<SagaVolumesResponse>(`${this.url}/${sagaId}/volumes`);
+  }
+
+  addVolume(sagaId: number, request: AddSagaVolumeRequest): Observable<SagaVolumeMutationResponse> {
+    return this.http.post<SagaVolumeMutationResponse>(`${this.url}/${sagaId}/volumes`, request);
+  }
+
+  updateVolume(
+    sagaId: number,
+    volumeId: number,
+    request: UpdateSagaVolumeRequest,
+  ): Observable<SagaVolumeMutationResponse> {
+    return this.http.put<SagaVolumeMutationResponse>(
+      `${this.url}/${sagaId}/volumes/${volumeId}`,
+      request,
+    );
+  }
+
+  moveVolume(
+    sagaId: number,
+    volumeId: number,
+    request: MoveSagaVolumeRequest,
+  ): Observable<SagaVolumeMoveResponse> {
+    return this.http.post<SagaVolumeMoveResponse>(
+      `${this.url}/${sagaId}/volumes/${volumeId}/move`,
+      request,
+    );
+  }
+
+  deleteVolume(
+    sagaId: number,
+    volumeId: number,
+    expectedRevision: string,
+  ): Observable<SagaRevisionResponse> {
+    return this.http.delete<SagaRevisionResponse>(`${this.url}/${sagaId}/volumes/${volumeId}`, {
+      params: new HttpParams().set('expectedRevision', expectedRevision),
+    });
+  }
+
+  linkVolume(
+    sagaId: number,
+    volumeId: number,
+    request: LinkSagaVolumeRequest,
+  ): Observable<SagaVolumeMutationResponse> {
+    return this.http.post<SagaVolumeMutationResponse>(
+      `${this.url}/${sagaId}/volumes/${volumeId}/link`,
+      request,
+    );
+  }
+
+  unlinkVolume(
+    sagaId: number,
+    volumeId: number,
+    request: UnlinkSagaVolumeRequest,
+  ): Observable<SagaVolumeMutationResponse> {
+    return this.http.post<SagaVolumeMutationResponse>(
+      `${this.url}/${sagaId}/volumes/${volumeId}/unlink`,
+      request,
+    );
   }
 }

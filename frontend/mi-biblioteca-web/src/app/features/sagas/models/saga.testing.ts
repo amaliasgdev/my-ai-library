@@ -1,4 +1,12 @@
-import { SagaPageResponse, SagaProgress, SagaRequest, SagaResponse } from './saga.models';
+import {
+  SagaPageResponse,
+  SagaProgress,
+  SagaRequest,
+  SagaResponse,
+  SagaVolume,
+  SagaVolumeBook,
+  SagaVolumesResponse,
+} from './saga.models';
 
 export function testSagaProgress(overrides: Partial<SagaProgress> = {}): SagaProgress {
   return {
@@ -47,4 +55,61 @@ export function testSagaRequest(overrides: Partial<SagaRequest> = {}): SagaReque
     imageUrl: null,
     ...overrides,
   };
+}
+
+export function testSagaVolumeBook(overrides: Partial<SagaVolumeBook> = {}): SagaVolumeBook {
+  return {
+    id: 10,
+    title: 'Libro vinculado',
+    author: 'Autora del libro',
+    coverUrl: null,
+    readingStatus: 'READ',
+    rating: 4,
+    finishedOn: '2026-10-01',
+    ...overrides,
+  };
+}
+
+export function testSagaVolume(overrides: Partial<SagaVolume> = {}): SagaVolume {
+  const book = testSagaVolumeBook();
+  return {
+    id: 100,
+    position: 1,
+    volumeLabel: '1',
+    bookId: book.id,
+    book,
+    pendingTitle: null,
+    createdAt: '2026-10-01T12:00:00Z',
+    updatedAt: '2026-10-01T12:00:00Z',
+    ...overrides,
+  };
+}
+
+export function testSagaVolumes(overrides: Partial<SagaVolumesResponse> = {}): SagaVolumesResponse {
+  return {
+    revision: '1',
+    progress: testSagaProgress({
+      total: 1,
+      linked: 1,
+      pending: 0,
+      read: 1,
+      reading: 0,
+      toRead: 0,
+      abandoned: 0,
+    }),
+    volumes: [testSagaVolume()],
+    ...overrides,
+  };
+}
+
+export function testPendingSagaVolume(overrides: Partial<SagaVolume> = {}): SagaVolume {
+  return testSagaVolume({
+    id: 200,
+    position: 2,
+    volumeLabel: '0.5',
+    bookId: null,
+    book: null,
+    pendingTitle: 'Volumen pendiente',
+    ...overrides,
+  });
 }

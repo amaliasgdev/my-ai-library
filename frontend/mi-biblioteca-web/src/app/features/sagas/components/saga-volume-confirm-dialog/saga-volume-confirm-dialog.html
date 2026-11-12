@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>
+  {{ data.mode === 'remove' ? 'Quitar volumen de la saga' : 'Desvincular libro' }}
+</h2>
+<mat-dialog-content id="saga-volume-confirm-description">
+  @if (data.mode === 'remove') {
+    <p>¿Seguro que quieres quitar «{{ data.volumeTitle }}» de esta saga?</p>
+    <p>
+      Se eliminará únicamente el volumen de la saga.
+      <strong>El libro seguirá en la biblioteca</strong>
+      y las posiciones posteriores se compactarán.
+    </p>
+    <p>Esta acción no se puede deshacer.</p>
+  } @else {
+    <p>¿Quieres desvincular «{{ data.volumeTitle }}» de su libro?</p>
+    <p>
+      El volumen seguirá en la saga como pendiente, conservando su posición y su etiqueta.
+      <strong>El libro seguirá en la biblioteca.</strong>
+    </p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" class="cancel-action" [mat-dialog-close]="false">
+    Cancelar
+  </button>
+  <button
+    mat-flat-button
+    type="button"
+    class="confirm-action"
+    [class.destructive]="data.mode === 'remove'"
+    [mat-dialog-close]="true"
+  >
+    {{ data.mode === 'remove' ? 'Quitar volumen' : 'Desvincular' }}
+  </button>
+</mat-dialog-actions>

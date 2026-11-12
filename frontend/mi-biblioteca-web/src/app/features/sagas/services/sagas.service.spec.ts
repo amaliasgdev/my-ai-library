@@ -1,7 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { testSaga, testSagaPage, testSagaRequest } from '../models/saga.testing';
+import {
+  testSaga,
+  testSagaPage,
+  testSagaRequest,
+  testSagaVolumes,
+  testSagaVolume,
+  testPendingSagaVolume,
+} from '../models/saga.testing';
 import { SagasService } from './sagas.service';
 
 describe('SagasService', () => {
@@ -97,5 +104,103 @@ describe('SagasService', () => {
       .flush({ code: 'SAGA_NOT_FOUND' }, { status: 404, statusText: 'Not Found' });
     expect(error.mock.calls[0][0].status).toBe(404);
     expect(error.mock.calls[0][0].error.code).toBe('SAGA_NOT_FOUND');
+  });
+
+  it('gets ordered volumes with their revision and progress', () => {
+    const response = testSagaVolumes();
+    service.getVolumes(42).subscribe();
+    const request = http.expectOne('/api/sagas/42/volumes');
+    expect(request.request.method).toBe('GET');
+    request.flush(response);
+  });
+
+  it('adds linked and pending volumes with exact bodies', () => {
+    service
+      .addVolume(42, {
+        bookId: 10,
+        pendingTitle: null,
+        volumeLabel: '1',
+        expectedRevision: '3',
+      })
+      .subscribe();
+    const linked = http.expectOne(
+      (candidate) => candidate.url === '/api/sagas/42/volumes' && candidate.method === 'POST',
+    );
+    expect(linked.request.body).toEqual({
+      bookId: 10,
+      pendingTitle: null,
+      volumeLabel: '1',
+      expectedRevision: '3',
+    });
+    linked.flush({ revision: '4', volume: testSagaVolume() });
+
+    service
+      .addVolume(42, {
+        bookId: null,
+        pendingTitle: 'Pendiente',
+        volumeLabel: null,
+        expectedRevision: '4',
+      })
+      .subscribe();
+    const pending = http.expectOne(
+      (candidate) => candidate.url === '/api/sagas/42/volumes' && candidate.method === 'POST',
+    );
+    expect(pending.request.body).toEqual({
+      bookId: null,
+      pendingTitle: 'Pendiente',
+      volumeLabel: null,
+      expectedRevision: '4',
+    });
+    pending.flush({ revision: '5', volume: testPendingSagaVolume() });
+  });
+
+  it('updates, moves, links, unlinks and deletes volumes with expectedRevision', () => {
+    service
+      .updateVolume(42, 100, {
+        pendingTitle: null,
+        volumeLabel: '2',
+        expectedRevision: '5',
+      })
+      .subscribe();
+    const update = http.expectOne(
+      (candidate) => candidate.url === '/api/sagas/42/volumes/100' && candidate.method === 'PUT',
+    );
+    expect(update.request.body).toEqual({
+      pendingTitle: null,
+      volumeLabel: '2',
+      expectedRevision: '5',
+    });
+    update.flush({ revision: '6', volume: testSagaVolume() });
+
+    service.moveVolume(42, 100, { toPosition: 2, expectedRevision: '6' }).subscribe();
+    const move = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/sagas/42/volumes/100/move' && candidate.method === 'POST',
+    );
+    expect(move.request.body).toEqual({ toPosition: 2, expectedRevision: '6' });
+    move.flush({ revision: '7', volumeId: 100, position: 2 });
+
+    service.linkVolume(42, 200, { bookId: 10, expectedRevision: '7' }).subscribe();
+    const link = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/sagas/42/volumes/200/link' && candidate.method === 'POST',
+    );
+    expect(link.request.body).toEqual({ bookId: 10, expectedRevision: '7' });
+    link.flush({ revision: '8', volume: testSagaVolume() });
+
+    service.unlinkVolume(42, 100, { pendingTitle: null, expectedRevision: '8' }).subscribe();
+    const unlink = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/sagas/42/volumes/100/unlink' && candidate.method === 'POST',
+    );
+    expect(unlink.request.body).toEqual({ pendingTitle: null, expectedRevision: '8' });
+    unlink.flush({ revision: '9', volume: testPendingSagaVolume() });
+
+    service.deleteVolume(42, 100, '9').subscribe();
+    const deletion = http.expectOne(
+      (candidate) => candidate.url === '/api/sagas/42/volumes/100' && candidate.method === 'DELETE',
+    );
+    expect(deletion.request.params.get('expectedRevision')).toBe('9');
+    deletion.flush({ revision: '10' });
   });
 });

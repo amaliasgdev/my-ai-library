@@ -133,6 +133,48 @@ app-inline-feedback {
   margin-block: 1rem;
 }
 
+.volumes-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-end: 0.5rem;
+}
+
+.volumes-header h2 {
+  margin: 0;
+}
+
+.volumes-add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.volumes-help {
+  margin: 0 0 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.volume-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (min-width: 48rem) {
   .detail-grid {
     grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
