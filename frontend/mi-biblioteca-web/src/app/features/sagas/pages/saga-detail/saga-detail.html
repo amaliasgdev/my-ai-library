@@ -1,0 +1,146 @@
+<section aria-labelledby="saga-detail-heading" [attr.aria-busy]="busy()">
+  @let current = state();
+  @switch (current.status) {
+    @case ('loading') {
+      <h1 id="saga-detail-heading" tabindex="-1">Detalle de la saga</h1>
+      <app-loading-state message="Cargando saga…" />
+    }
+    @case ('error') {
+      <h1 id="saga-detail-heading" tabindex="-1">Detalle de la saga</h1>
+      <app-inline-feedback variant="error">{{ current.message }}</app-inline-feedback>
+      @if (currentId()) {
+        <button mat-button type="button" (click)="retry()">Reintentar</button>
+      }
+    }
+    @case ('loaded') {
+      <article class="detail-grid">
+        <div class="cover">
+          @if (current.saga.imageUrl && !imageFailed()) {
+            <img
+              [src]="current.saga.imageUrl"
+              [alt]="'Imagen de la saga ' + current.saga.name"
+              loading="lazy"
+              (error)="imageFailed.set(true)"
+            />
+          } @else {
+            <span>Sin imagen</span>
+          }
+        </div>
+        <div class="information">
+          <header class="detail-header">
+            <h1 id="saga-detail-heading" tabindex="-1">{{ current.saga.name }}</h1>
+            @if (current.saga.author) {
+              <p class="author">{{ current.saga.author }}</p>
+            } @else {
+              <p class="author author--empty">Autor no indicado</p>
+            }
+            <div class="actions">
+              <a
+                mat-stroked-button
+                [routerLink]="deleting() ? null : ['/sagas', current.saga.id, 'edit']"
+                [disabled]="deleting()"
+                >Editar</a
+              >
+              <button mat-button type="button" [disabled]="deleting()" (click)="openDeleteDialog()">
+                Eliminar
+              </button>
+            </div>
+          </header>
+
+          <section aria-labelledby="saga-description-heading">
+            <h2 id="saga-description-heading">Descripción</h2>
+            <p
+              class="description"
+              [textContent]="
+                current.saga.description?.trim() ? current.saga.description : 'Sin descripción'
+              "
+            ></p>
+          </section>
+
+          <section aria-labelledby="saga-progress-heading">
+            <h2 id="saga-progress-heading">Progreso</h2>
+            <dl class="counters">
+              <div>
+                <dt>Volúmenes</dt>
+                <dd>{{ current.saga.progress.total }}</dd>
+              </div>
+              <div>
+                <dt>En biblioteca</dt>
+                <dd>{{ current.saga.progress.linked }}</dd>
+              </div>
+              <div>
+                <dt>Pendientes</dt>
+                <dd>{{ current.saga.progress.pending }}</dd>
+              </div>
+              <div>
+                <dt>Leídos</dt>
+                <dd>{{ current.saga.progress.read }}</dd>
+              </div>
+              <div>
+                <dt>En curso</dt>
+                <dd>{{ current.saga.progress.reading }}</dd>
+              </div>
+              <div>
+                <dt>Por leer</dt>
+                <dd>{{ current.saga.progress.toRead }}</dd>
+              </div>
+              <div>
+                <dt>Abandonados</dt>
+                <dd>{{ current.saga.progress.abandoned }}</dd>
+              </div>
+            </dl>
+
+            <div class="progress-grid">
+              <div class="progress-card">
+                <h3>Cobertura de colección</h3>
+                <p class="progress-value">{{ collectionPercent(current.saga.progress) }}%</p>
+                <p>
+                  {{ current.saga.progress.linked }} de {{ current.saga.progress.total }} volúmenes
+                  en la biblioteca
+                </p>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="collectionPercent(current.saga.progress)"
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="progress-card">
+                <h3>Progreso de lectura</h3>
+                <p class="progress-value">{{ readingPercent(current.saga.progress) }}%</p>
+                <p>
+                  {{ current.saga.progress.read }} de {{ current.saga.progress.total }} volúmenes
+                  leídos
+                </p>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="readingPercent(current.saga.progress)"
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+            @if (current.saga.progress.total === 0) {
+              <p class="note">Esta saga todavía no tiene volúmenes.</p>
+            }
+          </section>
+
+          <section aria-labelledby="saga-volumes-heading">
+            <h2 id="saga-volumes-heading">Volúmenes</h2>
+            <app-inline-feedback variant="neutral" [announce]="false">
+              La gestión visual de volúmenes estará disponible en la próxima fase. Mientras tanto,
+              puedes consultar el progreso de la saga.
+            </app-inline-feedback>
+          </section>
+        </div>
+      </article>
+    }
+  }
+
+  @if (deleting()) {
+    <app-inline-feedback variant="info">Eliminando saga…</app-inline-feedback>
+  }
+  @if (deleteError()) {
+    <app-inline-feedback variant="error">{{ deleteError() }}</app-inline-feedback>
+  }
+
+  <a mat-button routerLink="/sagas">Volver a Mis sagas</a>
+</section>

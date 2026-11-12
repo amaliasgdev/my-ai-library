@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>Eliminar saga</h2>
+<mat-dialog-content id="saga-delete-description">
+  <p>¿Seguro que quieres eliminar «{{ data.name }}»?</p>
+  <p>
+    Se eliminarán los volúmenes de esta saga, pero
+    <strong>no se eliminarán los libros del catálogo</strong>.
+  </p>
+  <p>Esta acción no se puede deshacer.</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" class="cancel-delete" [mat-dialog-close]="false">
+    Cancelar
+  </button>
+  <button mat-flat-button type="button" class="confirm-delete" [mat-dialog-close]="true">
+    Eliminar saga
+  </button>
+</mat-dialog-actions>

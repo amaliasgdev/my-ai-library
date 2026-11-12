@@ -1,0 +1,15 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+h1 {
+  margin-block: 0.5rem 0.5rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+app-inline-feedback {
+  margin-block: 1rem;
+}

@@ -84,6 +84,19 @@ describe('AppShell theme preference', () => {
     expect(element.querySelector('nav')?.getAttribute('aria-label')).toBe('Navegación principal');
   });
 
+  it('orders Biblioteca, Sagas and Lista de lectura in the main navigation', () => {
+    boot();
+    const links = Array.from(element.querySelectorAll<HTMLAnchorElement>('nav a'));
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Biblioteca',
+      'Sagas',
+      'Lista de lectura',
+    ]);
+    expect(links[0].getAttribute('href')).toBe('/books');
+    expect(links[1].getAttribute('href')).toBe('/sagas');
+    expect(links[2].getAttribute('href')).toBe('/reading-list');
+  });
+
   it('renders an accessible theme cycle button showing the current preference', () => {
     boot();
     expect(themeButton().getAttribute('aria-label')).toBe('Cambiar tema (actual: Automático)');
