@@ -77,6 +77,14 @@ export interface SagaVolumesResponse {
   volumes: SagaVolume[];
 }
 
+export interface BookSagaMembership {
+  sagaId: number;
+  sagaName: string;
+  volumeId: number;
+  position: number;
+  volumeLabel: string | null;
+}
+
 export interface AddSagaVolumeRequest {
   bookId?: number | null;
   pendingTitle?: string | null;

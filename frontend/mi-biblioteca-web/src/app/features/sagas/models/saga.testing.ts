@@ -1,4 +1,5 @@
 import {
+  BookSagaMembership,
   SagaPageResponse,
   SagaProgress,
   SagaRequest,
@@ -112,4 +113,17 @@ export function testPendingSagaVolume(overrides: Partial<SagaVolume> = {}): Saga
     pendingTitle: 'Volumen pendiente',
     ...overrides,
   });
+}
+
+export function testBookSagaMembership(
+  overrides: Partial<BookSagaMembership> = {},
+): BookSagaMembership {
+  return {
+    sagaId: 4,
+    sagaName: 'Nacidos de la bruma',
+    volumeId: 18,
+    position: 3,
+    volumeLabel: '3',
+    ...overrides,
+  };
 }

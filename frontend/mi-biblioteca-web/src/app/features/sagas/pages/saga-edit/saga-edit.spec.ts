@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { testSaga } from '../../models/saga.testing';
 import { SagaEdit } from './saga-edit';
 
@@ -22,7 +22,13 @@ describe('SagaEdit', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { paramMap: params.asObservable() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: params.asObservable(),
+            queryParamMap: of(convertToParamMap({})),
+          },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);

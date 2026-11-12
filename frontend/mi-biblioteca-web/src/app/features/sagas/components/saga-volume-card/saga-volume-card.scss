@@ -36,11 +36,13 @@
 }
 
 .volume-label {
+  max-inline-size: 100%;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   background: var(--mat-sys-secondary-container);
   color: var(--mat-sys-on-secondary-container);
   font: var(--mat-sys-label-medium);
+  overflow-wrap: anywhere;
 }
 
 .volume-menu-trigger {
@@ -101,9 +103,11 @@
 .status,
 .pending-badge {
   display: inline-block;
+  max-inline-size: 100%;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   font: var(--mat-sys-label-small);
+  overflow-wrap: anywhere;
 }
 
 .status {

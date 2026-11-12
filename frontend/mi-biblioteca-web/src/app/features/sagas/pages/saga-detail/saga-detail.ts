@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import {
   catchError,
   finalize,
@@ -52,6 +52,7 @@ import {
   sagaVolumeRefreshRequired,
 } from '../../models/saga-error';
 import { parseSagaId } from '../../models/saga-id';
+import { parseSagaListQuery, serializeSagaListQuery } from '../../models/saga-list-query';
 import { collectionPercent, readingPercent } from '../../models/saga-progress';
 import { SagaResponse, SagaVolume, SagaVolumesResponse } from '../../models/saga.models';
 import { SagasService } from '../../services/sagas.service';
@@ -92,6 +93,7 @@ export class SagaDetail {
   private bookPickerRef: MatDialogRef<SagaBookPickerDialog, BookResponse> | null = null;
   private volumeConfirmRef: MatDialogRef<SagaVolumeConfirmDialog, boolean> | null = null;
   readonly currentId = signal<number | null>(null);
+  readonly listParams = signal<Params>({});
   readonly state = signal<DetailState>({ status: 'loading' });
   readonly deleting = signal(false);
   readonly deleteError = signal<string | null>(null);
@@ -145,6 +147,10 @@ export class SagaDetail {
         this.imageFailed.set(false);
         this.loadId.next(id ?? 0);
       });
+
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.listParams.set(serializeSagaListQuery(parseSagaListQuery(params)));
+    });
 
     this.destroyRef.onDestroy(() => {
       this.confirmation?.close(false);
@@ -461,7 +467,10 @@ export class SagaDetail {
       .subscribe({
         next: () => {
           this.feedback.success('Saga eliminada.');
-          void this.router.navigate(['/sagas']);
+          const params = this.listParams();
+          if (Object.keys(params).length)
+            void this.router.navigate(['/sagas'], { queryParams: params });
+          else void this.router.navigate(['/sagas']);
         },
         error: (error: unknown) => {
           this.deleteError.set(sagaDeleteError(error));

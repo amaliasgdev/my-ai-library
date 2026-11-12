@@ -8,11 +8,29 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import {
+  catchError,
+  distinctUntilChanged,
+  EMPTY,
+  map,
+  of,
+  startWith,
+  Subject,
+  switchMap,
+} from 'rxjs';
 import { EmptyState } from '../../../../core/ui/feedback/empty-state';
 import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
 import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 import { readingPercent } from '../../models/saga-progress';
+import {
+  isCanonicalSagaListQuery,
+  parseSagaListQuery,
+  SAGA_PAGE_SIZES,
+  SagaListQuery,
+  sameSagaListQuery,
+  serializeSagaListQuery,
+} from '../../models/saga-list-query';
 import { spanishSagaPaginator } from '../../models/saga-paginator';
 import { SagaPageResponse } from '../../models/saga.models';
 import { SagasService } from '../../services/sagas.service';
@@ -52,15 +70,21 @@ function listError(error: unknown): string {
 })
 export class SagasList {
   private readonly service = inject(SagasService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly reload = new Subject<void>();
+  private lastSyncedName = '';
+  readonly query = signal<SagaListQuery>({ page: 0, size: 20, name: '' });
+  readonly pageIndex = computed(() => this.query().page);
+  readonly pageSize = computed(() => this.query().size);
+  readonly appliedName = computed(() => this.query().name);
   readonly state = signal<ListState>({ status: 'loading' });
-  readonly pageIndex = signal(0);
-  readonly pageSize = signal(20);
   readonly totalElements = signal(0);
-  readonly appliedName = signal('');
   readonly failedImages = signal<ReadonlySet<number>>(new Set());
-  readonly pageSizeOptions = [10, 20, 50, 100];
+  readonly pageSizeOptions = [...SAGA_PAGE_SIZES];
+  readonly listQueryParams = computed(() => serializeSagaListQuery(this.query()));
   readonly hasSearch = computed(() => this.appliedName().length > 0);
   readonly isEmpty = computed(() => {
     const state = this.state();
@@ -82,10 +106,60 @@ export class SagasList {
     }),
   });
   protected readonly readingPercent = readingPercent;
-  private requestGeneration = 0;
 
   constructor() {
-    this.load();
+    this.route.queryParamMap
+      .pipe(
+        map((params) => {
+          const query = parseSagaListQuery(params);
+          if (!isCanonicalSagaListQuery(params, query)) {
+            void this.router.navigate(['/sagas'], {
+              queryParams: serializeSagaListQuery(query),
+              replaceUrl: true,
+            });
+            return null;
+          }
+          return query;
+        }),
+        distinctUntilChanged(
+          (first, second) =>
+            first === second ||
+            (first !== null && second !== null && sameSagaListQuery(first, second)),
+        ),
+        switchMap((query) => {
+          if (!query) return EMPTY;
+          this.query.set(query);
+          if (query.name !== this.lastSyncedName) {
+            this.searchForm.controls.name.setValue(query.name);
+            this.lastSyncedName = query.name;
+          }
+          return this.reload.pipe(
+            startWith(undefined),
+            switchMap(() =>
+              this.service
+                .getSagas({
+                  page: query.page,
+                  size: query.size,
+                  sortBy: 'name',
+                  direction: 'ASC',
+                  name: query.name,
+                })
+                .pipe(
+                  map((response): ListState => ({ status: 'success', response })),
+                  catchError((error: unknown) =>
+                    of<ListState>({ status: 'error', message: listError(error) }),
+                  ),
+                  startWith<ListState>({ status: 'loading' }),
+                ),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((state) => {
+        if (state.status === 'success') this.totalElements.set(state.response.totalElements);
+        this.state.set(state);
+      });
   }
 
   submitSearch(): void {
@@ -96,30 +170,30 @@ export class SagasList {
         ?.focus();
       return;
     }
-    const name = this.searchForm.controls.name.value.trim();
-    const changed = name !== this.appliedName() || this.pageIndex() !== 0;
-    this.appliedName.set(name);
-    this.pageIndex.set(0);
-    if (changed) this.load();
+    this.navigate({
+      ...this.query(),
+      page: 0,
+      name: this.searchForm.controls.name.value.trim(),
+    });
   }
 
   clearSearch(): void {
     this.searchForm.reset();
-    if (this.appliedName() === '') return;
-    this.appliedName.set('');
-    this.pageIndex.set(0);
-    this.load();
+    this.lastSyncedName = '';
+    this.navigate({ ...this.query(), page: 0, name: '' });
   }
 
   onPageChange(event: PageEvent): void {
-    const page = event.pageSize === this.pageSize() ? event.pageIndex : 0;
-    this.pageSize.set(event.pageSize);
-    this.pageIndex.set(page);
-    this.load();
+    const page = event.pageSize === this.query().size ? event.pageIndex : 0;
+    this.navigate({
+      ...this.query(),
+      page,
+      size: event.pageSize,
+    });
   }
 
   retry(): void {
-    this.load();
+    this.reload.next();
   }
 
   imageFailed(id: number): boolean {
@@ -130,28 +204,10 @@ export class SagasList {
     this.failedImages.update((failed) => new Set(failed).add(id));
   }
 
-  private load(): void {
-    const generation = ++this.requestGeneration;
-    this.state.set({ status: 'loading' });
-    this.service
-      .getSagas({
-        page: this.pageIndex(),
-        size: this.pageSize(),
-        sortBy: 'name',
-        direction: 'ASC',
-        name: this.appliedName(),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (response) => {
-          if (generation !== this.requestGeneration) return;
-          this.totalElements.set(response.totalElements);
-          this.state.set({ status: 'success', response });
-        },
-        error: (error: unknown) => {
-          if (generation !== this.requestGeneration) return;
-          this.state.set({ status: 'error', message: listError(error) });
-        },
-      });
+  private navigate(query: SagaListQuery): void {
+    if (sameSagaListQuery(query, this.query())) return;
+    void this.router.navigate(['/sagas'], {
+      queryParams: serializeSagaListQuery(query),
+    });
   }
 }

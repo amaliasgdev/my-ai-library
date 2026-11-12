@@ -12,6 +12,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   catchError,
   distinctUntilChanged,
+  EMPTY,
   finalize,
   map,
   of,
@@ -32,6 +33,8 @@ import { displayReadingDate, READING_STATUS_LABELS } from '../../models/book-dis
 import { parseBookId } from '../../models/book-id';
 import { BookResponse } from '../../models/book.models';
 import { BooksService } from '../../services/books.service';
+import { SagasService } from '../../../sagas/services/sagas.service';
+import { BookSagaMembership } from '../../../sagas/models/saga.models';
 import { parseBookCatalogQuery, serializeBookCatalogQuery } from '../../models/book-catalog-query';
 import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
 import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
@@ -48,6 +51,15 @@ function loadError(error: unknown): string {
     if (error.status === 0) return 'No se puede conectar con el servidor';
   }
   return 'No se pudo cargar el libro';
+}
+
+function sagasLoadError(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    if (error.status === 0) return 'No se puede conectar con el servidor';
+    if (error.status >= 500 && error.status < 600)
+      return 'El servidor no pudo cargar las sagas del libro';
+  }
+  return 'No se pudieron cargar las sagas del libro';
 }
 
 @Component({
@@ -69,12 +81,14 @@ function loadError(error: unknown): string {
 export class BookDetail {
   readonly membership = inject(ReadingListMembership);
   private readonly service = inject(BooksService);
+  private readonly sagasService = inject(SagasService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   private readonly feedback = inject(FeedbackService);
   private readonly retryRequested = new Subject<void>();
+  private readonly sagasRetry = new Subject<void>();
   private confirmation: MatDialogRef<BookDeleteDialog, boolean> | null = null;
   private deleteSubscription: Subscription | null = null;
   private generation = 0;
@@ -82,6 +96,9 @@ export class BookDetail {
   readonly imageFailed = signal(false);
   readonly deleting = signal(false);
   readonly deleteError = signal<string | null>(null);
+  readonly sagas = signal<BookSagaMembership[]>([]);
+  readonly sagasState = signal<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  readonly sagasError = signal<string | null>(null);
   readonly statusLabels = READING_STATUS_LABELS;
   readonly displayDate = displayReadingDate;
 
@@ -129,6 +146,53 @@ export class BookDetail {
         this.state.set(state);
         this.membership.setBooks(state.status === 'loaded' ? [state.id] : []);
       });
+
+    this.route.paramMap
+      .pipe(
+        map((params) => params.get('id')),
+        distinctUntilChanged(),
+        switchMap((rawId) => {
+          const id = parseBookId(rawId);
+          this.sagas.set([]);
+          this.sagasError.set(null);
+          if (id === null) {
+            this.sagasState.set('idle');
+            return EMPTY;
+          }
+          return this.sagasRetry.pipe(
+            startWith(undefined),
+            switchMap(() => {
+              this.sagasState.set('loading');
+              return this.sagasService.getBookSagas(id).pipe(
+                map((list) => ({ kind: 'success' as const, list })),
+                catchError((error: unknown) =>
+                  of({ kind: 'error' as const, message: sagasLoadError(error) }),
+                ),
+                startWith({ kind: 'loading' as const }),
+              );
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        if (result.kind === 'loading') {
+          this.sagasState.set('loading');
+          return;
+        }
+        if (result.kind === 'success') {
+          this.sagas.set(result.list);
+          this.sagasState.set('loaded');
+          this.sagasError.set(null);
+          return;
+        }
+        this.sagasState.set('error');
+        this.sagasError.set(result.message);
+      });
+  }
+
+  retrySagas(): void {
+    if (this.sagasState() === 'error') this.sagasRetry.next();
   }
 
   retry(): void {

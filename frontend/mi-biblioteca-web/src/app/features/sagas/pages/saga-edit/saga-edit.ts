@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, map, of, startWith, Subject, switchMap } from 'rxjs';
 import { FeedbackService } from '../../../../core/ui/feedback/feedback.service';
 import { InlineFeedback } from '../../../../core/ui/feedback/inline-feedback';
@@ -9,6 +9,7 @@ import { LoadingState } from '../../../../core/ui/feedback/loading-state';
 import { SagaForm } from '../../components/saga-form/saga-form';
 import { problemCode, sagaLoadError, sagaSaveError } from '../../models/saga-error';
 import { parseSagaId } from '../../models/saga-id';
+import { parseSagaListQuery, serializeSagaListQuery } from '../../models/saga-list-query';
 import { SagaRequest, SagaResponse } from '../../models/saga.models';
 import { SagasService } from '../../services/sagas.service';
 
@@ -19,7 +20,7 @@ type EditState =
 
 @Component({
   selector: 'app-saga-edit',
-  imports: [SagaForm, InlineFeedback, LoadingState],
+  imports: [SagaForm, InlineFeedback, LoadingState, RouterLink],
   templateUrl: './saga-edit.html',
   styleUrl: './saga-edit.scss',
 })
@@ -32,6 +33,7 @@ export class SagaEdit {
   private readonly loadId = new Subject<number>();
   readonly editor = viewChild.required(SagaForm);
   readonly currentId = signal<number | null>(null);
+  readonly listParams = signal<Params>({});
   readonly state = signal<EditState>({ status: 'loading' });
   readonly submitting = signal(false);
   readonly generalError = signal<string | null>(null);
@@ -69,6 +71,10 @@ export class SagaEdit {
         this.generalError.set(null);
         this.loadId.next(id ?? 0);
       });
+
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.listParams.set(serializeSagaListQuery(parseSagaListQuery(params)));
+    });
   }
 
   retry(): void {
@@ -92,7 +98,7 @@ export class SagaEdit {
       .subscribe({
         next: (saga) => {
           this.feedback.success('Saga actualizada.');
-          void this.router.navigate(['/sagas', saga.id]);
+          this.navigateToDetail(saga.id);
         },
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse) {
@@ -125,7 +131,20 @@ export class SagaEdit {
   cancel(): void {
     if (this.submitting()) return;
     const current = this.state();
-    if (current.status === 'loaded') void this.router.navigate(['/sagas', current.saga.id]);
+    if (current.status === 'loaded') this.navigateToDetail(current.saga.id);
+    else this.navigateToList();
+  }
+
+  private navigateToDetail(id: number): void {
+    const params = this.listParams();
+    if (Object.keys(params).length)
+      void this.router.navigate(['/sagas', id], { queryParams: params });
+    else void this.router.navigate(['/sagas', id]);
+  }
+
+  private navigateToList(): void {
+    const params = this.listParams();
+    if (Object.keys(params).length) void this.router.navigate(['/sagas'], { queryParams: params });
     else void this.router.navigate(['/sagas']);
   }
 

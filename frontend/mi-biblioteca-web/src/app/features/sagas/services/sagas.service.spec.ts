@@ -96,6 +96,16 @@ describe('SagasService', () => {
     deletion.flush(null, { status: 204, statusText: 'No Content' });
   });
 
+  it('gets the sagas of a book without changing the book contract', () => {
+    const memberships = [
+      { sagaId: 4, sagaName: 'Nacidos de la bruma', volumeId: 18, position: 3, volumeLabel: '3' },
+    ];
+    service.getBookSagas(42).subscribe();
+    const request = http.expectOne('/api/books/42/sagas');
+    expect(request.request.method).toBe('GET');
+    request.flush(memberships);
+  });
+
   it('propagates ProblemDetail errors unchanged', () => {
     const error = vi.fn();
     service.getSaga(42).subscribe({ error });

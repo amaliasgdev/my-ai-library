@@ -38,6 +38,7 @@
               <a
                 mat-stroked-button
                 [routerLink]="busy() ? null : ['/sagas', current.saga.id, 'edit']"
+                [queryParams]="listParams()"
                 [disabled]="busy()"
                 >Editar</a
               >
@@ -213,5 +214,5 @@
     <app-inline-feedback variant="error">{{ deleteError() }}</app-inline-feedback>
   }
 
-  <a mat-button routerLink="/sagas">Volver a Mis sagas</a>
+  <a mat-button routerLink="/sagas" [queryParams]="listParams()">Volver a Mis sagas</a>
 </section>

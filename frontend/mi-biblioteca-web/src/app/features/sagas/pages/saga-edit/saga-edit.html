@@ -29,6 +29,6 @@
     }
   }
   @if (current.status !== 'loaded') {
-    <a mat-button routerLink="/sagas">Volver a Mis sagas</a>
+    <a mat-button routerLink="/sagas" [queryParams]="listParams()">Volver a Mis sagas</a>
   }
 </section>

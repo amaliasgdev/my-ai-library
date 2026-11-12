@@ -8,10 +8,11 @@ import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog'
 import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { BookDeleteDialog } from '../../components/book-delete-dialog/book-delete-dialog';
 import { BookResponse, ReadingStatus } from '../../models/book.models';
 import { testBook } from '../../models/book.testing';
+import { SagasService } from '../../../sagas/services/sagas.service';
 import { BookDetail } from './book-detail';
 
 describe('BookDetail', () => {
@@ -40,6 +41,7 @@ describe('BookDetail', () => {
             snapshot: { queryParamMap: convertToParamMap({}) },
           },
         },
+        { provide: SagasService, useValue: { getBookSagas: () => of([]) } },
       ],
     });
     http = TestBed.inject(HttpTestingController);

@@ -116,6 +116,7 @@
                 <a
                   mat-button
                   [routerLink]="['/sagas', saga.id]"
+                  [queryParams]="listQueryParams()"
                   [attr.aria-label]="'Ver saga ' + saga.name"
                   >Ver saga</a
                 >

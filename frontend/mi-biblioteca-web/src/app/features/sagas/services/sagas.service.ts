@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import {
   AddSagaVolumeRequest,
+  BookSagaMembership,
   LinkSagaVolumeRequest,
   MoveSagaVolumeRequest,
   SagaListOptions,
@@ -21,7 +22,8 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SagasService {
   private readonly http = inject(HttpClient);
-  private readonly url = `${inject(API_CONFIG).apiBaseUrl}/sagas`;
+  private readonly apiConfig = inject(API_CONFIG);
+  private readonly url = `${this.apiConfig.apiBaseUrl}/sagas`;
 
   getSagas(options: SagaListOptions = {}): Observable<SagaPageResponse> {
     let params = new HttpParams()
@@ -36,6 +38,12 @@ export class SagasService {
 
   getSaga(id: number): Observable<SagaResponse> {
     return this.http.get<SagaResponse>(`${this.url}/${id}`);
+  }
+
+  getBookSagas(bookId: number): Observable<BookSagaMembership[]> {
+    return this.http.get<BookSagaMembership[]>(
+      `${this.apiConfig.apiBaseUrl}/books/${bookId}/sagas`,
+    );
   }
 
   createSaga(request: SagaRequest): Observable<SagaResponse> {

@@ -11,7 +11,7 @@ import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog } from '@angular/material/dialog'
 import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { testBook, testBookPage } from '../../../books/models/book.testing';
 import { SagaBookPickerDialog } from '../../components/saga-book-picker-dialog/saga-book-picker-dialog';
 import { SagaVolumeConfirmDialog } from '../../components/saga-volume-confirm-dialog/saga-volume-confirm-dialog';
@@ -47,7 +47,13 @@ describe('SagaDetail', () => {
           provide: MAT_DIALOG_DEFAULT_OPTIONS,
           useValue: { enterAnimationDuration: 0, exitAnimationDuration: 0 },
         },
-        { provide: ActivatedRoute, useValue: { paramMap: params.asObservable() } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: params.asObservable(),
+            queryParamMap: of(convertToParamMap({})),
+          },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
