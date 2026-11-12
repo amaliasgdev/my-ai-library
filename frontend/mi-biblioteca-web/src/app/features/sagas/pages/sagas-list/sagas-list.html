@@ -1,0 +1,140 @@
+<section aria-labelledby="sagas-heading">
+  <header class="sagas-header">
+    <div class="sagas-intro">
+      <h1 id="sagas-heading" tabindex="-1">Mis sagas</h1>
+      <p>Organiza tus series literarias, consulta cuántos volúmenes tienes y cuánto has leído.</p>
+    </div>
+    <a mat-flat-button routerLink="/sagas/new">Crear saga</a>
+  </header>
+
+  <form
+    class="sagas-panel search-form"
+    [formGroup]="searchForm"
+    (ngSubmit)="submitSearch()"
+    aria-labelledby="saga-search-heading"
+    aria-describedby="saga-search-help"
+  >
+    <h2 id="saga-search-heading">Buscar sagas</h2>
+    <p id="saga-search-help">
+      La búsqueda se aplica al pulsar Buscar o Enter, no mientras escribes.
+    </p>
+    <div class="search-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" autocomplete="off" />
+        @if (searchForm.controls.name.hasError('maxlength')) {
+          <mat-error>El nombre no puede superar 255 caracteres</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    <div class="actions">
+      <button mat-flat-button type="submit">Buscar</button>
+      <button mat-button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+    </div>
+  </form>
+
+  <p class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
+
+  @let current = state();
+  @switch (current.status) {
+    @case ('loading') {
+      <app-loading-state message="Cargando sagas…" />
+    }
+    @case ('error') {
+      <app-inline-feedback variant="error">{{ current.message }}</app-inline-feedback>
+      <button mat-button type="button" (click)="retry()">Reintentar</button>
+    }
+    @case ('success') {
+      @if (isEmpty()) {
+        <app-empty-state
+          title="Todavía no has creado ninguna saga"
+          description="Crea una saga para organizar tus libros y los volúmenes que aún no tienes."
+        >
+          <a mat-flat-button routerLink="/sagas/new">Crear saga</a>
+        </app-empty-state>
+      } @else if (noResults()) {
+        <app-empty-state
+          title="No se encontraron sagas"
+          description="Prueba con otro nombre o limpia la búsqueda."
+        >
+          <button mat-button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+        </app-empty-state>
+      } @else {
+        <div class="results-heading">
+          <h2>Resultados</h2>
+          <p>
+            {{ current.response.totalElements }}
+            {{ current.response.totalElements === 1 ? 'saga' : 'sagas' }}
+          </p>
+        </div>
+        <div class="saga-grid">
+          @for (saga of current.response.content; track saga.id) {
+            <mat-card appearance="outlined" class="saga-card">
+              <div class="saga-cover">
+                @if (saga.imageUrl && !imageFailed(saga.id)) {
+                  <img
+                    [src]="saga.imageUrl"
+                    [alt]="'Imagen de la saga ' + saga.name"
+                    loading="lazy"
+                    (error)="markImageFailed(saga.id)"
+                  />
+                } @else {
+                  <span>Sin imagen</span>
+                }
+              </div>
+              <mat-card-content>
+                <h3>{{ saga.name }}</h3>
+                @if (saga.author) {
+                  <p class="author">{{ saga.author }}</p>
+                } @else {
+                  <p class="author author--empty">Autor no indicado</p>
+                }
+                <dl class="counters">
+                  <div>
+                    <dt>Volúmenes</dt>
+                    <dd>{{ saga.progress.total }}</dd>
+                  </div>
+                  <div>
+                    <dt>En biblioteca</dt>
+                    <dd>{{ saga.progress.linked }}</dd>
+                  </div>
+                  <div>
+                    <dt>Pendientes</dt>
+                    <dd>{{ saga.progress.pending }}</dd>
+                  </div>
+                </dl>
+                <p class="reading">
+                  {{ saga.progress.read }} de {{ saga.progress.total }} volúmenes leídos
+                </p>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="readingPercent(saga.progress)"
+                  aria-hidden="true"
+                />
+              </mat-card-content>
+              <mat-card-actions align="end">
+                <a
+                  mat-button
+                  [routerLink]="['/sagas', saga.id]"
+                  [queryParams]="listQueryParams()"
+                  [attr.aria-label]="'Ver saga ' + saga.name"
+                  >Ver saga</a
+                >
+              </mat-card-actions>
+            </mat-card>
+          }
+        </div>
+        @if (totalElements() > pageSize()) {
+          <mat-paginator
+            [length]="totalElements()"
+            [pageIndex]="pageIndex()"
+            [pageSize]="pageSize()"
+            [pageSizeOptions]="pageSizeOptions"
+            [showFirstLastButtons]="true"
+            (page)="onPageChange($event)"
+          />
+        }
+      }
+    }
+  }
+</section>

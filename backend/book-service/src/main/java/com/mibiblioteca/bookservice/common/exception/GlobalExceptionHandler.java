@@ -3,6 +3,7 @@ package com.mibiblioteca.bookservice.common.exception;
 import com.mibiblioteca.bookservice.book.lookup.BookLookupException;
 import com.mibiblioteca.bookservice.book.cover.CoverException;
 import com.mibiblioteca.bookservice.readinglist.ReadingListException;
+import com.mibiblioteca.bookservice.saga.SagaException;
 import com.mibiblioteca.bookservice.book.photoimport.PhotoImportException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.TransactionException;
@@ -45,6 +46,14 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(SagaException.class)
+    public ProblemDetail handleSaga(SagaException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setProperty("code", ex.code());
+        if (ex.field() != null) problem.setProperty("errors", Map.of(ex.field(), ex.getMessage()));
+        return problem;
+    }
+
     @ExceptionHandler(InvalidBookFilterException.class)
     public ProblemDetail handleBookFilter(InvalidBookFilterException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid catalog filter");
@@ -77,6 +86,34 @@ public class GlobalExceptionHandler {
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                 && "23505".equals(violation.getSQLState()) && "uq_reading_list_entry_book".equals(violation.getConstraintName())) {
                 return handleReadingList(ReadingListException.duplicate());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_saga_name_author".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.duplicate());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_saga_volume_book".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.duplicateBook());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23505".equals(violation.getSQLState()) && "uq_saga_volume_position".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.positionConflict());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23503".equals(violation.getSQLState()) && "fk_saga_volume_book".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.bookNotFound());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23503".equals(violation.getSQLState()) && "fk_saga_volume_saga".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.notFound());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23514".equals(violation.getSQLState()) && "ck_saga_volume_target".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.targetRequired());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                && "23514".equals(violation.getSQLState()) && "ck_saga_volume_position".equals(violation.getConstraintName())) {
+                return handleSaga(SagaException.invalidPosition());
             }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                 && "23505".equals(violation.getSQLState()) && "uq_book_isbn".equals(violation.getConstraintName())) {

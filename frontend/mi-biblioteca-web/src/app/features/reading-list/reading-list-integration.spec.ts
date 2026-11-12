@@ -181,6 +181,7 @@ describe('Reading list catalog/detail integration', () => {
       BookDetail,
     );
     http.expectOne('/api/books/42').flush(book);
+    http.expectOne('/api/books/42/sagas').flush([]);
     const membership = batch();
     expect(membership.request.params.getAll('bookId')).toEqual(['42']);
     membership.flush({ revision: '3', items: [{ bookId: 42, included: false, entryId: null }] });
@@ -199,10 +200,12 @@ describe('Reading list catalog/detail integration', () => {
   it('rejects late membership across detail ID changes and cancels writes on destruction', async () => {
     await harness.navigateByUrl('/books/42', BookDetail);
     http.expectOne('/api/books/42').flush(book);
+    http.expectOne('/api/books/42/sagas').flush([]);
     const old = batch();
     const page = await harness.navigateByUrl('/books/43', BookDetail);
     expect(old.cancelled).toBe(true);
     http.expectOne('/api/books/43').flush(second);
+    http.expectOne('/api/books/43/sagas').flush([]);
     batch().flush({ revision: '4', items: [{ bookId: 43, included: false, entryId: null }] });
     page.membership.add(43);
     const request = http.expectOne('/api/reading-list/items');

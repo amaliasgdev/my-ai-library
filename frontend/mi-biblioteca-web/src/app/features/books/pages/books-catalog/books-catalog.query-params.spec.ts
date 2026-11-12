@@ -301,6 +301,7 @@ describe('BooksCatalog URL source of truth (real Router)', () => {
       title: 'Dune',
     });
     http.expectOne('/api/books/1').flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await stable();
     TestBed.inject(Location).back();
     await vi.waitFor(() => expect(router.url).toBe(url));

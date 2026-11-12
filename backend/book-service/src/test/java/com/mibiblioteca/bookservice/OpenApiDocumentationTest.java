@@ -208,10 +208,107 @@ class OpenApiDocumentationTest {
             .isEqualTo("array");
     }
 
+    @Test
+    void documentsSagaContractsWithPaginationSearchRevisionAndProblemDetails() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths = document.path("paths");
+
+        var list = parametersByName(paths.path("/api/sagas").path("get"));
+        assertThat(list.keySet()).containsExactlyInAnyOrder("page", "size", "sortBy", "direction", "name");
+        assertThat(list.get("page").path("schema").path("default").asInt()).isZero();
+        assertThat(list.get("size").path("schema").path("default").asInt()).isEqualTo(20);
+        assertThat(list.get("sortBy").path("schema").path("default").asText()).isEqualTo("name");
+        assertThat(list.get("direction").path("schema").path("default").asText()).isEqualTo("ASC");
+        assertThat(list.get("name").path("required").asBoolean()).isFalse();
+        assertThat(list.get("sortBy").toString()).contains("name", "author", "createdAt", "updatedAt");
+
+        assertThat(paths.path("/api/sagas").path("post").path("responses").has("201")).isTrue();
+        for (String code : new String[] {"400", "409"}) {
+            assertThat(paths.path("/api/sagas").path("post").path("responses").has(code)).isTrue();
+        }
+        assertThat(paths.path("/api/sagas/{id}").path("get").path("responses").has("404")).isTrue();
+        assertThat(paths.path("/api/sagas/{id}").path("put").path("responses").has("409")).isTrue();
+        assertThat(paths.path("/api/sagas/{id}").path("delete").path("responses").has("204")).isTrue();
+
+        var update = parametersByName(paths.path("/api/sagas/{id}").path("put"));
+        assertThat(update).containsKeys("id", "expectedRevision");
+        assertThat(update.get("expectedRevision").path("required").asBoolean()).isTrue();
+        assertThat(update.get("expectedRevision").path("schema").path("type").asText()).isEqualTo("string");
+        var deletion = parametersByName(paths.path("/api/sagas/{id}").path("delete"));
+        assertThat(deletion).containsKeys("id", "expectedRevision");
+        assertThat(deletion.get("expectedRevision").path("required").asBoolean()).isTrue();
+
+        var schemas = document.path("components").path("schemas");
+        assertThat(schemas.path("SagaRequest").path("required").toString()).contains("name");
+        assertThat(schemas.path("SagaRequest").path("properties").path("name").path("maxLength").asInt())
+            .isEqualTo(255);
+        assertThat(schemas.path("SagaRequest").path("properties").path("imageUrl").path("maxLength").asInt())
+            .isEqualTo(2048);
+        assertThat(schemas.path("SagaResponse").path("properties").path("revision").path("type").toString())
+            .contains("\"string\"");
+        assertThat(schemas.path("SagaProgressResponse").path("properties").size()).isEqualTo(7);
+        assertThat(schemas.path("SagaPageResponse").path("properties").has("content")).isTrue();
+
+        var bookSagas = paths.path("/api/books/{id}/sagas").path("get");
+        assertThat(bookSagas.has("responses")).isTrue();
+        assertThat(bookSagas.path("responses").has("200")).isTrue();
+        assertThat(bookSagas.path("responses").has("404")).isTrue();
+        assertThat(bookSagas.path("description").asText()).contains("ordered", "empty array", "BookResponse");
+        assertThat(fieldNames(schemas.path("BookSagaResponse").path("properties")))
+            .containsExactlyInAnyOrder("sagaId", "sagaName", "volumeId", "position", "volumeLabel");
+    }
+
+    @Test
+    void documentsSagaVolumeContractsIncludingLinksMovesAndRevisions() throws Exception {
+        var document = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var paths = document.path("paths");
+        var collection = paths.path("/api/sagas/{sagaId}/volumes");
+        var volume = paths.path("/api/sagas/{sagaId}/volumes/{volumeId}");
+
+        assertThat(collection.has("get")).isTrue();
+        assertThat(collection.path("post").path("responses").has("201")).isTrue();
+        assertThat(collection.path("post").path("responses").has("409")).isTrue();
+        assertThat(volume.has("put")).isTrue();
+        assertThat(volume.path("delete").path("responses").has("200")).isTrue();
+        assertThat(paths.path("/api/sagas/{sagaId}/volumes/{volumeId}/move").path("post").path("responses").has("200")).isTrue();
+        assertThat(paths.path("/api/sagas/{sagaId}/volumes/{volumeId}/link").path("post").path("responses").has("200")).isTrue();
+        assertThat(paths.path("/api/sagas/{sagaId}/volumes/{volumeId}/unlink").path("post").path("responses").has("200")).isTrue();
+
+        var deletion = parametersByName(volume.path("delete"));
+        assertThat(deletion).containsKeys("sagaId", "volumeId", "expectedRevision");
+        assertThat(deletion.get("expectedRevision").path("required").asBoolean()).isTrue();
+        assertThat(deletion.get("expectedRevision").path("schema").path("type").asText()).isEqualTo("string");
+
+        var schemas = document.path("components").path("schemas");
+        assertThat(schemas.path("AddSagaVolumeRequest").path("required").toString())
+            .contains("expectedRevision")
+            .doesNotContain("bookId", "pendingTitle");
+        assertThat(schemas.path("AddSagaVolumeRequest").path("properties").path("volumeLabel").path("maxLength").asInt())
+            .isEqualTo(40);
+        assertThat(fieldNames(schemas.path("SagaVolumesResponse").path("properties")))
+            .containsExactlyInAnyOrder("revision", "progress", "volumes");
+        assertThat(schemas.path("SagaVolumesResponse").path("properties").path("revision").path("type").toString())
+            .contains("\"string\"");
+        assertThat(fieldNames(schemas.path("SagaVolumeResponse").path("properties")))
+            .contains("id", "position", "volumeLabel", "bookId", "book", "pendingTitle");
+        assertThat(schemas.path("SagaVolumeResponse").path("properties").path("book").path("$ref").asText())
+            .isEqualTo("#/components/schemas/SagaVolumeBookResponse");
+        assertThat(schemas.path("MoveSagaVolumeRequest").path("required").toString())
+            .contains("toPosition", "expectedRevision");
+    }
+
     private Map<String, JsonNode> parametersByName(JsonNode operation) {
         Map<String, JsonNode> parameters = new LinkedHashMap<>();
         operation.path("parameters").forEach(parameter -> parameters.put(parameter.path("name").asText(), parameter));
         return parameters;
+    }
+
+    private java.util.List<String> fieldNames(JsonNode node) {
+        var names = new java.util.ArrayList<String>();
+        node.fieldNames().forEachRemaining(names::add);
+        return names;
     }
 
     @Test

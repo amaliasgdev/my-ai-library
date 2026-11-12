@@ -1,0 +1,15 @@
+<section aria-labelledby="saga-create-heading">
+  <h1 id="saga-create-heading" tabindex="-1">Crear saga</h1>
+  <p class="intro">
+    Agrupa una serie literaria. Podrás añadir y ordenar volúmenes en la siguiente fase.
+  </p>
+  @if (generalError()) {
+    <app-inline-feedback variant="error">{{ generalError() }}</app-inline-feedback>
+  }
+  <app-saga-form
+    [submitting]="submitting()"
+    [submissionMessage]="submitting() ? 'Creando saga…' : ''"
+    (save)="save($event)"
+    (cancelled)="cancel()"
+  />
+</section>

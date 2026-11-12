@@ -1,0 +1,16 @@
+mat-form-field {
+  display: block;
+  width: 100%;
+}
+
+#saga-volume-form-help {
+  margin-block: 0 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.linked-book {
+  margin-block: 0 1rem;
+  padding: 0.75rem;
+  border-radius: var(--app-panel-radius);
+  background: var(--mat-sys-surface-container-low);
+}

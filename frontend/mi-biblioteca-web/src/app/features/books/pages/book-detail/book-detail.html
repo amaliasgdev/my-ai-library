@@ -107,6 +107,35 @@
               "
             ></p>
           </section>
+          @if (sagas().length > 0 || sagasState() === 'error') {
+            <section aria-labelledby="book-sagas-heading">
+              <h2 id="book-sagas-heading">Sagas</h2>
+              @if (sagasState() === 'error') {
+                <app-inline-feedback
+                  variant="warning"
+                  actionLabel="Reintentar"
+                  (action)="retrySagas()"
+                  >{{ sagasError() }}</app-inline-feedback
+                >
+              } @else {
+                <ul class="book-sagas">
+                  @for (membership of sagas(); track membership.sagaId) {
+                    <li>
+                      <a
+                        [routerLink]="['/sagas', membership.sagaId]"
+                        [attr.aria-label]="'Ver saga ' + membership.sagaName"
+                        >{{ membership.sagaName }}</a
+                      >
+                      @if (membership.volumeLabel) {
+                        <span>Etiqueta: {{ membership.volumeLabel }}</span>
+                      }
+                      <span>Posición: {{ membership.position }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          }
           <footer class="metadata">
             <p>
               Creado:

@@ -362,6 +362,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
     const detail = http.expectOne('/api/books/1');
     expect(detail.request.params.keys()).toEqual([]);
     detail.flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await stable();
     Array.from(harness.routeNativeElement!.querySelectorAll<HTMLAnchorElement>('a'))
       .find((item) => item.textContent?.trim() === 'Editar')!
@@ -385,6 +386,7 @@ describe('catalog filters with real Router and HTTP boundary', () => {
       .click();
     await stable();
     http.expectOne('/api/books/1').flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await stable();
     Array.from(harness.routeNativeElement!.querySelectorAll<HTMLAnchorElement>('a'))
       .find((item) => item.textContent?.trim() === 'Volver al catálogo')!

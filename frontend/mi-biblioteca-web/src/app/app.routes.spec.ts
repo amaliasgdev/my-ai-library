@@ -11,6 +11,12 @@ import { BookCreate } from './features/books/pages/book-create/book-create';
 import { testBook, testBookPage } from './features/books/models/book.testing';
 import { BookEdit } from './features/books/pages/book-edit/book-edit';
 import { BookDetail } from './features/books/pages/book-detail/book-detail';
+import { SagasList } from './features/sagas/pages/sagas-list/sagas-list';
+import { SagaCreate } from './features/sagas/pages/saga-create/saga-create';
+import { SagaDetail } from './features/sagas/pages/saga-detail/saga-detail';
+import { SagaEdit } from './features/sagas/pages/saga-edit/saga-edit';
+import { testSaga, testSagaPage, testSagaVolumes } from './features/sagas/models/saga.testing';
+import { testBookSagaMembership } from './features/sagas/models/saga.testing';
 import { MatDialog, MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
 
 describe('Application routes', () => {
@@ -109,6 +115,7 @@ describe('Application routes', () => {
     expect(TestBed.inject(Router).url).toBe('/books/1');
     expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(BookDetail);
     http.expectOne('/api/books/1').flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Libro de prueba');
     const anchors = () => Array.from(harness.routeNativeElement!.querySelectorAll('a'));
@@ -120,6 +127,7 @@ describe('Application routes', () => {
     http.expectOne('/api/books/1').flush(testBook());
     await harness.navigateByUrl('/books/1', BookDetail);
     http.expectOne('/api/books/1').flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await harness.fixture.whenStable();
     anchors()
       .find((a) => a.textContent?.trim() === 'Volver al catálogo')!
@@ -127,6 +135,74 @@ describe('Application routes', () => {
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/books');
     http.expectOne((req) => req.url === '/api/books').flush(testBookPage());
+  });
+
+  it('should navigate from BookDetail to a saga and back', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    await harness.navigateByUrl('/books/1', BookDetail);
+    http.expectOne('/api/books/1').flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([testBookSagaMembership()]);
+    await harness.fixture.whenStable();
+    (
+      harness.routeNativeElement!.querySelector(
+        'a[aria-label="Ver saga Nacidos de la bruma"]',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas/4');
+    http.expectOne('/api/sagas/4').flush(testSaga({ id: 4, name: 'Nacidos de la bruma' }));
+    http.expectOne('/api/sagas/4/volumes').flush(testSagaVolumes());
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe(
+      'Nacidos de la bruma',
+    );
+    (
+      Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
+        (anchor) => anchor.textContent?.trim() === 'Volver a Mis sagas',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas');
+    http.expectOne((request) => request.url === '/api/sagas').flush(testSagaPage());
+  });
+
+  it('should restore saga search and pagination when returning from a detail', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    await harness.navigateByUrl('/sagas?name=Vampiros&page=1&size=10', SagasList);
+    http
+      .expectOne((request) => request.url === '/api/sagas')
+      .flush(
+        testSagaPage({
+          page: 1,
+          size: 10,
+          content: [testSaga({ id: 7, name: 'Vampiros' })],
+        }),
+      );
+    await harness.fixture.whenStable();
+    (
+      harness.routeNativeElement!.querySelector(
+        'a[aria-label="Ver saga Vampiros"]',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas/7?page=1&size=10&name=Vampiros');
+    http.expectOne('/api/sagas/7').flush(testSaga({ id: 7, name: 'Vampiros' }));
+    http.expectOne('/api/sagas/7/volumes').flush(testSagaVolumes());
+    await harness.fixture.whenStable();
+    (
+      Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
+        (anchor) => anchor.textContent?.trim() === 'Volver a Mis sagas',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas?page=1&size=10&name=Vampiros');
+    const restored = http.expectOne((request) => request.url === '/api/sagas');
+    expect(restored.request.params.get('name')).toBe('Vampiros');
+    expect(restored.request.params.get('page')).toBe('1');
+    expect(restored.request.params.get('size')).toBe('10');
+    restored.flush(testSagaPage({ page: 1, size: 10, totalElements: 11, totalPages: 2 }));
   });
 
   it('should keep static new and edit routes before detail', () => {
@@ -140,6 +216,66 @@ describe('Application routes', () => {
       'books/:id',
       'books',
     ]);
+    expect(
+      routes.filter((route) => route.path?.startsWith('sagas')).map((route) => route.path),
+    ).toEqual(['sagas/new', 'sagas/:id/edit', 'sagas/:id', 'sagas']);
+  });
+
+  it('should lazy-load the saga list, create, detail and edit routes with titles', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    const title = TestBed.inject(Title);
+
+    await harness.navigateByUrl('/sagas', SagasList);
+    http.expectOne((request) => request.url === '/api/sagas').flush(testSagaPage());
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Mis sagas');
+    expect(title.getTitle()).toBe('Mis sagas | Mi Biblioteca');
+
+    await harness.navigateByUrl('/sagas/new', SagaCreate);
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Crear saga');
+    expect(title.getTitle()).toBe('Crear saga | Mi Biblioteca');
+    http.expectNone('/api/sagas');
+
+    await harness.navigateByUrl('/sagas/42', SagaDetail);
+    http.expectOne('/api/sagas/42').flush(testSaga({ id: 42 }));
+    http.expectOne('/api/sagas/42/volumes').flush(testSagaVolumes());
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Saga de prueba');
+    expect(title.getTitle()).toBe('Detalle de la saga | Mi Biblioteca');
+
+    await harness.navigateByUrl('/sagas/42/edit', SagaEdit);
+    http.expectOne('/api/sagas/42').flush(testSaga({ id: 42 }));
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Editar saga');
+    expect(title.getTitle()).toBe('Editar saga | Mi Biblioteca');
+  });
+
+  it('should navigate from the saga list to its detail and edit form', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+    await harness.navigateByUrl('/sagas', SagasList);
+    http
+      .expectOne((request) => request.url === '/api/sagas')
+      .flush(testSagaPage({ content: [testSaga({ id: 7, name: 'Saga siete' })] }));
+    await harness.fixture.whenStable();
+    (
+      harness.routeNativeElement!.querySelector(
+        'a[aria-label="Ver saga Saga siete"]',
+      ) as HTMLAnchorElement
+    ).click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas/7');
+    http.expectOne('/api/sagas/7').flush(testSaga({ id: 7, name: 'Saga siete' }));
+    http.expectOne('/api/sagas/7/volumes').flush(testSagaVolumes());
+    await harness.fixture.whenStable();
+    const edit = Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
+      (anchor) => anchor.textContent?.trim() === 'Editar',
+    )!;
+    edit.click();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/sagas/7/edit');
+    http.expectOne('/api/sagas/7').flush(testSaga({ id: 7 }));
   });
 
   it('should preserve catalog context through detail, edit cancellation and successful PUT', async () => {
@@ -163,6 +299,7 @@ describe('Application routes', () => {
     const get = http.expectOne('/api/books/1');
     expect(get.request.params.keys()).toEqual([]);
     get.flush(testBook());
+    http.expectOne('/api/books/1/sagas').flush([]);
     await harness.fixture.whenStable();
     click('Editar');
     await harness.fixture.whenStable();
@@ -210,6 +347,7 @@ describe('Application routes', () => {
       BookDetail,
     );
     http.expectOne('/api/books/42').flush(testBook({ id: 42 }));
+    http.expectOne('/api/books/42/sagas').flush([]);
     await harness.fixture.whenStable();
     const back = Array.from(harness.routeNativeElement!.querySelectorAll('a')).find(
       (a) => a.textContent?.trim() === 'Volver al catálogo',

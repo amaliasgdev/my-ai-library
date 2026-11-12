@@ -1,0 +1,44 @@
+<h2 mat-dialog-title>
+  {{ data.mode === 'add-pending' ? 'Añadir volumen pendiente' : 'Editar volumen' }}
+</h2>
+<mat-dialog-content>
+  <p id="saga-volume-form-help">
+    @if (isPending) {
+      El título provisional identifica el volumen mientras no está en la biblioteca. No se creará
+      ningún libro.
+    } @else {
+      El título y el autor se toman del libro vinculado. Aquí solo puedes cambiar la etiqueta.
+    }
+  </p>
+  <form
+    id="saga-volume-form"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    aria-describedby="saga-volume-form-help"
+  >
+    @if (isPending) {
+      <mat-form-field appearance="outline">
+        <mat-label>Título provisional</mat-label>
+        <input matInput formControlName="pendingTitle" required />
+        <mat-hint>Obligatorio</mat-hint>
+        <mat-error>{{ fieldError(form.controls.pendingTitle) }}</mat-error>
+      </mat-form-field>
+    } @else if (data.volume?.book; as book) {
+      <p class="linked-book">
+        Libro vinculado: <strong>{{ book.title }}</strong>
+      </p>
+    }
+    <mat-form-field appearance="outline">
+      <mat-label>Etiqueta visible (opcional)</mat-label>
+      <input matInput formControlName="volumeLabel" />
+      <mat-hint>Por ejemplo 0.5, Precuela o Novela corta</mat-hint>
+      <mat-error>{{ fieldError(form.controls.volumeLabel) }}</mat-error>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Cancelar</button>
+  <button mat-flat-button type="submit" form="saga-volume-form">
+    {{ data.mode === 'add-pending' ? 'Añadir volumen' : 'Guardar cambios' }}
+  </button>
+</mat-dialog-actions>

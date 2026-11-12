@@ -3,6 +3,30 @@ import { photoImportCanDeactivate } from './features/books/pages/book-photo-impo
 
 export const routes: Routes = [
   {
+    path: 'sagas/new',
+    title: 'Crear saga | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/sagas/pages/saga-create/saga-create').then((module) => module.SagaCreate),
+  },
+  {
+    path: 'sagas/:id/edit',
+    title: 'Editar saga | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/sagas/pages/saga-edit/saga-edit').then((module) => module.SagaEdit),
+  },
+  {
+    path: 'sagas/:id',
+    title: 'Detalle de la saga | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/sagas/pages/saga-detail/saga-detail').then((module) => module.SagaDetail),
+  },
+  {
+    path: 'sagas',
+    title: 'Mis sagas | Mi Biblioteca',
+    loadComponent: () =>
+      import('./features/sagas/pages/sagas-list/sagas-list').then((module) => module.SagasList),
+  },
+  {
     path: 'reading-list',
     title: 'Lista de lectura | Mi Biblioteca',
     loadComponent: () =>

@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BookServiceTest {
     @Spy private BookResponseMapper mapper = new BookResponseMapper();
     @Mock private com.mibiblioteca.bookservice.readinglist.ReadingListService readingList;
+    @Mock private com.mibiblioteca.bookservice.saga.SagaVolumeService sagaVolumes;
     @Mock private CoverLifecycle covers;
     @Spy
     private IsbnNormalizer isbnNormalizer = new IsbnNormalizer();

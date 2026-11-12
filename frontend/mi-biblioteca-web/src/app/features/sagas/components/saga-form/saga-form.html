@@ -1,0 +1,40 @@
+<form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()">
+  <div class="form-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="name" required [readonly]="submitting()" />
+      <mat-hint>Obligatorio</mat-hint>
+      <mat-error>{{ fieldError(form.controls.name) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Autor (opcional)</mat-label>
+      <input matInput formControlName="author" [readonly]="submitting()" />
+      <mat-hint>Puede quedar vacío</mat-hint>
+      <mat-error>{{ fieldError(form.controls.author) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Descripción (opcional)</mat-label>
+      <textarea
+        matInput
+        formControlName="description"
+        rows="4"
+        [readonly]="submitting()"
+      ></textarea>
+      <mat-hint>Máximo 5000 caracteres</mat-hint>
+      <mat-error>{{ fieldError(form.controls.description) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>URL de imagen (opcional)</mat-label>
+      <input matInput formControlName="imageUrl" [readonly]="submitting()" />
+      <mat-hint>Dirección HTTP/HTTPS de una imagen representativa</mat-hint>
+      <mat-error>{{ fieldError(form.controls.imageUrl) }}</mat-error>
+    </mat-form-field>
+  </div>
+  @if (submitting()) {
+    <app-inline-feedback variant="info">{{ submissionMessage() }}</app-inline-feedback>
+  }
+  <div class="actions">
+    <button mat-flat-button type="submit" [disabled]="submitting()">{{ saveLabel() }}</button>
+    <button mat-button type="button" [disabled]="submitting()" (click)="cancel()">Cancelar</button>
+  </div>
+</form>
